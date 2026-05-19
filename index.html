@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mía: La Mochila Robada</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Mía: La Mochila Robada</h1>
+      <p class="tagline">Un plataformero 2D al estilo clásico</p>
+    </header>
+
+    <div id="stage">
+      <canvas id="game" width="800" height="480"></canvas>
+      <div id="overlay" class="overlay">
+        <div class="panel">
+          <h2>Mía: La Mochila Robada</h2>
+          <p>
+            Recupera tu mochila de diseños de las garras del
+            <strong>Mapache Gigante Mutante</strong>.
+          </p>
+          <ul class="controls">
+            <li><kbd>A</kbd>/<kbd>D</kbd> o <kbd>←</kbd>/<kbd>→</kbd> — moverse</li>
+            <li><kbd>Shift</kbd> — correr</li>
+            <li><kbd>Espacio</kbd> o <kbd>↑</kbd> — saltar (mantén para saltar más alto)</li>
+            <li><kbd>J</kbd> — lanzar nota musical (con auriculares mágicos)</li>
+            <li><kbd>P</kbd> — pausar &nbsp;·&nbsp; <kbd>R</kbd> — reiniciar nivel</li>
+          </ul>
+          <button id="startBtn" type="button">Comenzar aventura</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>
+        Mundos: <strong>La Ciudad</strong> · <strong>El Parque Abandonado</strong> ·
+        <strong>Las Alcantarillas</strong> · <strong>El Rascacielos</strong>
+      </p>
+    </footer>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
