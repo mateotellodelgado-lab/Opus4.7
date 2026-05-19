@@ -1,6 +1,6 @@
-import { drawMia, drawCoin, drawBackpack } from './sprites.js';
+// HUD, mensajes, pantallas de pausa/game-over/victoria.
 
-export function drawHUD(ctx, viewW, state) {
+function drawHUD(ctx, viewW, state) {
   // barra superior
   ctx.fillStyle = 'rgba(8,5,22,0.55)';
   ctx.fillRect(0, 0, viewW, 36);
@@ -83,7 +83,7 @@ export function drawHUD(ctx, viewW, state) {
 }
 
 // Pantalla de pausa
-export function drawPause(ctx, viewW, viewH) {
+function drawPause(ctx, viewW, viewH) {
   ctx.fillStyle = 'rgba(8,5,22,0.65)';
   ctx.fillRect(0, 0, viewW, viewH);
   ctx.fillStyle = '#fff';
@@ -96,7 +96,7 @@ export function drawPause(ctx, viewW, viewH) {
   ctx.textAlign = 'left';
 }
 
-export function drawGameOver(ctx, viewW, viewH) {
+function drawGameOver(ctx, viewW, viewH) {
   ctx.fillStyle = 'rgba(8,5,22,0.85)';
   ctx.fillRect(0, 0, viewW, viewH);
   ctx.fillStyle = '#ff4fa3';
@@ -109,7 +109,7 @@ export function drawGameOver(ctx, viewW, viewH) {
   ctx.textAlign = 'left';
 }
 
-export function drawWin(ctx, viewW, viewH, state) {
+function drawWin(ctx, viewW, viewH, state) {
   ctx.fillStyle = 'rgba(8,5,22,0.85)';
   ctx.fillRect(0, 0, viewW, viewH);
   ctx.fillStyle = '#6cf0ff';

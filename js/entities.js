@@ -1,11 +1,6 @@
-import { TILE } from './world.js';
-import {
-  drawCoin, drawEnergyDrink, drawHeadphonesItem, drawMusicNote,
-  drawGoal, drawBackpack,
-} from './sprites.js';
-import { SFX } from './audio.js';
+// Entidades del mundo: monedas, power-ups, notas musicales, meta y mochila.
 
-export class Coin {
+class Coin {
   constructor(x, y) {
     this.x = x; this.y = y;
     this.w = 24; this.h = 24;
@@ -20,7 +15,7 @@ export class Coin {
 }
 
 // Moneda volátil que aparece al golpear caja misteriosa.
-export class PopCoin {
+class PopCoin {
   constructor(x, y) {
     this.x = x - 12; this.y = y - 24;
     this.vy = -360; this.vx = 0;
@@ -43,7 +38,7 @@ export class PopCoin {
 }
 
 // Power-up que sube de la caja y luego camina horizontal cayendo por gravedad.
-export class PowerUp {
+class PowerUp {
   constructor(x, y, kind) {
     this.kind = kind; // 'energy' | 'headphones'
     this.x = x - 14; this.y = y;
@@ -117,7 +112,7 @@ export class PowerUp {
 }
 
 // Proyectil "nota musical" — rebota en el suelo y puede destruir cactus.
-export class MusicNote {
+class MusicNote {
   constructor(x, y, dir) {
     this.x = x; this.y = y;
     this.w = 20; this.h = 20;
@@ -180,7 +175,7 @@ export class MusicNote {
 }
 
 // Meta — estación de tren / parada de autobús.
-export class Goal {
+class Goal {
   constructor(col, row) {
     this.x = col * TILE - 16;
     this.y = row * TILE - TILE * 2;
@@ -194,7 +189,7 @@ export class Goal {
 }
 
 // La mochila, recompensa final del jefe.
-export class Backpack {
+class Backpack {
   constructor(x, y) {
     this.x = x; this.y = y;
     this.w = 32; this.h = 32;

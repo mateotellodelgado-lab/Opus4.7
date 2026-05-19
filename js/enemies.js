@@ -1,6 +1,4 @@
-import { TILE } from './world.js';
-import { drawSlime, drawCrow, drawCactus, drawRaccoonBoss } from './sprites.js';
-import { SFX } from './audio.js';
+// Enemigos: Slime de Basura, Cuervo Robacarteras, Cactus Rodante, Mapache jefe.
 
 // Helper: colisión vertical contra el world. Se usa para que enemies caigan
 // y caminen sobre tiles sólidos. (Versión simple, no tan estricta como la
@@ -71,7 +69,7 @@ class Enemy {
 }
 
 // ---------- Slime de Basura ----------
-export class Slime extends Enemy {
+class Slime extends Enemy {
   constructor(x, y) {
     super(x, y, 28, 28);
     this.kind = 'slime';
@@ -117,7 +115,7 @@ export class Slime extends Enemy {
 }
 
 // ---------- Cuervo Robacarteras ----------
-export class Crow extends Enemy {
+class Crow extends Enemy {
   constructor(x, y, flying) {
     super(x, y, 28, 28);
     this.kind = 'crow';
@@ -226,7 +224,7 @@ export class Crow extends Enemy {
 }
 
 // ---------- Cactus Rodante (invencible al salto) ----------
-export class Cactus extends Enemy {
+class Cactus extends Enemy {
   constructor(x, y) {
     super(x, y, 30, 30);
     this.kind = 'cactus';
@@ -272,7 +270,7 @@ export class Cactus extends Enemy {
 }
 
 // ---------- Mapache Gigante Mutante (jefe) ----------
-export class RaccoonBoss extends Enemy {
+class RaccoonBoss extends Enemy {
   constructor(x, y) {
     super(x, y, 96, 96);
     this.kind = 'boss';

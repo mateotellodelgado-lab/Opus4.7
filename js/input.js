@@ -12,7 +12,7 @@ const ACTION_BY_KEY = {
   Enter: 'confirm',
 };
 
-export class Input {
+class Input {
   constructor() {
     this.down = new Set();      // acciones presionadas
     this.pressed = new Set();   // acciones que cambiaron a "presionadas" este frame

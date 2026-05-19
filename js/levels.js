@@ -17,7 +17,7 @@
 //
 // Todos los niveles miden 15 filas de alto. La fila inferior debe ser piso.
 
-export const LEVELS = [
+const LEVELS = [
   {
     id: 1,
     name: 'La Ciudad',

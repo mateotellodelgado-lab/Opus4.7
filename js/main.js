@@ -1,11 +1,4 @@
-import { Input } from './input.js';
-import { LEVELS } from './levels.js';
-import { World, TILE } from './world.js';
-import { Player } from './player.js';
-import { Slime, Crow, Cactus, RaccoonBoss } from './enemies.js';
-import { Coin, PopCoin, PowerUp, MusicNote, Goal, Backpack } from './entities.js';
-import { drawHUD, drawPause, drawGameOver, drawWin } from './hud.js';
-import { SFX, unlockAudio } from './audio.js';
+// Bucle principal del juego: estados, cámara, lógica de alto nivel.
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');

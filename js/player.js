@@ -1,6 +1,4 @@
-import { TILE } from './world.js';
-import { drawMia } from './sprites.js';
-import { SFX } from './audio.js';
+// Mía: jugadora con física de plataformas, salto variable y power-ups.
 
 // Constantes de física (px/seg).
 const GRAVITY = 1800;
@@ -16,7 +14,7 @@ const JUMP_HOLD_TIME  = 0.22;       // seg máx que la fuerza extra se aplica
 const COYOTE_TIME = 0.08;
 const JUMP_BUFFER = 0.10;
 
-export class Player {
+class Player {
   constructor(x, y) {
     this.x = x; this.y = y;
     this.vx = 0; this.vy = 0;

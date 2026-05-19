@@ -1,9 +1,9 @@
-import * as Sprites from './sprites.js';
+// Tipos y constantes de tilemap, fondos parallax y render de tiles.
 
-export const TILE = 32; // px por celda
+const TILE = 32; // px por celda
 
 // Tipos de tile
-export const T = {
+const T = {
   EMPTY: 0,
   GROUND: 1,
   PLATFORM: 2,
@@ -16,7 +16,7 @@ export const T = {
 
 const SOLID = new Set([T.GROUND, T.PLATFORM, T.BRICK, T.MYSTERY, T.MYSTERY_POWER, T.MYSTERY_HP, T.EMPTY_BOX]);
 
-export class World {
+class World {
   constructor(level) {
     this.level = level;
     this.world = level.world;
@@ -278,17 +278,17 @@ export class World {
         const py = r * TILE - cam.y + oy;
 
         switch (v) {
-          case T.GROUND: Sprites.drawGround(ctx, px, py, TILE, this.world); break;
-          case T.PLATFORM: Sprites.drawPlatform(ctx, px, py, TILE, this.world); break;
-          case T.BRICK: Sprites.drawBrick(ctx, px, py, TILE); break;
+          case T.GROUND: drawGround(ctx, px, py, TILE, this.world); break;
+          case T.PLATFORM: drawPlatform(ctx, px, py, TILE, this.world); break;
+          case T.BRICK: drawBrick(ctx, px, py, TILE); break;
           case T.MYSTERY:
           case T.MYSTERY_POWER:
           case T.MYSTERY_HP: {
             const blink = (Math.floor(t * 4) % 2) === 0;
-            Sprites.drawMysteryBox(ctx, px, py, TILE, { blink });
+            drawMysteryBox(ctx, px, py, TILE, { blink });
             break;
           }
-          case T.EMPTY_BOX: Sprites.drawMysteryBox(ctx, px, py, TILE, { empty: true }); break;
+          case T.EMPTY_BOX: drawMysteryBox(ctx, px, py, TILE, { empty: true }); break;
         }
       }
     }

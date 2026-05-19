@@ -1,41 +1,54 @@
 # Mía: La Mochila Robada
 
 Un plataformero 2D inspirado en _Super Mario Bros_ con una protagonista y un
-mundo renovados. Construido en HTML5 Canvas + JavaScript (ES modules), sin
-frameworks ni assets externos: todo el pixel art se dibuja programáticamente.
+mundo renovados. Construido en HTML5 Canvas + JavaScript (ES5+ clásico, sin
+módulos ES). No usa frameworks ni assets externos: todo el pixel art se
+dibuja programáticamente.
 
 > Mía está en un viaje para recuperar su **Mochila de Diseños**, robada por el
 > **Mapache Gigante Mutante**. Para llegar hasta él tendrá que cruzar la
 > Ciudad, el Parque Abandonado y las Alcantarillas hasta su guarida en la
 > azotea de un rascacielos.
 
-## Cómo jugar
+## Cómo descargarlo y jugarlo
 
-Abre `index.html` desde un servidor estático (los módulos ES requieren HTTP,
-no `file://`). Por ejemplo:
+### Opción A — Descarga ZIP (la más fácil, sin terminal)
+
+1. Entra al repo en GitHub:
+   <https://github.com/mateotellodelgado-lab/Opus4.7>
+2. Pulsa el botón verde **`<> Code`** → **Download ZIP**.
+3. Extrae el ZIP en cualquier carpeta.
+4. Haz **doble clic en `index.html`** — se abrirá en tu navegador.
+5. Pulsa **Comenzar aventura** y juega.
+
+> El juego corre 100% en local; no necesita conexión a internet ni instalar
+> nada.
+
+### Opción B — Clonar con git
 
 ```bash
-# Python 3
-python3 -m http.server 8000
-# luego abre http://localhost:8000
-
-# o con Node
-npx serve .
+git clone https://github.com/mateotellodelgado-lab/Opus4.7.git
+cd Opus4.7
+# abre index.html con doble clic, o:
+xdg-open index.html      # Linux
+open index.html          # macOS
+start index.html         # Windows
 ```
-
-Pulsa **Comenzar aventura** y a jugar.
 
 ### Controles
 
-| Acción              | Tecla                              |
-| ------------------- | ---------------------------------- |
-| Caminar             | `A`/`D` o `←`/`→`                  |
-| Correr              | mantén `Shift`                     |
-| Saltar              | `Espacio` o `↑` (mantén = más alto) |
-| Lanzar nota musical | `J` (con auriculares mágicos)      |
-| Pausar              | `P`                                |
-| Reiniciar nivel     | `R`                                |
-| Confirmar           | `Enter`                            |
+| Acción              | Tecla                                |
+| ------------------- | ------------------------------------ |
+| Caminar             | `A`/`D` o `←`/`→`                    |
+| Correr              | mantén `Shift`                       |
+| Saltar              | `Espacio` o `↑` (mantén = más alto)   |
+| Lanzar nota musical | `J` (con auriculares mágicos)        |
+| Pausar              | `P`                                  |
+| Reiniciar nivel     | `R`                                  |
+| Confirmar           | `Enter`                              |
+
+> Para que el sonido se active, el navegador exige una interacción del
+> usuario. El primer clic en **Comenzar aventura** lo desbloquea.
 
 ## Mecánicas implementadas
 
@@ -53,8 +66,8 @@ Pulsa **Comenzar aventura** y a jugar.
   - **Auriculares Mágicos** → puede lanzar **notas musicales** que rebotan en
     el suelo y derrotan enemigos a distancia, incluyendo cactus.
 - **Enemigos**:
-  - **Slimes de Basura** (Goombas) — patrullan; pisotón los aplasta.
-  - **Cuervos Robacarteras** (Koopas) — caminantes o voladores. Al pisarlos se
+  - **Slimes de Basura** (Goomba) — patrullan; pisotón los aplasta.
+  - **Cuervos Robacarteras** (Koopa) — caminantes o voladores. Al pisarlos se
     esconden en sus alas; un nuevo contacto los lanza como proyectil que
     elimina a otros enemigos.
   - **Cactus Rodantes** — invencibles al salto: hay que esquivarlos o
@@ -66,7 +79,7 @@ Pulsa **Comenzar aventura** y a jugar.
   2. El Parque Abandonado
   3. Las Alcantarillas
   4. El Rascacielos (jefe final)
-- **Jefe final**: Mapache Gigante Mutante. 5 puntos de vida; aceptar pisotones
+- **Jefe final**: Mapache Gigante Mutante. 5 puntos de vida, recibe pisotones
   y notas musicales por igual. Tras vencerlo aparece la **Mochila de Diseños**:
   recógela y llega a la parada para ganar.
 
@@ -78,30 +91,30 @@ Pulsa **Comenzar aventura** y a jugar.
 ├── css/
 │   └── style.css
 └── js/
-    ├── main.js       # bucle, estados, cámara, colisiones de alto nivel
-    ├── input.js      # mapeo de teclado a acciones
     ├── audio.js      # SFX sintetizados con WebAudio (sin assets)
     ├── sprites.js    # pixel-art programático (fillRect)
+    ├── levels.js     # 4 niveles definidos como filas de texto
     ├── world.js      # tilemap, fondos parallax, render de tiles
     ├── player.js     # Mía y su física
     ├── enemies.js    # Slime, Cuervo, Cactus, Jefe
     ├── entities.js   # Monedas, power-ups, notas, meta, mochila
-    ├── levels.js     # niveles definidos como filas de texto
-    └── hud.js        # interfaz, pantallas de pausa/win/gameover
+    ├── hud.js        # interfaz, pantallas de pausa/win/gameover
+    ├── input.js      # mapeo de teclado a acciones
+    └── main.js       # bucle, estados, cámara, colisiones de alto nivel
 ```
 
 Cada nivel es una rejilla de caracteres en `levels.js`:
 
-| Char | Significado                                        |
-| ---- | -------------------------------------------------- |
-| `#`  | suelo                                              |
-| `=`  | plataforma (atravesable desde abajo)               |
-| `B`  | ladrillo (rompible si Mía es grande)               |
-| `?`  | caja misteriosa con moneda                         |
-| `$`  | caja con power-up adaptativo (bebida/auriculares)  |
-| `*`  | caja con auriculares garantizados                  |
-| `C`  | moneda suelta                                      |
+| Char | Significado                                         |
+| ---- | --------------------------------------------------- |
+| `#`  | suelo                                               |
+| `=`  | plataforma (atravesable desde abajo)                |
+| `B`  | ladrillo (rompible si Mía es grande)                |
+| `?`  | caja misteriosa con moneda                          |
+| `$`  | caja con power-up adaptativo (bebida/auriculares)   |
+| `*`  | caja con auriculares garantizados                   |
+| `C`  | moneda suelta                                       |
 | `S`  | slime · `K` cuervo · `F` cuervo volador · `X` cactus |
-| `G`  | meta (estación / parada)                           |
+| `G`  | meta (estación / parada)                            |
 
 Crear un nivel nuevo es tan fácil como añadir una entrada al array `LEVELS`.

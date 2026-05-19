@@ -35,7 +35,7 @@ const PALETTE = {
  * @param {number} h alto del sprite (32 para small, 48 para big)
  * @param {object} opts {facing:1|-1, walkPhase:0..3, isJumping, hasHeadphones, blink}
  */
-export function drawMia(ctx, x, y, w, h, opts = {}) {
+function drawMia(ctx, x, y, w, h, opts = {}) {
   const facing = opts.facing ?? 1;
   const walk = opts.walkPhase ?? 0;
   const jumping = !!opts.isJumping;
@@ -134,7 +134,7 @@ export function drawMia(ctx, x, y, w, h, opts = {}) {
 }
 
 // ---------- Slime de Basura ----------
-export function drawSlime(ctx, x, y, w, h, opts = {}) {
+function drawSlime(ctx, x, y, w, h, opts = {}) {
   const sx = w / 16, sy = h / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
@@ -168,7 +168,7 @@ export function drawSlime(ctx, x, y, w, h, opts = {}) {
 }
 
 // ---------- Cuervo Robacarteras ----------
-export function drawCrow(ctx, x, y, w, h, opts = {}) {
+function drawCrow(ctx, x, y, w, h, opts = {}) {
   const sx = w / 16, sy = h / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
@@ -232,7 +232,7 @@ export function drawCrow(ctx, x, y, w, h, opts = {}) {
 }
 
 // ---------- Cactus Rodante ----------
-export function drawCactus(ctx, x, y, w, h, opts = {}) {
+function drawCactus(ctx, x, y, w, h, opts = {}) {
   const sx = w / 16, sy = h / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
@@ -264,7 +264,7 @@ export function drawCactus(ctx, x, y, w, h, opts = {}) {
 }
 
 // ---------- Caja de cartón misteriosa ----------
-export function drawMysteryBox(ctx, x, y, size, opts = {}) {
+function drawMysteryBox(ctx, x, y, size, opts = {}) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -297,7 +297,7 @@ export function drawMysteryBox(ctx, x, y, size, opts = {}) {
 }
 
 // ---------- Bloque ladrillo ----------
-export function drawBrick(ctx, x, y, size) {
+function drawBrick(ctx, x, y, size) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -314,7 +314,7 @@ export function drawBrick(ctx, x, y, size) {
 }
 
 // ---------- Tile sólido (suelo) ----------
-export function drawGround(ctx, x, y, size, world = 'city') {
+function drawGround(ctx, x, y, size, world = 'city') {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -354,7 +354,7 @@ export function drawGround(ctx, x, y, size, world = 'city') {
 }
 
 // ---------- Plataforma flotante ----------
-export function drawPlatform(ctx, x, y, size, world = 'city') {
+function drawPlatform(ctx, x, y, size, world = 'city') {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -379,7 +379,7 @@ export function drawPlatform(ctx, x, y, size, world = 'city') {
 }
 
 // ---------- Moneda de plata ----------
-export function drawCoin(ctx, x, y, size, t = 0) {
+function drawCoin(ctx, x, y, size, t = 0) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -397,7 +397,7 @@ export function drawCoin(ctx, x, y, size, t = 0) {
 }
 
 // ---------- Bebida Energética ----------
-export function drawEnergyDrink(ctx, x, y, size) {
+function drawEnergyDrink(ctx, x, y, size) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -417,7 +417,7 @@ export function drawEnergyDrink(ctx, x, y, size) {
 }
 
 // ---------- Auriculares Mágicos (item) ----------
-export function drawHeadphonesItem(ctx, x, y, size) {
+function drawHeadphonesItem(ctx, x, y, size) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -437,7 +437,7 @@ export function drawHeadphonesItem(ctx, x, y, size) {
 }
 
 // ---------- Nota musical (proyectil) ----------
-export function drawMusicNote(ctx, x, y, size, t = 0) {
+function drawMusicNote(ctx, x, y, size, t = 0) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -448,7 +448,7 @@ export function drawMusicNote(ctx, x, y, size, t = 0) {
 }
 
 // ---------- Estación de tren / parada ----------
-export function drawGoal(ctx, x, y, w, h) {
+function drawGoal(ctx, x, y, w, h) {
   const sx = w / 32, sy = h / 64;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
@@ -469,7 +469,7 @@ export function drawGoal(ctx, x, y, w, h) {
 }
 
 // ---------- Mochila de Mía (objetivo final) ----------
-export function drawBackpack(ctx, x, y, size) {
+function drawBackpack(ctx, x, y, size) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
@@ -485,7 +485,7 @@ export function drawBackpack(ctx, x, y, size) {
 }
 
 // ---------- Mapache Gigante Mutante (jefe) ----------
-export function drawRaccoonBoss(ctx, x, y, w, h, opts = {}) {
+function drawRaccoonBoss(ctx, x, y, w, h, opts = {}) {
   const sx = w / 32, sy = h / 32;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);

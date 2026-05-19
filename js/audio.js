@@ -2,17 +2,17 @@
 // Inicialización perezosa porque los navegadores requieren un gesto del
 // usuario antes de permitir audio.
 
-let ctx = null;
+let audioCtx = null;
 
 function ensureCtx() {
-  if (ctx) return ctx;
+  if (audioCtx) return audioCtx;
   const Ctor = window.AudioContext || window.webkitAudioContext;
   if (!Ctor) return null;
-  ctx = new Ctor();
-  return ctx;
+  audioCtx = new Ctor();
+  return audioCtx;
 }
 
-export function unlockAudio() {
+function unlockAudio() {
   const c = ensureCtx();
   if (c && c.state === 'suspended') c.resume();
 }
@@ -33,7 +33,7 @@ function blip({ freq = 440, dur = 0.1, type = 'square', vol = 0.18, slide = 0 })
   osc.stop(t0 + dur + 0.02);
 }
 
-export const SFX = {
+const SFX = {
   jump:    () => blip({ freq: 520, dur: 0.12, type: 'square', slide: 280 }),
   coin:    () => { blip({ freq: 880, dur: 0.06, type: 'square' }); setTimeout(() => blip({ freq: 1320, dur: 0.1, type: 'square' }), 50); },
   stomp:   () => blip({ freq: 180, dur: 0.1, type: 'sawtooth', slide: -100 }),
