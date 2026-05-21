@@ -7,6 +7,8 @@ const ACTION_BY_KEY = {
   ArrowUp: 'jump', Space: 'jump',
   ShiftLeft: 'run', ShiftRight: 'run',
   KeyJ: 'shoot',
+  KeyK: 'attack',
+  KeyZ: 'attack',     // alternativa
   KeyP: 'pause',
   KeyR: 'restart',
   Enter: 'confirm',

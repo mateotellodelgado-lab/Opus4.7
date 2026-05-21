@@ -1,18 +1,24 @@
-// Mía: jugadora con física de plataformas, salto variable y power-ups.
+// Mía: jugadora con física de plataformas, salto variable, espada y power-ups.
+// Constantes de física escaladas por 1.25 para acompañar TILE=40 (era 32).
 
 // Constantes de física (px/seg).
-const GRAVITY = 1800;
-const MAX_FALL = 900;
-const WALK_ACCEL = 900;
-const RUN_ACCEL  = 1400;
-const WALK_MAX   = 180;
-const RUN_MAX    = 320;
-const FRICTION   = 1300;
-const JUMP_VEL   = -560;            // velocidad inicial al saltar
-const JUMP_HOLD_FORCE = -1100;      // contra-gravedad mientras se mantiene espacio
-const JUMP_HOLD_TIME  = 0.22;       // seg máx que la fuerza extra se aplica
+const GRAVITY = 2250;            // 1800 * 1.25
+const MAX_FALL = 1125;           // 900 * 1.25
+const WALK_ACCEL = 1125;         // 900 * 1.25
+const RUN_ACCEL  = 1750;         // 1400 * 1.25
+const WALK_MAX   = 225;          // 180 * 1.25
+const RUN_MAX    = 400;          // 320 * 1.25
+const FRICTION   = 1625;         // 1300 * 1.25
+const JUMP_VEL   = -700;         // -560 * 1.25
+const JUMP_HOLD_FORCE = -1375;   // -1100 * 1.25
+const JUMP_HOLD_TIME  = 0.22;
 const COYOTE_TIME = 0.08;
 const JUMP_BUFFER = 0.10;
+
+// Espada
+const SWORD_DURATION = 0.22;     // duración del swing visible
+const SWORD_COOLDOWN = 0.32;     // tiempo mínimo entre swings
+const SWORD_REACH = 38;          // alcance horizontal del hitbox
 
 class Player {
   constructor(x, y) {
@@ -27,25 +33,52 @@ class Player {
     this.jumpBuffer = 0;
     this.jumpHold = 0;
     this.jumping = false;
-    this.invuln = 0;       // segundos de invulnerabilidad tras recibir golpe
+    this.invuln = 0;
     this.dead = false;
     this.deathTimer = 0;
     this.walkPhase = 0;
     this.walkTimer = 0;
     this.shootCooldown = 0;
-    this.justBumped = null;  // {col, row} a procesar por main
-    this.justHit = null;     // resultado de bump
+    this.justBumped = null;
+    this.justHit = null;
     this.spawnX = x; this.spawnY = y;
     this.completed = false;
     this.win = false;
+
+    // Espada
+    this.swordTimer = 0;       // > 0 mientras está activa
+    this.swordCooldown = 0;
+    this.swordHits = new Set(); // ids ya golpeados en este swing
+    this.swordSwingId = 0;
+
+    // Squash & stretch
+    this.landSquash = 0;       // > 0 brevemente al aterrizar
+    this._wasOnGround = false;
   }
 
-  get width()  { return 24; }
-  get height() { return this.size === 'big' ? 48 : 28; }
+  // Ligeramente más grandes que antes para acompañar TILE=40
+  get width()  { return 30; }
+  get height() { return this.size === 'big' ? 60 : 36; }
 
-  // Caja de colisión con padding interior.
   get aabb() {
     return { x: this.x, y: this.y, w: this.width, h: this.height };
+  }
+
+  // Hitbox del swing de espada (frente a Mía mientras swordTimer > 0)
+  get swordHitbox() {
+    if (this.swordTimer <= 0) return null;
+    const hx = this.facing > 0 ? (this.x + this.width - 4) : (this.x - SWORD_REACH + 4);
+    return {
+      x: hx,
+      y: this.y + 6,
+      w: SWORD_REACH,
+      h: this.height - 10,
+    };
+  }
+
+  get isSwinging() { return this.swordTimer > 0; }
+  get swingProgress() {
+    return this.swordTimer > 0 ? 1 - (this.swordTimer / SWORD_DURATION) : 0;
   }
 
   reset(x, y) {
@@ -58,6 +91,18 @@ class Player {
     this.dead = false;
     this.deathTimer = 0;
     this.completed = false;
+    this.swordTimer = 0;
+    this.swordCooldown = 0;
+  }
+
+  attack() {
+    if (this.swordCooldown > 0 || this.dead) return false;
+    this.swordTimer = SWORD_DURATION;
+    this.swordCooldown = SWORD_COOLDOWN;
+    this.swordHits = new Set();
+    this.swordSwingId++;
+    SFX.shoot();
+    return true;
   }
 
   takeDamage() {
@@ -74,11 +119,10 @@ class Player {
       SFX.hit();
       return false;
     }
-    // muerte
     this.dead = true;
     this.deathTimer = 0;
     this.vx = 0;
-    this.vy = -500;
+    this.vy = -560;
     SFX.death();
     return true;
   }
@@ -86,11 +130,8 @@ class Player {
   grow() {
     if (this.size === 'small') {
       this.size = 'big';
-      // empujar un poco hacia arriba para no quedar atascada
-      this.y -= 20;
+      this.y -= 24;
       SFX.power();
-    } else {
-      // si ya está grande, dar puntos extra
     }
   }
 
@@ -98,13 +139,13 @@ class Player {
     this.hasHeadphones = true;
     if (this.size === 'small') {
       this.size = 'big';
-      this.y -= 20;
+      this.y -= 24;
     }
     SFX.power();
   }
 
   bounce(small = false) {
-    this.vy = small ? -300 : -480;
+    this.vy = small ? -380 : -600;
     this.jumping = false;
     this.jumpHold = 0;
   }
@@ -117,6 +158,18 @@ class Player {
       return;
     }
 
+    // Timers de espada
+    if (this.swordTimer > 0) this.swordTimer -= dt;
+    if (this.swordCooldown > 0) this.swordCooldown -= dt;
+
+    // Trigger de ataque
+    if (input.wasPressed('attack')) {
+      this.attack();
+    }
+
+    // Squash & stretch: aterrizaje
+    if (this.landSquash > 0) this.landSquash -= dt;
+
     // Entrada horizontal
     const left = input.isDown('left');
     const right = input.isDown('right');
@@ -128,20 +181,18 @@ class Player {
     if (dir !== 0) {
       this.vx += dir * accel * dt;
       this.facing = dir;
-      // si va más rápido del máximo (porque venía corriendo y soltó shift), frenar suave
       if (Math.abs(this.vx) > maxSpeed) {
         const sign = Math.sign(this.vx);
         this.vx = sign * Math.max(maxSpeed, Math.abs(this.vx) - FRICTION * 0.5 * dt);
       }
     } else {
-      // fricción
       const sign = Math.sign(this.vx);
       this.vx -= sign * FRICTION * dt;
       if (Math.sign(this.vx) !== sign) this.vx = 0;
     }
     this.vx = Math.max(-RUN_MAX, Math.min(RUN_MAX, this.vx));
 
-    // Coyote time / buffer
+    // Coyote / buffer
     this.coyote = this.onGround ? COYOTE_TIME : Math.max(0, this.coyote - dt);
     if (input.wasPressed('jump')) this.jumpBuffer = JUMP_BUFFER;
     else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
@@ -156,7 +207,6 @@ class Player {
       SFX.jump();
     }
 
-    // Salto variable: aplicar fuerza extra hacia arriba mientras se mantenga.
     if (this.jumping && input.isDown('jump') && this.jumpHold > 0 && this.vy < 0) {
       this.vy += JUMP_HOLD_FORCE * dt;
       this.jumpHold -= dt;
@@ -165,29 +215,30 @@ class Player {
       this.jumpHold = 0;
     }
 
-    // Cooldown de disparo
     if (this.shootCooldown > 0) this.shootCooldown -= dt;
 
-    // Gravedad
     this.vy += GRAVITY * dt;
     if (this.vy > MAX_FALL) this.vy = MAX_FALL;
 
-    // Movimiento + colisiones (separado por eje)
     this.justBumped = null;
     this.moveAndCollide(dt, world);
 
+    // Detectar aterrizaje para squash
+    if (this.onGround && !this._wasOnGround) {
+      this.landSquash = 0.12;
+    }
+    this._wasOnGround = this.onGround;
+
     // Animación de caminar
     if (this.onGround && Math.abs(this.vx) > 10) {
-      this.walkTimer += Math.abs(this.vx) * dt * 0.05;
+      this.walkTimer += Math.abs(this.vx) * dt * 0.04;
       this.walkPhase = Math.floor(this.walkTimer) % 4;
     } else {
       this.walkPhase = 0;
     }
 
-    // Invulnerabilidad
     if (this.invuln > 0) this.invuln -= dt;
 
-    // Caer fuera del mapa = muerte
     if (this.y > world.heightPx + 200) {
       if (!this.dead) {
         this.dead = true;
@@ -263,23 +314,46 @@ class Player {
   }
 
   draw(ctx, cam, t) {
-    // parpadeo si invulnerable
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) return;
 
-    const w = this.size === 'big' ? 32 : 24;
-    const h = this.size === 'big' ? 48 : 32;
-    // alinear el sprite con la AABB (la AABB es 24x28/48; el sprite extra contiene
-    // un poco de cabello/auriculares fuera del top — desplazamos hacia arriba)
+    // Sprite displays más grandes (1.5x el grid 24x36)
+    const w = this.size === 'big' ? 48 : 36;
+    const h = this.size === 'big' ? 72 : 54;
+
     const drawX = this.x - cam.x + (this.width - w) / 2;
     const drawY = this.y - cam.y - (h - this.height);
+
+    // Squash & stretch
+    let stretchY = 1, stretchX = 1;
+    if (this.landSquash > 0) {
+      // Aplastarse al aterrizar
+      const k = this.landSquash / 0.12;
+      stretchY = 1 - 0.18 * k;
+      stretchX = 1 + 0.14 * k;
+    } else if (!this.onGround) {
+      if (this.vy < -50) {
+        // Subiendo: estirar verticalmente
+        const k = Math.min(1, -this.vy / 700);
+        stretchY = 1 + 0.18 * k;
+        stretchX = 1 - 0.10 * k;
+      } else if (this.vy > 100) {
+        // Cayendo: levemente alargar pero menos
+        stretchY = 1.06;
+        stretchX = 0.96;
+      }
+    }
 
     const blink = (Math.floor(t * 2) % 8) === 0;
     drawMia(ctx, drawX, drawY, w, h, {
       facing: this.facing,
       walkPhase: this.walkPhase,
-      isJumping: !this.onGround,
+      isJumping: !this.onGround && this.vy < 0,
+      isFalling: !this.onGround && this.vy >= 0,
       hasHeadphones: this.hasHeadphones,
       blink,
+      swinging: this.isSwinging,
+      swingT: this.swingProgress,
+      stretchX, stretchY,
     });
   }
 }

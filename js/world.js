@@ -1,6 +1,6 @@
 // Tipos y constantes de tilemap, fondos parallax y render de tiles.
 
-const TILE = 32; // px por celda
+const TILE = 40; // px por celda (era 32 — 25% más grande para mejor legibilidad)
 
 // Tipos de tile
 const T = {
@@ -53,6 +53,13 @@ class World {
 
     this.widthPx = this.cols * TILE;
     this.heightPx = this.rows * TILE;
+
+    // Cache de parallax: pre-renderizamos las capas estáticas
+    // (edificios, colinas, árboles) a un offscreen canvas. Solo la
+    // capa más cercana se redibuja en tiempo real con offset.
+    this._parallaxCache = null;
+    this._parallaxCacheW = 0;
+    this._parallaxCacheH = 0;
   }
 
   idx(c, r) { return r * this.cols + c; }
@@ -116,6 +123,7 @@ class World {
 
   // ----- render -----
   drawBackground(ctx, cam, viewW, viewH, t) {
+    // Gradiente de cielo (rápido, lo redibujamos cada frame).
     const [c1, c2] = this.level.bgColor;
     const grad = ctx.createLinearGradient(0, 0, 0, viewH);
     grad.addColorStop(0, c1);
@@ -123,139 +131,177 @@ class World {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, viewW, viewH);
 
-    // capas de parallax según mundo
-    if (this.world === 'city') {
-      this.drawCityParallax(ctx, cam, viewW, viewH);
-    } else if (this.world === 'park') {
-      this.drawParkParallax(ctx, cam, viewW, viewH);
+    // Cache de parallax: una sola tira ancha (3× viewW) que se repite
+    // según offset. Lo creamos una vez por nivel.
+    this._ensureParallaxCache(viewW, viewH);
+
+    // Pintamos el cache con offset wrap-around horizontal según cam.x.
+    const cacheW = this._parallaxCache.width;
+    const offset = -((cam.x * 0.3) % cacheW);
+    ctx.drawImage(this._parallaxCache, offset, 0);
+    if (offset + cacheW < viewW) {
+      ctx.drawImage(this._parallaxCache, offset + cacheW, 0);
+    }
+
+    // Capa "viva" de detalles (estrellas titilando, gotas) — barata.
+    if (this.world === 'roof') {
+      this._drawRoofStars(ctx, viewW, viewH, t);
     } else if (this.world === 'sewer') {
-      this.drawSewerParallax(ctx, cam, viewW, viewH);
-    } else if (this.world === 'roof') {
-      this.drawRoofParallax(ctx, cam, viewW, viewH, t);
+      this._drawSewerDrips(ctx, cam, viewW, viewH);
     }
   }
 
-  drawCityParallax(ctx, cam, viewW, viewH) {
-    // capa lejana — luna
+  _ensureParallaxCache(viewW, viewH) {
+    if (this._parallaxCache &&
+        this._parallaxCacheW === viewW &&
+        this._parallaxCacheH === viewH) return;
+
+    // Tira de 2× viewW para que el wrap sea suave.
+    const W = viewW * 2;
+    const off = document.createElement('canvas');
+    off.width = W;
+    off.height = viewH;
+    const c = off.getContext('2d');
+
+    if (this.world === 'city') this._renderCityToCache(c, W, viewH);
+    else if (this.world === 'park') this._renderParkToCache(c, W, viewH);
+    else if (this.world === 'sewer') this._renderSewerToCache(c, W, viewH);
+    else if (this.world === 'roof') this._renderRoofToCache(c, W, viewH);
+
+    this._parallaxCache = off;
+    this._parallaxCacheW = viewW;
+    this._parallaxCacheH = viewH;
+  }
+
+  _renderCityToCache(ctx, W, H) {
+    // Luna
     ctx.fillStyle = '#fff7d6';
     ctx.beginPath();
-    ctx.arc(viewW - 80 - cam.x * 0.05, 80, 30, 0, Math.PI * 2);
+    ctx.arc(W * 0.18, 90, 32, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.beginPath();
-    ctx.arc(viewW - 80 - cam.x * 0.05, 80, 50, 0, Math.PI * 2);
+    ctx.arc(W * 0.18, 90, 56, 0, Math.PI * 2);
     ctx.fill();
 
-    // edificios de fondo
-    const offset1 = -((cam.x * 0.2) % 160);
-    for (let i = -1; i < Math.ceil(viewW / 160) + 2; i++) {
-      const bx = i * 160 + offset1;
-      const bh = 220 + ((i * 53) % 120);
+    // Edificios lejanos (capa profunda)
+    for (let i = 0; i < W / 160 + 1; i++) {
+      const bx = i * 160;
+      const bh = 240 + ((i * 53) % 130);
       ctx.fillStyle = '#1c1338';
-      ctx.fillRect(bx, viewH - bh, 140, bh);
-      // ventanas
+      ctx.fillRect(bx, H - bh, 140, bh);
       ctx.fillStyle = '#ffd14f';
-      for (let wy = viewH - bh + 20; wy < viewH - 30; wy += 28) {
+      for (let wy = H - bh + 20; wy < H - 30; wy += 28) {
         for (let wx = bx + 12; wx < bx + 130; wx += 24) {
-          if (((wx + wy + i) % 5) < 2) {
-            ctx.fillRect(wx, wy, 8, 12);
-          }
+          if (((wx + wy + i) % 5) < 2) ctx.fillRect(wx, wy, 8, 12);
         }
       }
     }
-
-    // edificios cercanos
-    const offset2 = -((cam.x * 0.4) % 220);
-    for (let i = -1; i < Math.ceil(viewW / 220) + 2; i++) {
-      const bx = i * 220 + offset2;
-      const bh = 320 + ((i * 71) % 80);
+    // Edificios cercanos (encima)
+    for (let i = 0; i < W / 220 + 1; i++) {
+      const bx = i * 220 + 30;
+      const bh = 340 + ((i * 71) % 90);
       ctx.fillStyle = '#0e0820';
-      ctx.fillRect(bx + 30, viewH - bh, 160, bh);
+      ctx.fillRect(bx, H - bh, 160, bh);
       ctx.fillStyle = '#3a2a8a';
-      for (let wy = viewH - bh + 30; wy < viewH - 60; wy += 36) {
-        for (let wx = bx + 50; wx < bx + 180; wx += 32) {
-          if (((wx * 3 + wy + i) % 7) < 3) {
-            ctx.fillRect(wx, wy, 12, 16);
-          }
+      for (let wy = H - bh + 30; wy < H - 60; wy += 36) {
+        for (let wx = bx + 20; wx < bx + 150; wx += 32) {
+          if (((wx * 3 + wy + i) % 7) < 3) ctx.fillRect(wx, wy, 12, 16);
         }
       }
+      // Antena
+      ctx.fillStyle = '#444';
+      ctx.fillRect(bx + 80, H - bh - 18, 2, 18);
+      ctx.fillStyle = '#ff4fa3';
+      ctx.fillRect(bx + 78, H - bh - 20, 6, 4);
     }
   }
 
-  drawParkParallax(ctx, cam, viewW, viewH) {
-    // colinas
-    const offset = -((cam.x * 0.3) % 320);
+  _renderParkToCache(ctx, W, H) {
+    // Colinas
     ctx.fillStyle = '#1a3d2a';
-    for (let i = -1; i < Math.ceil(viewW / 320) + 2; i++) {
-      const bx = i * 320 + offset;
+    for (let i = 0; i < W / 320 + 1; i++) {
+      const bx = i * 320;
       ctx.beginPath();
-      ctx.moveTo(bx, viewH);
-      ctx.quadraticCurveTo(bx + 160, viewH - 200, bx + 320, viewH);
+      ctx.moveTo(bx, H);
+      ctx.quadraticCurveTo(bx + 160, H - 220, bx + 320, H);
       ctx.fill();
     }
-    // árboles oscuros
-    const off2 = -((cam.x * 0.5) % 180);
+    // Árboles oscuros
     ctx.fillStyle = '#0e2418';
-    for (let i = -1; i < Math.ceil(viewW / 180) + 2; i++) {
-      const bx = i * 180 + off2;
-      ctx.fillRect(bx + 60, viewH - 160, 12, 160);
+    for (let i = 0; i < W / 180 + 1; i++) {
+      const bx = i * 180;
+      ctx.fillRect(bx + 60, H - 170, 12, 170);
       ctx.beginPath();
-      ctx.arc(bx + 66, viewH - 170, 50, 0, Math.PI * 2);
+      ctx.arc(bx + 66, H - 180, 54, 0, Math.PI * 2);
       ctx.fill();
     }
+    // Luna pálida
+    ctx.fillStyle = '#e9f0d6';
+    ctx.beginPath();
+    ctx.arc(W * 0.7, 70, 28, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  drawSewerParallax(ctx, cam, viewW, viewH) {
-    // tuberías
-    ctx.fillStyle = '#1a1530';
-    ctx.fillRect(0, 0, viewW, viewH);
-    const offset = -((cam.x * 0.3) % 80);
+  _renderSewerToCache(ctx, W, H) {
+    // Tuberías verticales
     ctx.fillStyle = '#241a3a';
-    for (let i = -1; i < Math.ceil(viewW / 80) + 2; i++) {
-      ctx.fillRect(i * 80 + offset, 0, 60, viewH);
+    for (let i = 0; i < W / 80 + 1; i++) {
+      ctx.fillRect(i * 80, 0, 60, H);
     }
-    // arcos
+    // Arcos
     ctx.fillStyle = '#0c0820';
-    for (let i = 0; i < Math.ceil(viewW / 200) + 1; i++) {
-      const bx = i * 200 - ((cam.x * 0.5) % 200);
+    for (let i = 0; i < W / 200 + 1; i++) {
+      const bx = i * 200;
       ctx.beginPath();
-      ctx.arc(bx + 100, viewH - 60, 90, Math.PI, Math.PI * 2);
+      ctx.arc(bx + 100, H - 60, 95, Math.PI, Math.PI * 2);
       ctx.fill();
     }
-    // gotas brillantes
-    ctx.fillStyle = '#6cf0ff44';
-    for (let i = 0; i < 30; i++) {
-      const x = (i * 73 + cam.x * 0.1) % viewW;
-      const y = (i * 131 + Date.now() * 0.05) % viewH;
-      ctx.fillRect(x, y, 2, 4);
+    // Brillos
+    ctx.fillStyle = '#3a2c5c';
+    for (let i = 0; i < W / 40; i++) {
+      const x = (i * 137) % W;
+      const y = (i * 53) % (H - 80) + 40;
+      ctx.fillRect(x, y, 3, 3);
     }
   }
 
-  drawRoofParallax(ctx, cam, viewW, viewH, t) {
-    // estrellas
+  _renderRoofToCache(ctx, W, H) {
+    // Skyline lejanísima
+    ctx.fillStyle = '#0a061a';
+    for (let i = 0; i < W / 240 + 1; i++) {
+      const bx = i * 240;
+      const bh = 180 + ((i * 41) % 90);
+      ctx.fillRect(bx, H - bh, 130, bh);
+      ctx.fillStyle = '#a36ad8';
+      for (let wy = H - bh + 20; wy < H - 20; wy += 30) {
+        for (let wx = bx + 10; wx < bx + 120; wx += 18) {
+          if ((wx + wy + i) % 4 < 2) ctx.fillRect(wx, wy, 6, 10);
+        }
+      }
+      ctx.fillStyle = '#0a061a';
+    }
+  }
+
+  _drawRoofStars(ctx, viewW, viewH, t) {
     ctx.fillStyle = '#fff';
     for (let i = 0; i < 60; i++) {
       const x = (i * 137) % viewW;
-      const y = (i * 53) % (viewH * 0.7);
+      const y = (i * 53) % (viewH * 0.6);
       const tw = 0.5 + 0.5 * Math.sin(t * 4 + i);
       ctx.globalAlpha = 0.3 + tw * 0.6;
       ctx.fillRect(x, y, 2, 2);
     }
     ctx.globalAlpha = 1;
-    // skyline lejanísima
-    ctx.fillStyle = '#0a061a';
-    const off = -((cam.x * 0.1) % 240);
-    for (let i = -1; i < Math.ceil(viewW / 240) + 2; i++) {
-      const bx = i * 240 + off;
-      const bh = 160 + ((i * 41) % 80);
-      ctx.fillRect(bx, viewH - bh, 120, bh);
-      ctx.fillStyle = '#a36ad8';
-      for (let wy = viewH - bh + 20; wy < viewH - 20; wy += 30) {
-        for (let wx = bx + 10; wx < bx + 110; wx += 18) {
-          if ((wx + wy + i) % 4 < 2) ctx.fillRect(wx, wy, 6, 10);
-        }
-      }
-      ctx.fillStyle = '#0a061a';
+  }
+
+  _drawSewerDrips(ctx, cam, viewW, viewH) {
+    ctx.fillStyle = 'rgba(108,240,255,0.25)';
+    const tt = Date.now() * 0.05;
+    for (let i = 0; i < 18; i++) {
+      const x = (i * 73 + cam.x * 0.1) % viewW;
+      const y = (i * 131 + tt) % viewH;
+      ctx.fillRect(x, y, 2, 5);
     }
   }
 

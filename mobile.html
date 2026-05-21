@@ -8,61 +8,64 @@
 <title>Mía: La Mochila Robada</title>
 <style>
 :root{--bg-0:#0e0b1f;--bg-1:#1c1338;--accent:#ff4fa3;--accent-2:#6cf0ff;--text:#f4eefb;--muted:#b3a8d1}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 html,body{margin:0;padding:0;background:radial-gradient(ellipse at top,var(--bg-1),var(--bg-0) 60%);color:var(--text);font-family:"Inter","Segoe UI",system-ui,sans-serif;min-height:100vh;overflow:hidden;position:fixed;inset:0}
 #app{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
 #stage{position:relative;width:100%;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
-canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:60vh;border-radius:4px}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:62vh;border-radius:4px}
 .overlay{position:absolute;inset:0;background:rgba(8,5,22,0.88);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:5;transition:opacity .25s ease;line-height:1.5;padding:16px}
 .overlay.hidden{opacity:0;pointer-events:none}
-.panel{max-width:400px;padding:20px;background:rgba(28,19,56,0.95);border:1px solid rgba(108,240,255,0.25);border-radius:12px;text-align:center;color:var(--text)}
+.panel{max-width:420px;padding:20px;background:rgba(28,19,56,0.95);border:1px solid rgba(108,240,255,0.25);border-radius:12px;text-align:center;color:var(--text)}
 .panel h2{margin:0 0 8px;font-size:20px;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .panel p{margin:4px 0 12px;color:var(--muted);font-size:13px}
 button{display:inline-block;padding:14px 28px;font-size:17px;font-weight:700;color:#0e0b1f;background:linear-gradient(90deg,var(--accent),var(--accent-2));border:0;border-radius:8px;cursor:pointer}
 button:active{transform:translateY(2px)}
-
-/* === CONTROLES TÁCTILES === */
-#touch-controls{position:fixed;bottom:0;left:0;right:0;height:38vh;display:none;z-index:10;pointer-events:none}
-.touch-active #touch-controls{display:flex;justify-content:space-between;align-items:flex-end;padding:12px}
-.touch-zone{pointer-events:auto;display:flex;gap:8px;align-items:flex-end}
-.touch-btn{width:60px;height:60px;border-radius:50%;background:rgba(108,240,255,0.18);border:2px solid rgba(108,240,255,0.4);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;user-select:none;-webkit-user-select:none;transition:background .08s}
-.touch-btn:active,.touch-btn.active{background:rgba(255,79,163,0.4);border-color:var(--accent)}
-.touch-btn.big{width:76px;height:76px;font-size:26px}
-.touch-btn.small{width:50px;height:50px;font-size:16px}
-#dpad{display:flex;gap:6px;align-items:center}
+#touch-controls{position:fixed;bottom:0;left:0;right:0;height:36vh;display:none;z-index:10;pointer-events:none}
+.touch-active #touch-controls{display:flex;justify-content:space-between;align-items:flex-end;padding:14px}
+.touch-zone{pointer-events:auto;display:flex;gap:10px;align-items:flex-end}
+.touch-btn{width:62px;height:62px;border-radius:50%;background:rgba(108,240,255,0.18);border:2px solid rgba(108,240,255,0.4);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;transition:background .08s,transform .05s;font-weight:bold}
+.touch-btn:active,.touch-btn.active{background:rgba(255,79,163,0.5);border-color:var(--accent);transform:scale(0.92)}
+.touch-btn.big{width:80px;height:80px;font-size:28px}
+.touch-btn.sword{background:rgba(255,209,79,0.2);border-color:rgba(255,209,79,0.5);font-size:24px}
+.touch-btn.sword:active,.touch-btn.sword.active{background:rgba(255,209,79,0.5);border-color:#ffd14f}
+.touch-btn.note{background:rgba(108,240,255,0.18);border-color:rgba(108,240,255,0.5);font-size:20px}
+#dpad{display:flex;gap:8px;align-items:center}
+.action-stack{display:flex;flex-direction:column;gap:8px;align-items:center}
 @media(hover:hover)and(pointer:fine){#touch-controls{display:none!important}}
 </style>
 </head>
 <body>
 <div id="app">
 <div id="stage">
-<canvas id="game" width="800" height="480"></canvas>
+<canvas id="game" width="960" height="540"></canvas>
 <div id="overlay" class="overlay">
 <div class="panel">
 <h2>Mía: La Mochila Robada</h2>
-<p>Recupera tu mochila de diseños del Mapache Gigante Mutante.<br>4 mundos · 3 tipos de enemigos · Jefe final</p>
+<p>Recupera tu mochila de diseños del Mapache Gigante Mutante.<br>4 mundos · espada · 3 enemigos únicos · jefe final</p>
 <button id="startBtn" type="button">Comenzar aventura</button>
 </div>
 </div>
 </div>
 </div>
 
-<!-- CONTROLES TÁCTILES -->
 <div id="touch-controls">
 <div class="touch-zone" id="dpad">
 <div class="touch-btn" data-action="left">◀</div>
 <div class="touch-btn" data-action="right">▶</div>
 </div>
 <div class="touch-zone">
-<div class="touch-btn small" data-action="shoot">♪</div>
+<div class="action-stack">
+<div class="touch-btn note" data-action="shoot">♪</div>
+<div class="touch-btn sword" data-action="attack">⚔</div>
+</div>
 <div class="touch-btn big" data-action="jump">▲</div>
 </div>
 </div>
 
 <script>
 // ============================================================
-// SINGLE-FILE: Mía: La Mochila Robada — Plataformero 2D
-// Con controles táctiles para móvil
+// SINGLE-FILE: Mía: La Mochila Robada
+// Espada · Canvas 960×540 · Controles táctiles · Screen shake
 // ============================================================
 
 // Sonidos sintetizados con Web Audio (sin assets externos, estilo retro).
@@ -126,39 +129,62 @@ function px(ctx, x, y, w, h, color) {
 const PALETTE = {
   skin: '#ffd9b8',
   skinShade: '#e6b894',
+  skinDark: '#c69675',
+  blush: '#ff9eb5',
   hair: '#ffffff',
   hairShade: '#dfe5f2',
+  hairDeep: '#b9c1d6',
   hoodie: '#ff4fa3',
-  hoodieShade: '#c3327b',
-  hoodieDark: '#8a1f57',
+  hoodieMid: '#e0357e',
+  hoodieShade: '#a8276c',
+  hoodieDark: '#6f1746',
+  hoodieHighlight: '#ff85c5',
   jeans: '#3a6cd8',
   jeansShade: '#23499a',
+  jeansDark: '#142d6a',
+  jeansSeam: '#5a8df0',
   shoe: '#f4f4f4',
+  shoeStripe: '#ff4fa3',
   shoeSole: '#1a1a1a',
+  shoeShade: '#bdbdbd',
   eye: '#1d1338',
+  eyeShine: '#ffffff',
+  brow: '#3a2a55',
   mouth: '#a83b6b',
   headphones: '#ffd14f',
   headphonesPad: '#ff8a3b',
+  swordBlade: '#cfd8ec',
+  swordEdge: '#7c8eb5',
+  swordHilt: '#4a3585',
+  swordGuard: '#ffd14f',
+  swordPommel: '#ff4fa3',
 };
 
 /**
- * Dibuja a Mía mirando a la derecha en una caja de tamaño w×h.
- * @param {CanvasRenderingContext2D} ctx
- * @param {number} x posición top-left
- * @param {number} y
- * @param {number} w ancho del sprite
- * @param {number} h alto del sprite (32 para small, 48 para big)
- * @param {object} opts {facing:1|-1, walkPhase:0..3, isJumping, hasHeadphones, blink}
+ * Dibuja a Mía mirando a la derecha en una caja de tamaño w×h, usando
+ * una rejilla 24×36 (mucho más detalle que la versión 16×24 anterior).
  */
 function drawMia(ctx, x, y, w, h, opts = {}) {
   const facing = opts.facing ?? 1;
   const walk = opts.walkPhase ?? 0;
   const jumping = !!opts.isJumping;
+  const falling = !!opts.isFalling;
   const hp = !!opts.hasHeadphones;
   const blink = !!opts.blink;
+  const showSword = opts.showSword !== false; // por defecto sí
+  const swinging = !!opts.swinging;
+  const swingT = opts.swingT ?? 0; // 0..1 progreso del swing
+  const stretchY = opts.stretchY ?? 1;
+  const stretchX = opts.stretchX ?? 1;
 
   ctx.save();
-  // flip horizontal si mira a la izquierda
+  // Squash & stretch desde el pie
+  const cx = x + w / 2;
+  const baseY = y + h;
+  ctx.translate(cx, baseY);
+  ctx.scale(stretchX, stretchY);
+  ctx.translate(-cx, -baseY);
+
   if (facing < 0) {
     ctx.translate(x + w, y);
     ctx.scale(-1, 1);
@@ -166,85 +192,258 @@ function drawMia(ctx, x, y, w, h, opts = {}) {
     ctx.translate(x, y);
   }
 
-  // Coordenadas relativas en una rejilla 16×24 escalada a w×h.
-  const sx = w / 16, sy = h / 24;
+  // Rejilla relativa 24×36 escalada a w×h.
+  const sx = w / 24, sy = h / 36;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
 
-  // Cabello (parte superior + lados)
-  u(3, 1, 10, 4, PALETTE.hair);
-  u(2, 2, 1, 5, PALETTE.hair);
-  u(13, 2, 1, 5, PALETTE.hair);
-  u(3, 5, 10, 1, PALETTE.hairShade);
-  // mechones laterales
-  u(2, 7, 2, 3, PALETTE.hair);
-  u(12, 7, 2, 3, PALETTE.hair);
+  // ---------- Cabello (parte trasera) ----------
+  u(4, 1, 16, 5, PALETTE.hair);
+  u(3, 2, 1, 7, PALETTE.hair);
+  u(20, 2, 1, 7, PALETTE.hair);
+  u(2, 4, 1, 5, PALETTE.hairShade);
+  u(21, 4, 1, 5, PALETTE.hairShade);
+  // Mechones laterales largos
+  u(3, 9, 2, 5, PALETTE.hair);
+  u(19, 9, 2, 5, PALETTE.hair);
+  u(3, 13, 2, 1, PALETTE.hairShade);
+  u(19, 13, 2, 1, PALETTE.hairShade);
+  // Sombra superior del cabello
+  u(5, 6, 14, 1, PALETTE.hairShade);
+  // Highlight del cabello
+  u(7, 2, 4, 1, PALETTE.hair);
+  u(13, 3, 3, 1, '#ffffff');
+  // Flequillo asimétrico
+  u(6, 5, 8, 3, PALETTE.hair);
+  u(7, 7, 4, 1, PALETTE.hairShade);
+  u(13, 6, 5, 2, PALETTE.hair);
+  u(13, 7, 4, 1, PALETTE.hairShade);
 
-  // Cara
-  u(4, 4, 8, 5, PALETTE.skin);
-  u(4, 8, 8, 1, PALETTE.skinShade);
+  // ---------- Cara ----------
+  u(6, 7, 12, 7, PALETTE.skin);
+  u(6, 13, 12, 1, PALETTE.skinShade);
+  u(6, 7, 1, 1, PALETTE.skinShade);
+  u(17, 7, 1, 1, PALETTE.skinShade);
+  // Mejillas
+  u(7, 11, 2, 1, PALETTE.blush);
+  u(15, 11, 2, 1, PALETTE.blush);
 
-  // Ojos
+  // ---------- Cejas ----------
+  u(8, 8, 2, 1, PALETTE.brow);
+  u(14, 8, 2, 1, PALETTE.brow);
+
+  // ---------- Ojos ----------
   if (!blink) {
-    u(6, 6, 1, 2, PALETTE.eye);
-    u(10, 6, 1, 2, PALETTE.eye);
+    u(8, 9, 2, 3, PALETTE.eye);
+    u(14, 9, 2, 3, PALETTE.eye);
+    // Brillo en los ojos (vida!)
+    u(9, 9, 1, 1, PALETTE.eyeShine);
+    u(15, 9, 1, 1, PALETTE.eyeShine);
   } else {
-    u(6, 7, 2, 1, PALETTE.eye);
-    u(10, 7, 2, 1, PALETTE.eye);
+    u(8, 11, 2, 1, PALETTE.eye);
+    u(14, 11, 2, 1, PALETTE.eye);
   }
-  // Boca (sonrisa pequeña)
-  u(8, 8, 2, 1, PALETTE.mouth);
 
-  // Capucha de la sudadera (asoma por detrás de la cabeza)
-  u(2, 6, 1, 4, PALETTE.hoodie);
-  u(13, 6, 1, 4, PALETTE.hoodie);
+  // ---------- Boca ----------
+  u(11, 12, 2, 1, PALETTE.mouth);
+  u(10, 12, 1, 1, PALETTE.mouth);
+  u(13, 12, 1, 1, PALETTE.mouth);
 
-  // Cuerpo / sudadera
-  u(4, 9, 8, 6, PALETTE.hoodie);
-  u(4, 14, 8, 1, PALETTE.hoodieShade);
-  // Bolsillo central
-  u(6, 12, 4, 2, PALETTE.hoodieShade);
-  u(7, 13, 2, 1, PALETTE.hoodieDark);
+  // ---------- Capucha (asoma por detrás de la cabeza) ----------
+  u(2, 9, 1, 6, PALETTE.hoodie);
+  u(21, 9, 1, 6, PALETTE.hoodie);
+  u(3, 14, 18, 1, PALETTE.hoodieShade);
+
+  // ---------- Cuerpo / sudadera ----------
+  u(5, 14, 14, 9, PALETTE.hoodie);
+  // Highlight superior
+  u(5, 14, 14, 1, PALETTE.hoodieHighlight);
+  // Sombra inferior
+  u(5, 21, 14, 2, PALETTE.hoodieMid);
+  u(5, 22, 14, 1, PALETTE.hoodieShade);
+  // Bolsillo central canguro
+  u(8, 18, 8, 4, PALETTE.hoodieShade);
+  u(8, 18, 8, 1, PALETTE.hoodieDark);
+  u(9, 19, 1, 2, PALETTE.hoodieDark);
+  u(14, 19, 1, 2, PALETTE.hoodieDark);
   // Cordones de la capucha
-  u(7, 9, 1, 2, PALETTE.hairShade);
-  u(8, 9, 1, 2, PALETTE.hairShade);
+  u(10, 14, 1, 4, PALETTE.hairShade);
+  u(13, 14, 1, 4, PALETTE.hairShade);
+  // Remates de cordón
+  u(10, 18, 1, 1, PALETTE.swordGuard);
+  u(13, 18, 1, 1, PALETTE.swordGuard);
+  // Pequeño detalle (corazón) en pecho
+  u(15, 16, 1, 1, PALETTE.hoodieHighlight);
+  u(16, 17, 1, 1, PALETTE.hoodieHighlight);
+  u(15, 17, 1, 1, PALETTE.hoodieHighlight);
 
-  // Brazos
-  const armSwing = jumping ? -1 : (walk === 1 ? 1 : walk === 3 ? -1 : 0);
-  u(3, 10, 1, 4 + (armSwing > 0 ? 1 : 0), PALETTE.hoodie);
-  u(12, 10, 1, 4 + (armSwing < 0 ? 1 : 0), PALETTE.hoodie);
-  // manos
-  u(3, 14, 1, 1, PALETTE.skin);
-  u(12, 14, 1, 1, PALETTE.skin);
+  // ---------- Brazos ----------
+  const armSwing = swinging ? 1 : (jumping ? -1 : (walk === 1 ? 1 : walk === 3 ? -1 : 0));
+  // Brazo izquierdo (desde nuestra perspectiva)
+  u(4, 15, 1, 7 + (armSwing > 0 ? 1 : 0), PALETTE.hoodie);
+  u(4, 15, 1, 1, PALETTE.hoodieHighlight);
+  // Manga (cuff)
+  u(3, 21 + (armSwing > 0 ? 1 : 0), 2, 1, PALETTE.hoodieDark);
+  // Mano izquierda
+  u(3, 22 + (armSwing > 0 ? 1 : 0), 2, 1, PALETTE.skin);
 
-  // Jeans
-  u(5, 15, 6, 5, PALETTE.jeans);
-  u(5, 19, 6, 1, PALETTE.jeansShade);
-  u(8, 15, 1, 5, PALETTE.jeansShade); // separación de piernas
+  // Brazo derecho
+  u(19, 15, 1, 7 + (armSwing < 0 ? 1 : 0), PALETTE.hoodie);
+  u(19, 15, 1, 1, PALETTE.hoodieHighlight);
+  u(19, 21 + (armSwing < 0 ? 1 : 0), 2, 1, PALETTE.hoodieDark);
+  u(19, 22 + (armSwing < 0 ? 1 : 0), 2, 1, PALETTE.skin);
 
-  // Piernas / zapatillas — animación de caminar
+  // ---------- Cinturón ----------
+  u(5, 23, 14, 1, PALETTE.jeansDark);
+  u(11, 23, 2, 1, PALETTE.swordGuard); // hebilla
+
+  // ---------- Jeans ----------
+  u(5, 24, 14, 6, PALETTE.jeans);
+  u(5, 24, 14, 1, PALETTE.jeansSeam);
+  // División de piernas
+  u(11, 24, 2, 6, PALETTE.jeansShade);
+  // Bolsillo trasero (lado)
+  u(6, 26, 3, 2, PALETTE.jeansShade);
+  u(15, 26, 3, 2, PALETTE.jeansShade);
+  u(6, 26, 3, 1, PALETTE.jeansDark);
+  u(15, 26, 3, 1, PALETTE.jeansDark);
+
+  // ---------- Piernas ----------
   let legL = 0, legR = 0;
   if (jumping) { legL = -1; legR = 1; }
+  else if (falling) { legL = 1; legR = -1; }
   else if (walk === 1) { legL = -1; legR = 1; }
   else if (walk === 3) { legL = 1; legR = -1; }
 
-  u(5, 20 + legL, 3, 2, PALETTE.jeans);
-  u(9, 20 + legR, 3, 2, PALETTE.jeans);
-  // zapatillas
-  u(5, 22 + legL, 3, 1, PALETTE.shoe);
-  u(9, 22 + legR, 3, 1, PALETTE.shoe);
-  u(5, 23 + legL, 3, 1, PALETTE.shoeSole);
-  u(9, 23 + legR, 3, 1, PALETTE.shoeSole);
+  // Pantorrillas
+  u(6, 30 + legL, 4, 3, PALETTE.jeans);
+  u(14, 30 + legR, 4, 3, PALETTE.jeans);
+  u(6, 32 + legL, 4, 1, PALETTE.jeansShade);
+  u(14, 32 + legR, 4, 1, PALETTE.jeansShade);
 
-  // Auriculares mágicos (overlay)
+  // ---------- Zapatillas ----------
+  // Pie izquierdo
+  u(5, 33 + legL, 5, 2, PALETTE.shoe);
+  u(5, 33 + legL, 5, 1, '#ffffff');
+  u(5, 34 + legL, 5, 1, PALETTE.shoeShade);
+  u(5, 35 + legL, 5, 1, PALETTE.shoeSole);
+  u(5, 33 + legL, 1, 2, PALETTE.shoeStripe); // raya lateral
+  u(8, 34 + legL, 1, 1, PALETTE.shoeStripe);
+
+  // Pie derecho
+  u(14, 33 + legR, 5, 2, PALETTE.shoe);
+  u(14, 33 + legR, 5, 1, '#ffffff');
+  u(14, 34 + legR, 5, 1, PALETTE.shoeShade);
+  u(14, 35 + legR, 5, 1, PALETTE.shoeSole);
+  u(18, 33 + legR, 1, 2, PALETTE.shoeStripe);
+  u(15, 34 + legR, 1, 1, PALETTE.shoeStripe);
+
+  // ---------- Auriculares mágicos (overlay sobre cabello) ----------
   if (hp) {
-    u(3, 1, 10, 1, PALETTE.headphones);             // banda
-    u(2, 1, 1, 2, PALETTE.headphones);
-    u(13, 1, 1, 2, PALETTE.headphones);
-    u(2, 3, 2, 3, PALETTE.headphonesPad);           // copa izq
-    u(12, 3, 2, 3, PALETTE.headphonesPad);          // copa der
+    u(4, 1, 16, 1, PALETTE.headphones);
+    u(3, 1, 1, 3, PALETTE.headphones);
+    u(20, 1, 1, 3, PALETTE.headphones);
+    u(2, 4, 3, 5, PALETTE.headphonesPad);
+    u(19, 4, 3, 5, PALETTE.headphonesPad);
+    u(2, 4, 3, 1, PALETTE.headphones);
+    u(19, 4, 3, 1, PALETTE.headphones);
   }
 
+  // ---------- Espada en la mano derecha ----------
+  if (showSword) {
+    if (swinging) {
+      // Arco de swing visible: la espada pivota frente a Mía (~135°)
+      ctx.restore();
+      ctx.save();
+      // Re-aplicar transforms para el arco
+      const cx2 = x + w / 2;
+      const baseY2 = y + h;
+      ctx.translate(cx2, baseY2);
+      ctx.scale(stretchX, stretchY);
+      ctx.translate(-cx2, -baseY2);
+      if (facing < 0) {
+        ctx.translate(x + w, y);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(x, y);
+      }
+      _drawSwordSwing(ctx, sx, sy, swingT);
+    } else {
+      // En reposo: empuñada al costado
+      _drawSwordIdle(ctx, sx, sy, walk, jumping);
+    }
+  }
+
+  ctx.restore();
+}
+
+// Espada en reposo (empuñada al costado/derecha)
+function _drawSwordIdle(ctx, sx, sy, walk, jumping) {
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
+
+  // Mango (lo agarra la mano derecha, x≈19-20, y≈22-23)
+  // La espada cuelga hacia abajo
+  const ox = 21;
+  const oy = 19;
+  // Hoja
+  u(ox, oy, 2, 8, PALETTE.swordBlade);
+  u(ox, oy, 1, 8, '#ffffff');
+  u(ox + 1, oy, 1, 8, PALETTE.swordEdge);
+  u(ox, oy, 2, 1, '#ffffff');
+  // Guarda
+  u(ox - 1, oy + 8, 4, 1, PALETTE.swordGuard);
+  // Mango
+  u(ox, oy + 9, 2, 2, PALETTE.swordHilt);
+  // Pomo
+  u(ox - 1, oy + 11, 4, 1, PALETTE.swordPommel);
+}
+
+// Espada haciendo swing (arco frente a Mía)
+function _drawSwordSwing(ctx, sx, sy, swingT) {
+  // swingT va de 0 (inicio) a 1 (fin). El ángulo va de -45° a +90° aprox.
+  // La espada pivota desde el hombro derecho (~20, 16).
+  const angle = -Math.PI / 4 + swingT * (Math.PI * 0.85);
+  const px0 = 18 * sx;
+  const py0 = 17 * sy;
+  ctx.save();
+  ctx.translate(px0, py0);
+  ctx.rotate(angle);
+
+  // Hoja extendida
+  const bladeLen = 14 * sx;
+  const bladeW = 3 * sy;
+  ctx.fillStyle = PALETTE.swordBlade;
+  ctx.fillRect(0, -bladeW / 2, bladeLen, bladeW);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, -bladeW / 2, bladeLen, 1);
+  ctx.fillStyle = PALETTE.swordEdge;
+  ctx.fillRect(0, bladeW / 2 - 1, bladeLen, 1);
+  // Punta
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bladeLen - 2, -bladeW / 2 + 1, 2, bladeW - 2);
+  // Guarda (cruz)
+  ctx.fillStyle = PALETTE.swordGuard;
+  ctx.fillRect(-2, -bladeW / 2 - 1, 4, bladeW + 2);
+  // Mango
+  ctx.fillStyle = PALETTE.swordHilt;
+  ctx.fillRect(-5 * sx, -1, 5 * sx, 2);
+  // Pomo
+  ctx.fillStyle = PALETTE.swordPommel;
+  ctx.fillRect(-6 * sx, -2, 2, 4);
+
+  ctx.restore();
+
+  // Estela del swing (arco translúcido)
+  ctx.save();
+  ctx.translate(px0, py0);
+  ctx.fillStyle = `rgba(255,255,255,${0.4 * (1 - swingT)})`;
+  ctx.beginPath();
+  const r = 16 * sx;
+  ctx.arc(0, 0, r, -Math.PI / 4, angle, false);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
@@ -681,28 +880,33 @@ const LEVELS = [
     id: 1,
     name: 'La Ciudad',
     world: 'city',
-    timeLimit: 200,
+    timeLimit: 220,
     bgColor: ['#1f1240', '#3a2065'],
     music: 'city',
+    // Tutorial-style: introducción suave, escalada de dificultad.
+    // Sec 1: caminar y saltar bloques — cajas misteriosas accesibles.
+    // Sec 2: primer slime (practicar pisotón / espada).
+    // Sec 3: power-up + monedas en plataforma.
+    // Sec 4: gap moderado + cactus que esquivar.
+    // Sec 5: cuervo + escalera ascendente.
+    // Sec 6: meta.
     rows: [
-      '...............................................................................',
-      '...............................................................................',
-      '...............................................................................',
-      '...............................................................................',
-      '..............?CC?...............$..........................CCCC..............',
-      '...............................................................................',
-      '..........................BB?B..............=====...........BBBB?B............',
-      '...............................................................................',
-      '......C....................S......K.....................F......S......CCCC...G',
-      '......##............................................S.........................',
-      '......##.....BBB.....................BBB......BB......B................CCCC...',
-      '......##........X................................................X............',
-      '######...####################...####################...####################...#',
-      '######...####################...####################...####################...#',
-      '######...####################...####################...####################...#',
+      '..................................................................................................',
+      '..................................................................................................',
+      '...............?...............................................CCCC..............................',
+      '...........................................CCC........................?$?.......................',
+      '..................?CC?.....................===...................................................',
+      '..................................................................................................',
+      '......................BB?BB...............................................BBBB...................',
+      '..................................................................================................',
+      '............C..........................S.................F.....................S.........CCCCC.G',
+      '..........=====...................................................................................',
+      '..............................BBB.................CC............BBB.....................========',
+      '......................S................X................S..............X..................=====',
+      '#############...####################...####################...####################...##############',
+      '#############...####################...####################...####################...##############',
+      '#############...####################...####################...####################...##############',
     ],
-    // Ajustamos: la primera fila relevante es índice 0. La fila 9 contiene
-    // "M" (spawn) — en realidad la pondremos programáticamente.
     spawn: { col: 2, row: 11 },
   },
 
@@ -803,7 +1007,7 @@ for (const lvl of LEVELS) {
 }
 // Tipos y constantes de tilemap, fondos parallax y render de tiles.
 
-const TILE = 32; // px por celda
+const TILE = 40; // px por celda (era 32 — 25% más grande para mejor legibilidad)
 
 // Tipos de tile
 const T = {
@@ -856,6 +1060,13 @@ class World {
 
     this.widthPx = this.cols * TILE;
     this.heightPx = this.rows * TILE;
+
+    // Cache de parallax: pre-renderizamos las capas estáticas
+    // (edificios, colinas, árboles) a un offscreen canvas. Solo la
+    // capa más cercana se redibuja en tiempo real con offset.
+    this._parallaxCache = null;
+    this._parallaxCacheW = 0;
+    this._parallaxCacheH = 0;
   }
 
   idx(c, r) { return r * this.cols + c; }
@@ -919,6 +1130,7 @@ class World {
 
   // ----- render -----
   drawBackground(ctx, cam, viewW, viewH, t) {
+    // Gradiente de cielo (rápido, lo redibujamos cada frame).
     const [c1, c2] = this.level.bgColor;
     const grad = ctx.createLinearGradient(0, 0, 0, viewH);
     grad.addColorStop(0, c1);
@@ -926,139 +1138,177 @@ class World {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, viewW, viewH);
 
-    // capas de parallax según mundo
-    if (this.world === 'city') {
-      this.drawCityParallax(ctx, cam, viewW, viewH);
-    } else if (this.world === 'park') {
-      this.drawParkParallax(ctx, cam, viewW, viewH);
+    // Cache de parallax: una sola tira ancha (3× viewW) que se repite
+    // según offset. Lo creamos una vez por nivel.
+    this._ensureParallaxCache(viewW, viewH);
+
+    // Pintamos el cache con offset wrap-around horizontal según cam.x.
+    const cacheW = this._parallaxCache.width;
+    const offset = -((cam.x * 0.3) % cacheW);
+    ctx.drawImage(this._parallaxCache, offset, 0);
+    if (offset + cacheW < viewW) {
+      ctx.drawImage(this._parallaxCache, offset + cacheW, 0);
+    }
+
+    // Capa "viva" de detalles (estrellas titilando, gotas) — barata.
+    if (this.world === 'roof') {
+      this._drawRoofStars(ctx, viewW, viewH, t);
     } else if (this.world === 'sewer') {
-      this.drawSewerParallax(ctx, cam, viewW, viewH);
-    } else if (this.world === 'roof') {
-      this.drawRoofParallax(ctx, cam, viewW, viewH, t);
+      this._drawSewerDrips(ctx, cam, viewW, viewH);
     }
   }
 
-  drawCityParallax(ctx, cam, viewW, viewH) {
-    // capa lejana — luna
+  _ensureParallaxCache(viewW, viewH) {
+    if (this._parallaxCache &&
+        this._parallaxCacheW === viewW &&
+        this._parallaxCacheH === viewH) return;
+
+    // Tira de 2× viewW para que el wrap sea suave.
+    const W = viewW * 2;
+    const off = document.createElement('canvas');
+    off.width = W;
+    off.height = viewH;
+    const c = off.getContext('2d');
+
+    if (this.world === 'city') this._renderCityToCache(c, W, viewH);
+    else if (this.world === 'park') this._renderParkToCache(c, W, viewH);
+    else if (this.world === 'sewer') this._renderSewerToCache(c, W, viewH);
+    else if (this.world === 'roof') this._renderRoofToCache(c, W, viewH);
+
+    this._parallaxCache = off;
+    this._parallaxCacheW = viewW;
+    this._parallaxCacheH = viewH;
+  }
+
+  _renderCityToCache(ctx, W, H) {
+    // Luna
     ctx.fillStyle = '#fff7d6';
     ctx.beginPath();
-    ctx.arc(viewW - 80 - cam.x * 0.05, 80, 30, 0, Math.PI * 2);
+    ctx.arc(W * 0.18, 90, 32, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.beginPath();
-    ctx.arc(viewW - 80 - cam.x * 0.05, 80, 50, 0, Math.PI * 2);
+    ctx.arc(W * 0.18, 90, 56, 0, Math.PI * 2);
     ctx.fill();
 
-    // edificios de fondo
-    const offset1 = -((cam.x * 0.2) % 160);
-    for (let i = -1; i < Math.ceil(viewW / 160) + 2; i++) {
-      const bx = i * 160 + offset1;
-      const bh = 220 + ((i * 53) % 120);
+    // Edificios lejanos (capa profunda)
+    for (let i = 0; i < W / 160 + 1; i++) {
+      const bx = i * 160;
+      const bh = 240 + ((i * 53) % 130);
       ctx.fillStyle = '#1c1338';
-      ctx.fillRect(bx, viewH - bh, 140, bh);
-      // ventanas
+      ctx.fillRect(bx, H - bh, 140, bh);
       ctx.fillStyle = '#ffd14f';
-      for (let wy = viewH - bh + 20; wy < viewH - 30; wy += 28) {
+      for (let wy = H - bh + 20; wy < H - 30; wy += 28) {
         for (let wx = bx + 12; wx < bx + 130; wx += 24) {
-          if (((wx + wy + i) % 5) < 2) {
-            ctx.fillRect(wx, wy, 8, 12);
-          }
+          if (((wx + wy + i) % 5) < 2) ctx.fillRect(wx, wy, 8, 12);
         }
       }
     }
-
-    // edificios cercanos
-    const offset2 = -((cam.x * 0.4) % 220);
-    for (let i = -1; i < Math.ceil(viewW / 220) + 2; i++) {
-      const bx = i * 220 + offset2;
-      const bh = 320 + ((i * 71) % 80);
+    // Edificios cercanos (encima)
+    for (let i = 0; i < W / 220 + 1; i++) {
+      const bx = i * 220 + 30;
+      const bh = 340 + ((i * 71) % 90);
       ctx.fillStyle = '#0e0820';
-      ctx.fillRect(bx + 30, viewH - bh, 160, bh);
+      ctx.fillRect(bx, H - bh, 160, bh);
       ctx.fillStyle = '#3a2a8a';
-      for (let wy = viewH - bh + 30; wy < viewH - 60; wy += 36) {
-        for (let wx = bx + 50; wx < bx + 180; wx += 32) {
-          if (((wx * 3 + wy + i) % 7) < 3) {
-            ctx.fillRect(wx, wy, 12, 16);
-          }
+      for (let wy = H - bh + 30; wy < H - 60; wy += 36) {
+        for (let wx = bx + 20; wx < bx + 150; wx += 32) {
+          if (((wx * 3 + wy + i) % 7) < 3) ctx.fillRect(wx, wy, 12, 16);
         }
       }
+      // Antena
+      ctx.fillStyle = '#444';
+      ctx.fillRect(bx + 80, H - bh - 18, 2, 18);
+      ctx.fillStyle = '#ff4fa3';
+      ctx.fillRect(bx + 78, H - bh - 20, 6, 4);
     }
   }
 
-  drawParkParallax(ctx, cam, viewW, viewH) {
-    // colinas
-    const offset = -((cam.x * 0.3) % 320);
+  _renderParkToCache(ctx, W, H) {
+    // Colinas
     ctx.fillStyle = '#1a3d2a';
-    for (let i = -1; i < Math.ceil(viewW / 320) + 2; i++) {
-      const bx = i * 320 + offset;
+    for (let i = 0; i < W / 320 + 1; i++) {
+      const bx = i * 320;
       ctx.beginPath();
-      ctx.moveTo(bx, viewH);
-      ctx.quadraticCurveTo(bx + 160, viewH - 200, bx + 320, viewH);
+      ctx.moveTo(bx, H);
+      ctx.quadraticCurveTo(bx + 160, H - 220, bx + 320, H);
       ctx.fill();
     }
-    // árboles oscuros
-    const off2 = -((cam.x * 0.5) % 180);
+    // Árboles oscuros
     ctx.fillStyle = '#0e2418';
-    for (let i = -1; i < Math.ceil(viewW / 180) + 2; i++) {
-      const bx = i * 180 + off2;
-      ctx.fillRect(bx + 60, viewH - 160, 12, 160);
+    for (let i = 0; i < W / 180 + 1; i++) {
+      const bx = i * 180;
+      ctx.fillRect(bx + 60, H - 170, 12, 170);
       ctx.beginPath();
-      ctx.arc(bx + 66, viewH - 170, 50, 0, Math.PI * 2);
+      ctx.arc(bx + 66, H - 180, 54, 0, Math.PI * 2);
       ctx.fill();
     }
+    // Luna pálida
+    ctx.fillStyle = '#e9f0d6';
+    ctx.beginPath();
+    ctx.arc(W * 0.7, 70, 28, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  drawSewerParallax(ctx, cam, viewW, viewH) {
-    // tuberías
-    ctx.fillStyle = '#1a1530';
-    ctx.fillRect(0, 0, viewW, viewH);
-    const offset = -((cam.x * 0.3) % 80);
+  _renderSewerToCache(ctx, W, H) {
+    // Tuberías verticales
     ctx.fillStyle = '#241a3a';
-    for (let i = -1; i < Math.ceil(viewW / 80) + 2; i++) {
-      ctx.fillRect(i * 80 + offset, 0, 60, viewH);
+    for (let i = 0; i < W / 80 + 1; i++) {
+      ctx.fillRect(i * 80, 0, 60, H);
     }
-    // arcos
+    // Arcos
     ctx.fillStyle = '#0c0820';
-    for (let i = 0; i < Math.ceil(viewW / 200) + 1; i++) {
-      const bx = i * 200 - ((cam.x * 0.5) % 200);
+    for (let i = 0; i < W / 200 + 1; i++) {
+      const bx = i * 200;
       ctx.beginPath();
-      ctx.arc(bx + 100, viewH - 60, 90, Math.PI, Math.PI * 2);
+      ctx.arc(bx + 100, H - 60, 95, Math.PI, Math.PI * 2);
       ctx.fill();
     }
-    // gotas brillantes
-    ctx.fillStyle = '#6cf0ff44';
-    for (let i = 0; i < 30; i++) {
-      const x = (i * 73 + cam.x * 0.1) % viewW;
-      const y = (i * 131 + Date.now() * 0.05) % viewH;
-      ctx.fillRect(x, y, 2, 4);
+    // Brillos
+    ctx.fillStyle = '#3a2c5c';
+    for (let i = 0; i < W / 40; i++) {
+      const x = (i * 137) % W;
+      const y = (i * 53) % (H - 80) + 40;
+      ctx.fillRect(x, y, 3, 3);
     }
   }
 
-  drawRoofParallax(ctx, cam, viewW, viewH, t) {
-    // estrellas
+  _renderRoofToCache(ctx, W, H) {
+    // Skyline lejanísima
+    ctx.fillStyle = '#0a061a';
+    for (let i = 0; i < W / 240 + 1; i++) {
+      const bx = i * 240;
+      const bh = 180 + ((i * 41) % 90);
+      ctx.fillRect(bx, H - bh, 130, bh);
+      ctx.fillStyle = '#a36ad8';
+      for (let wy = H - bh + 20; wy < H - 20; wy += 30) {
+        for (let wx = bx + 10; wx < bx + 120; wx += 18) {
+          if ((wx + wy + i) % 4 < 2) ctx.fillRect(wx, wy, 6, 10);
+        }
+      }
+      ctx.fillStyle = '#0a061a';
+    }
+  }
+
+  _drawRoofStars(ctx, viewW, viewH, t) {
     ctx.fillStyle = '#fff';
     for (let i = 0; i < 60; i++) {
       const x = (i * 137) % viewW;
-      const y = (i * 53) % (viewH * 0.7);
+      const y = (i * 53) % (viewH * 0.6);
       const tw = 0.5 + 0.5 * Math.sin(t * 4 + i);
       ctx.globalAlpha = 0.3 + tw * 0.6;
       ctx.fillRect(x, y, 2, 2);
     }
     ctx.globalAlpha = 1;
-    // skyline lejanísima
-    ctx.fillStyle = '#0a061a';
-    const off = -((cam.x * 0.1) % 240);
-    for (let i = -1; i < Math.ceil(viewW / 240) + 2; i++) {
-      const bx = i * 240 + off;
-      const bh = 160 + ((i * 41) % 80);
-      ctx.fillRect(bx, viewH - bh, 120, bh);
-      ctx.fillStyle = '#a36ad8';
-      for (let wy = viewH - bh + 20; wy < viewH - 20; wy += 30) {
-        for (let wx = bx + 10; wx < bx + 110; wx += 18) {
-          if ((wx + wy + i) % 4 < 2) ctx.fillRect(wx, wy, 6, 10);
-        }
-      }
-      ctx.fillStyle = '#0a061a';
+  }
+
+  _drawSewerDrips(ctx, cam, viewW, viewH) {
+    ctx.fillStyle = 'rgba(108,240,255,0.25)';
+    const tt = Date.now() * 0.05;
+    for (let i = 0; i < 18; i++) {
+      const x = (i * 73 + cam.x * 0.1) % viewW;
+      const y = (i * 131 + tt) % viewH;
+      ctx.fillRect(x, y, 2, 5);
     }
   }
 
@@ -1097,21 +1347,27 @@ class World {
     }
   }
 }
-// Mía: jugadora con física de plataformas, salto variable y power-ups.
+// Mía: jugadora con física de plataformas, salto variable, espada y power-ups.
+// Constantes de física escaladas por 1.25 para acompañar TILE=40 (era 32).
 
 // Constantes de física (px/seg).
-const GRAVITY = 1800;
-const MAX_FALL = 900;
-const WALK_ACCEL = 900;
-const RUN_ACCEL  = 1400;
-const WALK_MAX   = 180;
-const RUN_MAX    = 320;
-const FRICTION   = 1300;
-const JUMP_VEL   = -560;            // velocidad inicial al saltar
-const JUMP_HOLD_FORCE = -1100;      // contra-gravedad mientras se mantiene espacio
-const JUMP_HOLD_TIME  = 0.22;       // seg máx que la fuerza extra se aplica
+const GRAVITY = 2250;            // 1800 * 1.25
+const MAX_FALL = 1125;           // 900 * 1.25
+const WALK_ACCEL = 1125;         // 900 * 1.25
+const RUN_ACCEL  = 1750;         // 1400 * 1.25
+const WALK_MAX   = 225;          // 180 * 1.25
+const RUN_MAX    = 400;          // 320 * 1.25
+const FRICTION   = 1625;         // 1300 * 1.25
+const JUMP_VEL   = -700;         // -560 * 1.25
+const JUMP_HOLD_FORCE = -1375;   // -1100 * 1.25
+const JUMP_HOLD_TIME  = 0.22;
 const COYOTE_TIME = 0.08;
 const JUMP_BUFFER = 0.10;
+
+// Espada
+const SWORD_DURATION = 0.22;     // duración del swing visible
+const SWORD_COOLDOWN = 0.32;     // tiempo mínimo entre swings
+const SWORD_REACH = 38;          // alcance horizontal del hitbox
 
 class Player {
   constructor(x, y) {
@@ -1126,25 +1382,52 @@ class Player {
     this.jumpBuffer = 0;
     this.jumpHold = 0;
     this.jumping = false;
-    this.invuln = 0;       // segundos de invulnerabilidad tras recibir golpe
+    this.invuln = 0;
     this.dead = false;
     this.deathTimer = 0;
     this.walkPhase = 0;
     this.walkTimer = 0;
     this.shootCooldown = 0;
-    this.justBumped = null;  // {col, row} a procesar por main
-    this.justHit = null;     // resultado de bump
+    this.justBumped = null;
+    this.justHit = null;
     this.spawnX = x; this.spawnY = y;
     this.completed = false;
     this.win = false;
+
+    // Espada
+    this.swordTimer = 0;       // > 0 mientras está activa
+    this.swordCooldown = 0;
+    this.swordHits = new Set(); // ids ya golpeados en este swing
+    this.swordSwingId = 0;
+
+    // Squash & stretch
+    this.landSquash = 0;       // > 0 brevemente al aterrizar
+    this._wasOnGround = false;
   }
 
-  get width()  { return 24; }
-  get height() { return this.size === 'big' ? 48 : 28; }
+  // Ligeramente más grandes que antes para acompañar TILE=40
+  get width()  { return 30; }
+  get height() { return this.size === 'big' ? 60 : 36; }
 
-  // Caja de colisión con padding interior.
   get aabb() {
     return { x: this.x, y: this.y, w: this.width, h: this.height };
+  }
+
+  // Hitbox del swing de espada (frente a Mía mientras swordTimer > 0)
+  get swordHitbox() {
+    if (this.swordTimer <= 0) return null;
+    const hx = this.facing > 0 ? (this.x + this.width - 4) : (this.x - SWORD_REACH + 4);
+    return {
+      x: hx,
+      y: this.y + 6,
+      w: SWORD_REACH,
+      h: this.height - 10,
+    };
+  }
+
+  get isSwinging() { return this.swordTimer > 0; }
+  get swingProgress() {
+    return this.swordTimer > 0 ? 1 - (this.swordTimer / SWORD_DURATION) : 0;
   }
 
   reset(x, y) {
@@ -1157,6 +1440,18 @@ class Player {
     this.dead = false;
     this.deathTimer = 0;
     this.completed = false;
+    this.swordTimer = 0;
+    this.swordCooldown = 0;
+  }
+
+  attack() {
+    if (this.swordCooldown > 0 || this.dead) return false;
+    this.swordTimer = SWORD_DURATION;
+    this.swordCooldown = SWORD_COOLDOWN;
+    this.swordHits = new Set();
+    this.swordSwingId++;
+    SFX.shoot();
+    return true;
   }
 
   takeDamage() {
@@ -1173,11 +1468,10 @@ class Player {
       SFX.hit();
       return false;
     }
-    // muerte
     this.dead = true;
     this.deathTimer = 0;
     this.vx = 0;
-    this.vy = -500;
+    this.vy = -560;
     SFX.death();
     return true;
   }
@@ -1185,11 +1479,8 @@ class Player {
   grow() {
     if (this.size === 'small') {
       this.size = 'big';
-      // empujar un poco hacia arriba para no quedar atascada
-      this.y -= 20;
+      this.y -= 24;
       SFX.power();
-    } else {
-      // si ya está grande, dar puntos extra
     }
   }
 
@@ -1197,13 +1488,13 @@ class Player {
     this.hasHeadphones = true;
     if (this.size === 'small') {
       this.size = 'big';
-      this.y -= 20;
+      this.y -= 24;
     }
     SFX.power();
   }
 
   bounce(small = false) {
-    this.vy = small ? -300 : -480;
+    this.vy = small ? -380 : -600;
     this.jumping = false;
     this.jumpHold = 0;
   }
@@ -1216,6 +1507,18 @@ class Player {
       return;
     }
 
+    // Timers de espada
+    if (this.swordTimer > 0) this.swordTimer -= dt;
+    if (this.swordCooldown > 0) this.swordCooldown -= dt;
+
+    // Trigger de ataque
+    if (input.wasPressed('attack')) {
+      this.attack();
+    }
+
+    // Squash & stretch: aterrizaje
+    if (this.landSquash > 0) this.landSquash -= dt;
+
     // Entrada horizontal
     const left = input.isDown('left');
     const right = input.isDown('right');
@@ -1227,20 +1530,18 @@ class Player {
     if (dir !== 0) {
       this.vx += dir * accel * dt;
       this.facing = dir;
-      // si va más rápido del máximo (porque venía corriendo y soltó shift), frenar suave
       if (Math.abs(this.vx) > maxSpeed) {
         const sign = Math.sign(this.vx);
         this.vx = sign * Math.max(maxSpeed, Math.abs(this.vx) - FRICTION * 0.5 * dt);
       }
     } else {
-      // fricción
       const sign = Math.sign(this.vx);
       this.vx -= sign * FRICTION * dt;
       if (Math.sign(this.vx) !== sign) this.vx = 0;
     }
     this.vx = Math.max(-RUN_MAX, Math.min(RUN_MAX, this.vx));
 
-    // Coyote time / buffer
+    // Coyote / buffer
     this.coyote = this.onGround ? COYOTE_TIME : Math.max(0, this.coyote - dt);
     if (input.wasPressed('jump')) this.jumpBuffer = JUMP_BUFFER;
     else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
@@ -1255,7 +1556,6 @@ class Player {
       SFX.jump();
     }
 
-    // Salto variable: aplicar fuerza extra hacia arriba mientras se mantenga.
     if (this.jumping && input.isDown('jump') && this.jumpHold > 0 && this.vy < 0) {
       this.vy += JUMP_HOLD_FORCE * dt;
       this.jumpHold -= dt;
@@ -1264,29 +1564,30 @@ class Player {
       this.jumpHold = 0;
     }
 
-    // Cooldown de disparo
     if (this.shootCooldown > 0) this.shootCooldown -= dt;
 
-    // Gravedad
     this.vy += GRAVITY * dt;
     if (this.vy > MAX_FALL) this.vy = MAX_FALL;
 
-    // Movimiento + colisiones (separado por eje)
     this.justBumped = null;
     this.moveAndCollide(dt, world);
 
+    // Detectar aterrizaje para squash
+    if (this.onGround && !this._wasOnGround) {
+      this.landSquash = 0.12;
+    }
+    this._wasOnGround = this.onGround;
+
     // Animación de caminar
     if (this.onGround && Math.abs(this.vx) > 10) {
-      this.walkTimer += Math.abs(this.vx) * dt * 0.05;
+      this.walkTimer += Math.abs(this.vx) * dt * 0.04;
       this.walkPhase = Math.floor(this.walkTimer) % 4;
     } else {
       this.walkPhase = 0;
     }
 
-    // Invulnerabilidad
     if (this.invuln > 0) this.invuln -= dt;
 
-    // Caer fuera del mapa = muerte
     if (this.y > world.heightPx + 200) {
       if (!this.dead) {
         this.dead = true;
@@ -1362,23 +1663,46 @@ class Player {
   }
 
   draw(ctx, cam, t) {
-    // parpadeo si invulnerable
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) return;
 
-    const w = this.size === 'big' ? 32 : 24;
-    const h = this.size === 'big' ? 48 : 32;
-    // alinear el sprite con la AABB (la AABB es 24x28/48; el sprite extra contiene
-    // un poco de cabello/auriculares fuera del top — desplazamos hacia arriba)
+    // Sprite displays más grandes (1.5x el grid 24x36)
+    const w = this.size === 'big' ? 48 : 36;
+    const h = this.size === 'big' ? 72 : 54;
+
     const drawX = this.x - cam.x + (this.width - w) / 2;
     const drawY = this.y - cam.y - (h - this.height);
+
+    // Squash & stretch
+    let stretchY = 1, stretchX = 1;
+    if (this.landSquash > 0) {
+      // Aplastarse al aterrizar
+      const k = this.landSquash / 0.12;
+      stretchY = 1 - 0.18 * k;
+      stretchX = 1 + 0.14 * k;
+    } else if (!this.onGround) {
+      if (this.vy < -50) {
+        // Subiendo: estirar verticalmente
+        const k = Math.min(1, -this.vy / 700);
+        stretchY = 1 + 0.18 * k;
+        stretchX = 1 - 0.10 * k;
+      } else if (this.vy > 100) {
+        // Cayendo: levemente alargar pero menos
+        stretchY = 1.06;
+        stretchX = 0.96;
+      }
+    }
 
     const blink = (Math.floor(t * 2) % 8) === 0;
     drawMia(ctx, drawX, drawY, w, h, {
       facing: this.facing,
       walkPhase: this.walkPhase,
-      isJumping: !this.onGround,
+      isJumping: !this.onGround && this.vy < 0,
+      isFalling: !this.onGround && this.vy >= 0,
       hasHeadphones: this.hasHeadphones,
       blink,
+      swinging: this.isSwinging,
+      swingT: this.swingProgress,
+      stretchX, stretchY,
     });
   }
 }
@@ -1450,14 +1774,23 @@ class Enemy {
   get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
   killByStomp() { this.dead = true; this.deadTimer = 0; this.vy = -200; this.canStomp = false; SFX.stomp(); }
   killByProjectile() { this.dead = true; this.deadTimer = 0; this.vy = -260; this.vx = this.facing * 80; SFX.stomp(); }
+  // Por defecto, la espada se comporta como proyectil (mata si canBeStomped).
+  // Cactus override este método para ser inmune.
+  killBySword(fromDir) {
+    this.dead = true;
+    this.deadTimer = 0;
+    this.vy = -320;
+    this.vx = (fromDir || 1) * 220;
+    SFX.stomp();
+  }
 }
 
 // ---------- Slime de Basura ----------
 class Slime extends Enemy {
   constructor(x, y) {
-    super(x, y, 28, 28);
+    super(x, y, 36, 36);
     this.kind = 'slime';
-    this.vx = -50;
+    this.vx = -65;
     this.canBeStomped = true;
     this.canBeProjectiled = true;
     this.canBeDeflected = true;
@@ -1501,7 +1834,7 @@ class Slime extends Enemy {
 // ---------- Cuervo Robacarteras ----------
 class Crow extends Enemy {
   constructor(x, y, flying) {
-    super(x, y, 28, 28);
+    super(x, y, 36, 36);
     this.kind = 'crow';
     this.flying = flying;
     this.shellMode = false;
@@ -1510,7 +1843,7 @@ class Crow extends Enemy {
     this.flap = 0;
     this.baseY = y;
     this.tParam = 0;
-    this.vx = flying ? 80 : -60;
+    this.vx = flying ? 100 : -75;
     this.canBeStomped = true;
     this.canBeProjectiled = true;
     this.canBeDeflected = true;
@@ -1539,6 +1872,20 @@ class Crow extends Enemy {
     this.shellMoving = true;
     this.vx = this.kickDir > 0 ? 360 : -360;
     SFX.stomp();
+  }
+  // Espada sobre cuervo: si no está en concha, lo mata; si está, lo patea.
+  killBySword(fromDir) {
+    if (this.shellMode) {
+      this.shellMoving = true;
+      this.vx = (fromDir || 1) * 420;
+      SFX.stomp();
+    } else {
+      this.dead = true;
+      this.deadTimer = 0;
+      this.vy = -320;
+      this.vx = (fromDir || 1) * 220;
+      SFX.stomp();
+    }
   }
   update(dt, world) {
     this.dt = dt;
@@ -1607,17 +1954,19 @@ class Crow extends Enemy {
   }
 }
 
-// ---------- Cactus Rodante (invencible al salto) ----------
+// ---------- Cactus Rodante (invencible al salto Y a la espada) ----------
 class Cactus extends Enemy {
   constructor(x, y) {
-    super(x, y, 30, 30);
+    super(x, y, 38, 38);
     this.kind = 'cactus';
-    this.vx = -90;
+    this.vx = -110;
     this.canBeStomped = false;
     this.canBeProjectiled = true; // se destruye con notas
     this.canBeDeflected = false;
     this.rot = 0;
   }
+  // La espada NO daña al cactus (sus espinas paran el filo).
+  killBySword() { /* ignored — solo notas musicales lo destruyen */ }
   update(dt, world) {
     this.dt = dt;
     this.rot += Math.abs(this.vx) * dt * 0.05;
@@ -1656,11 +2005,11 @@ class Cactus extends Enemy {
 // ---------- Mapache Gigante Mutante (jefe) ----------
 class RaccoonBoss extends Enemy {
   constructor(x, y) {
-    super(x, y, 96, 96);
+    super(x, y, 120, 120);
     this.kind = 'boss';
     this.hp = 5;
     this.facing = -1;
-    this.vx = -120;
+    this.vx = -150;
     this.canBeStomped = true;
     this.canBeProjectiled = true;
     this.canBeDeflected = false;
@@ -1684,6 +2033,7 @@ class RaccoonBoss extends Enemy {
   }
   killByStomp() { this.hit(); }
   killByProjectile() { this.hit(); }
+  killBySword() { this.hit(); }
   update(dt, world) {
     this.dt = dt;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;
@@ -2069,6 +2419,8 @@ const ACTION_BY_KEY = {
   ArrowUp: 'jump', Space: 'jump',
   ShiftLeft: 'run', ShiftRight: 'run',
   KeyJ: 'shoot',
+  KeyK: 'attack',
+  KeyZ: 'attack',
   KeyP: 'pause',
   KeyR: 'restart',
   Enter: 'confirm',
@@ -2096,46 +2448,34 @@ class Input {
     });
     window.addEventListener('blur', () => { this.down.clear(); });
 
-    // --- Controles táctiles ---
     this.setupTouch();
   }
 
   setupTouch() {
-    // Detectar si es móvil
     const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    if (isMobile) {
-      document.body.classList.add('touch-active');
-    }
+    if (isMobile) document.body.classList.add('touch-active');
 
     const btns = document.querySelectorAll('.touch-btn');
     btns.forEach(btn => {
       const action = btn.dataset.action;
       if (!action) return;
-
       const start = (e) => {
         e.preventDefault();
         btn.classList.add('active');
         if (!this.down.has(action)) this.pressed.add(action);
         this.down.add(action);
-        // Auto-run en móvil si se mantiene derecha/izquierda
-        if (action === 'left' || action === 'right') {
-          this.down.add('run');
-        }
+        if (action === 'left' || action === 'right') this.down.add('run');
       };
       const end = (e) => {
         e.preventDefault();
         btn.classList.remove('active');
         this.down.delete(action);
         this.released.add(action);
-        if (action === 'left' || action === 'right') {
-          this.down.delete('run');
-        }
+        if (action === 'left' || action === 'right') this.down.delete('run');
       };
-
       btn.addEventListener('touchstart', start, { passive: false });
       btn.addEventListener('touchend', end, { passive: false });
       btn.addEventListener('touchcancel', end, { passive: false });
-      // También mouse para testing en desktop
       btn.addEventListener('mousedown', start);
       btn.addEventListener('mouseup', end);
       btn.addEventListener('mouseleave', end);
@@ -2207,6 +2547,12 @@ class Game {
     this.bigMessageTimer = 0;
     this.completeTimer = 0;
     this.hasBackpack = false;
+
+    // Screen shake (intensidad y tiempo restante)
+    this.shakeIntensity = 0;
+    this.shakeTime = 0;
+    this.shakeOffsetX = 0;
+    this.shakeOffsetY = 0;
 
     // Bind menu start button
     const startBtn = document.getElementById('startBtn');
@@ -2294,9 +2640,52 @@ class Game {
     this.toastTime = duration;
   }
 
+  shake(intensity, duration = 0.25) {
+    if (intensity > this.shakeIntensity) {
+      this.shakeIntensity = intensity;
+      this.shakeTime = duration;
+    }
+  }
+
+  updateShake(dt) {
+    if (this.shakeTime > 0) {
+      this.shakeTime -= dt;
+      const k = Math.max(0, this.shakeTime / 0.25);
+      const amount = this.shakeIntensity * k;
+      this.shakeOffsetX = (Math.random() - 0.5) * amount * 2;
+      this.shakeOffsetY = (Math.random() - 0.5) * amount * 2;
+      if (this.shakeTime <= 0) {
+        this.shakeIntensity = 0;
+        this.shakeOffsetX = 0;
+        this.shakeOffsetY = 0;
+      }
+    }
+  }
+
   killPlayer() {
     if (this.player.dead) return;
+    const wasDead = this.player.dead;
     this.player.takeDamage();
+    // Screen shake fuerte si murió, suave si sólo perdió power
+    if (this.player.dead && !wasDead) {
+      this.shake(14, 0.4);
+    } else {
+      this.shake(6, 0.2);
+    }
+  }
+
+  spawnHitParticles(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 80,
+        life: 0.4 + Math.random() * 0.2,
+        color,
+      });
+    }
   }
 
   loop(now) {
@@ -2499,6 +2888,39 @@ class Game {
     }
     this.notes = this.notes.filter(n => !n.dead);
 
+    // Sword <-> enemy
+    if (this.player.swordTimer > 0) {
+      const sb = this.player.swordHitbox;
+      if (sb) {
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          // Evitar pegar al mismo enemigo dos veces en el mismo swing
+          const key = e.__id || (e.__id = Math.random().toString(36).slice(2));
+          const hitKey = this.player.swordSwingId + ':' + key;
+          if (this.player.swordHits.has(hitKey)) continue;
+          if (!overlap(sb, e.aabb)) continue;
+
+          this.player.swordHits.add(hitKey);
+          const fromDir = this.player.facing;
+
+          if (e.kind === 'boss') {
+            e.killBySword(fromDir);
+            this.shake(8, 0.25);
+            this.spawnHitParticles(e.x + e.w / 2, e.y + e.h / 2, '#ffd14f');
+          } else if (e.kind === 'cactus') {
+            // Espada rebota en cactus (sólo SFX, sin daño)
+            SFX.hit();
+            this.shake(2, 0.1);
+          } else {
+            e.killBySword(fromDir);
+            this.score += 150;
+            this.shake(4, 0.18);
+            this.spawnHitParticles(e.x + e.w / 2, e.y + e.h / 2, '#fff');
+          }
+        }
+      }
+    }
+
     // Player <-> enemies
     if (!this.player.dead && this.player.invuln <= 0) {
       for (const e of this.enemies) {
@@ -2524,6 +2946,8 @@ class Game {
           e.killByStomp();
           this.player.bounce(this.input.isDown('jump'));
           if (e.kind !== 'boss') this.score += 100;
+          this.shake(3, 0.12);
+          this.spawnHitParticles(e.x + e.w / 2, e.y, '#fff');
           break;
         }
 
@@ -2620,6 +3044,9 @@ class Game {
     this.cam.x = Math.max(0, Math.min(this.world.widthPx - VIEW_W, targetX));
     const targetY = this.player.y + this.player.height / 2 - VIEW_H / 2;
     this.cam.y = Math.max(0, Math.min(Math.max(0, this.world.heightPx - VIEW_H), targetY));
+
+    // Shake update
+    this.updateShake(dt);
   }
 
   addCoin() {
@@ -2644,6 +3071,12 @@ class Game {
   }
 
   render() {
+    // Aplicar screen shake (transform global excepto HUD)
+    ctx.save();
+    if (this.shakeIntensity > 0) {
+      ctx.translate(this.shakeOffsetX, this.shakeOffsetY);
+    }
+
     // fondo + parallax
     this.world.drawBackground(ctx, this.cam, VIEW_W, VIEW_H, this.t);
     // tiles
@@ -2665,11 +3098,14 @@ class Game {
     // partículas
     for (const p of this.particles) {
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - this.cam.x, p.y - this.cam.y, 4, 4);
+      const size = Math.max(2, 4 * (p.life / 0.6));
+      ctx.fillRect(p.x - this.cam.x, p.y - this.cam.y, size, size);
     }
 
     // jugador
     if (this.player) this.player.draw(ctx, this.cam, this.t);
+
+    ctx.restore(); // fin de shake — el HUD va encima sin temblar
 
     // HUD
     drawHUD(ctx, VIEW_W, {

@@ -66,14 +66,23 @@ class Enemy {
   get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
   killByStomp() { this.dead = true; this.deadTimer = 0; this.vy = -200; this.canStomp = false; SFX.stomp(); }
   killByProjectile() { this.dead = true; this.deadTimer = 0; this.vy = -260; this.vx = this.facing * 80; SFX.stomp(); }
+  // Por defecto, la espada se comporta como proyectil (mata si canBeStomped).
+  // Cactus override este método para ser inmune.
+  killBySword(fromDir) {
+    this.dead = true;
+    this.deadTimer = 0;
+    this.vy = -320;
+    this.vx = (fromDir || 1) * 220;
+    SFX.stomp();
+  }
 }
 
 // ---------- Slime de Basura ----------
 class Slime extends Enemy {
   constructor(x, y) {
-    super(x, y, 28, 28);
+    super(x, y, 36, 36);
     this.kind = 'slime';
-    this.vx = -50;
+    this.vx = -65;
     this.canBeStomped = true;
     this.canBeProjectiled = true;
     this.canBeDeflected = true;
@@ -117,7 +126,7 @@ class Slime extends Enemy {
 // ---------- Cuervo Robacarteras ----------
 class Crow extends Enemy {
   constructor(x, y, flying) {
-    super(x, y, 28, 28);
+    super(x, y, 36, 36);
     this.kind = 'crow';
     this.flying = flying;
     this.shellMode = false;
@@ -126,7 +135,7 @@ class Crow extends Enemy {
     this.flap = 0;
     this.baseY = y;
     this.tParam = 0;
-    this.vx = flying ? 80 : -60;
+    this.vx = flying ? 100 : -75;
     this.canBeStomped = true;
     this.canBeProjectiled = true;
     this.canBeDeflected = true;
@@ -155,6 +164,20 @@ class Crow extends Enemy {
     this.shellMoving = true;
     this.vx = this.kickDir > 0 ? 360 : -360;
     SFX.stomp();
+  }
+  // Espada sobre cuervo: si no está en concha, lo mata; si está, lo patea.
+  killBySword(fromDir) {
+    if (this.shellMode) {
+      this.shellMoving = true;
+      this.vx = (fromDir || 1) * 420;
+      SFX.stomp();
+    } else {
+      this.dead = true;
+      this.deadTimer = 0;
+      this.vy = -320;
+      this.vx = (fromDir || 1) * 220;
+      SFX.stomp();
+    }
   }
   update(dt, world) {
     this.dt = dt;
@@ -223,17 +246,19 @@ class Crow extends Enemy {
   }
 }
 
-// ---------- Cactus Rodante (invencible al salto) ----------
+// ---------- Cactus Rodante (invencible al salto Y a la espada) ----------
 class Cactus extends Enemy {
   constructor(x, y) {
-    super(x, y, 30, 30);
+    super(x, y, 38, 38);
     this.kind = 'cactus';
-    this.vx = -90;
+    this.vx = -110;
     this.canBeStomped = false;
     this.canBeProjectiled = true; // se destruye con notas
     this.canBeDeflected = false;
     this.rot = 0;
   }
+  // La espada NO daña al cactus (sus espinas paran el filo).
+  killBySword() { /* ignored — solo notas musicales lo destruyen */ }
   update(dt, world) {
     this.dt = dt;
     this.rot += Math.abs(this.vx) * dt * 0.05;
@@ -272,11 +297,11 @@ class Cactus extends Enemy {
 // ---------- Mapache Gigante Mutante (jefe) ----------
 class RaccoonBoss extends Enemy {
   constructor(x, y) {
-    super(x, y, 96, 96);
+    super(x, y, 120, 120);
     this.kind = 'boss';
     this.hp = 5;
     this.facing = -1;
-    this.vx = -120;
+    this.vx = -150;
     this.canBeStomped = true;
     this.canBeProjectiled = true;
     this.canBeDeflected = false;
@@ -300,6 +325,7 @@ class RaccoonBoss extends Enemy {
   }
   killByStomp() { this.hit(); }
   killByProjectile() { this.hit(); }
+  killBySword() { this.hit(); }
   update(dt, world) {
     this.dt = dt;
     if (this.hurtTimer > 0) this.hurtTimer -= dt;

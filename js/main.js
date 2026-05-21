@@ -54,6 +54,12 @@ class Game {
     this.completeTimer = 0;
     this.hasBackpack = false;
 
+    // Screen shake (intensidad y tiempo restante)
+    this.shakeIntensity = 0;
+    this.shakeTime = 0;
+    this.shakeOffsetX = 0;
+    this.shakeOffsetY = 0;
+
     // Bind menu start button
     const startBtn = document.getElementById('startBtn');
     const overlay = document.getElementById('overlay');
@@ -140,9 +146,52 @@ class Game {
     this.toastTime = duration;
   }
 
+  shake(intensity, duration = 0.25) {
+    if (intensity > this.shakeIntensity) {
+      this.shakeIntensity = intensity;
+      this.shakeTime = duration;
+    }
+  }
+
+  updateShake(dt) {
+    if (this.shakeTime > 0) {
+      this.shakeTime -= dt;
+      const k = Math.max(0, this.shakeTime / 0.25);
+      const amount = this.shakeIntensity * k;
+      this.shakeOffsetX = (Math.random() - 0.5) * amount * 2;
+      this.shakeOffsetY = (Math.random() - 0.5) * amount * 2;
+      if (this.shakeTime <= 0) {
+        this.shakeIntensity = 0;
+        this.shakeOffsetX = 0;
+        this.shakeOffsetY = 0;
+      }
+    }
+  }
+
   killPlayer() {
     if (this.player.dead) return;
+    const wasDead = this.player.dead;
     this.player.takeDamage();
+    // Screen shake fuerte si murió, suave si sólo perdió power
+    if (this.player.dead && !wasDead) {
+      this.shake(14, 0.4);
+    } else {
+      this.shake(6, 0.2);
+    }
+  }
+
+  spawnHitParticles(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 80,
+        life: 0.4 + Math.random() * 0.2,
+        color,
+      });
+    }
   }
 
   loop(now) {
@@ -345,6 +394,39 @@ class Game {
     }
     this.notes = this.notes.filter(n => !n.dead);
 
+    // Sword <-> enemy
+    if (this.player.swordTimer > 0) {
+      const sb = this.player.swordHitbox;
+      if (sb) {
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          // Evitar pegar al mismo enemigo dos veces en el mismo swing
+          const key = e.__id || (e.__id = Math.random().toString(36).slice(2));
+          const hitKey = this.player.swordSwingId + ':' + key;
+          if (this.player.swordHits.has(hitKey)) continue;
+          if (!overlap(sb, e.aabb)) continue;
+
+          this.player.swordHits.add(hitKey);
+          const fromDir = this.player.facing;
+
+          if (e.kind === 'boss') {
+            e.killBySword(fromDir);
+            this.shake(8, 0.25);
+            this.spawnHitParticles(e.x + e.w / 2, e.y + e.h / 2, '#ffd14f');
+          } else if (e.kind === 'cactus') {
+            // Espada rebota en cactus (sólo SFX, sin daño)
+            SFX.hit();
+            this.shake(2, 0.1);
+          } else {
+            e.killBySword(fromDir);
+            this.score += 150;
+            this.shake(4, 0.18);
+            this.spawnHitParticles(e.x + e.w / 2, e.y + e.h / 2, '#fff');
+          }
+        }
+      }
+    }
+
     // Player <-> enemies
     if (!this.player.dead && this.player.invuln <= 0) {
       for (const e of this.enemies) {
@@ -370,6 +452,8 @@ class Game {
           e.killByStomp();
           this.player.bounce(this.input.isDown('jump'));
           if (e.kind !== 'boss') this.score += 100;
+          this.shake(3, 0.12);
+          this.spawnHitParticles(e.x + e.w / 2, e.y, '#fff');
           break;
         }
 
@@ -466,6 +550,9 @@ class Game {
     this.cam.x = Math.max(0, Math.min(this.world.widthPx - VIEW_W, targetX));
     const targetY = this.player.y + this.player.height / 2 - VIEW_H / 2;
     this.cam.y = Math.max(0, Math.min(Math.max(0, this.world.heightPx - VIEW_H), targetY));
+
+    // Shake update
+    this.updateShake(dt);
   }
 
   addCoin() {
@@ -490,6 +577,12 @@ class Game {
   }
 
   render() {
+    // Aplicar screen shake (transform global excepto HUD)
+    ctx.save();
+    if (this.shakeIntensity > 0) {
+      ctx.translate(this.shakeOffsetX, this.shakeOffsetY);
+    }
+
     // fondo + parallax
     this.world.drawBackground(ctx, this.cam, VIEW_W, VIEW_H, this.t);
     // tiles
@@ -511,11 +604,14 @@ class Game {
     // partículas
     for (const p of this.particles) {
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - this.cam.x, p.y - this.cam.y, 4, 4);
+      const size = Math.max(2, 4 * (p.life / 0.6));
+      ctx.fillRect(p.x - this.cam.x, p.y - this.cam.y, size, size);
     }
 
     // jugador
     if (this.player) this.player.draw(ctx, this.cam, this.t);
+
+    ctx.restore(); // fin de shake — el HUD va encima sin temblar
 
     // HUD
     drawHUD(ctx, VIEW_W, {

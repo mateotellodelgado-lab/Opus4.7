@@ -11,39 +11,62 @@ function px(ctx, x, y, w, h, color) {
 const PALETTE = {
   skin: '#ffd9b8',
   skinShade: '#e6b894',
+  skinDark: '#c69675',
+  blush: '#ff9eb5',
   hair: '#ffffff',
   hairShade: '#dfe5f2',
+  hairDeep: '#b9c1d6',
   hoodie: '#ff4fa3',
-  hoodieShade: '#c3327b',
-  hoodieDark: '#8a1f57',
+  hoodieMid: '#e0357e',
+  hoodieShade: '#a8276c',
+  hoodieDark: '#6f1746',
+  hoodieHighlight: '#ff85c5',
   jeans: '#3a6cd8',
   jeansShade: '#23499a',
+  jeansDark: '#142d6a',
+  jeansSeam: '#5a8df0',
   shoe: '#f4f4f4',
+  shoeStripe: '#ff4fa3',
   shoeSole: '#1a1a1a',
+  shoeShade: '#bdbdbd',
   eye: '#1d1338',
+  eyeShine: '#ffffff',
+  brow: '#3a2a55',
   mouth: '#a83b6b',
   headphones: '#ffd14f',
   headphonesPad: '#ff8a3b',
+  swordBlade: '#cfd8ec',
+  swordEdge: '#7c8eb5',
+  swordHilt: '#4a3585',
+  swordGuard: '#ffd14f',
+  swordPommel: '#ff4fa3',
 };
 
 /**
- * Dibuja a Mía mirando a la derecha en una caja de tamaño w×h.
- * @param {CanvasRenderingContext2D} ctx
- * @param {number} x posición top-left
- * @param {number} y
- * @param {number} w ancho del sprite
- * @param {number} h alto del sprite (32 para small, 48 para big)
- * @param {object} opts {facing:1|-1, walkPhase:0..3, isJumping, hasHeadphones, blink}
+ * Dibuja a Mía mirando a la derecha en una caja de tamaño w×h, usando
+ * una rejilla 24×36 (mucho más detalle que la versión 16×24 anterior).
  */
 function drawMia(ctx, x, y, w, h, opts = {}) {
   const facing = opts.facing ?? 1;
   const walk = opts.walkPhase ?? 0;
   const jumping = !!opts.isJumping;
+  const falling = !!opts.isFalling;
   const hp = !!opts.hasHeadphones;
   const blink = !!opts.blink;
+  const showSword = opts.showSword !== false; // por defecto sí
+  const swinging = !!opts.swinging;
+  const swingT = opts.swingT ?? 0; // 0..1 progreso del swing
+  const stretchY = opts.stretchY ?? 1;
+  const stretchX = opts.stretchX ?? 1;
 
   ctx.save();
-  // flip horizontal si mira a la izquierda
+  // Squash & stretch desde el pie
+  const cx = x + w / 2;
+  const baseY = y + h;
+  ctx.translate(cx, baseY);
+  ctx.scale(stretchX, stretchY);
+  ctx.translate(-cx, -baseY);
+
   if (facing < 0) {
     ctx.translate(x + w, y);
     ctx.scale(-1, 1);
@@ -51,85 +74,258 @@ function drawMia(ctx, x, y, w, h, opts = {}) {
     ctx.translate(x, y);
   }
 
-  // Coordenadas relativas en una rejilla 16×24 escalada a w×h.
-  const sx = w / 16, sy = h / 24;
+  // Rejilla relativa 24×36 escalada a w×h.
+  const sx = w / 24, sy = h / 36;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
 
-  // Cabello (parte superior + lados)
-  u(3, 1, 10, 4, PALETTE.hair);
-  u(2, 2, 1, 5, PALETTE.hair);
-  u(13, 2, 1, 5, PALETTE.hair);
-  u(3, 5, 10, 1, PALETTE.hairShade);
-  // mechones laterales
-  u(2, 7, 2, 3, PALETTE.hair);
-  u(12, 7, 2, 3, PALETTE.hair);
+  // ---------- Cabello (parte trasera) ----------
+  u(4, 1, 16, 5, PALETTE.hair);
+  u(3, 2, 1, 7, PALETTE.hair);
+  u(20, 2, 1, 7, PALETTE.hair);
+  u(2, 4, 1, 5, PALETTE.hairShade);
+  u(21, 4, 1, 5, PALETTE.hairShade);
+  // Mechones laterales largos
+  u(3, 9, 2, 5, PALETTE.hair);
+  u(19, 9, 2, 5, PALETTE.hair);
+  u(3, 13, 2, 1, PALETTE.hairShade);
+  u(19, 13, 2, 1, PALETTE.hairShade);
+  // Sombra superior del cabello
+  u(5, 6, 14, 1, PALETTE.hairShade);
+  // Highlight del cabello
+  u(7, 2, 4, 1, PALETTE.hair);
+  u(13, 3, 3, 1, '#ffffff');
+  // Flequillo asimétrico
+  u(6, 5, 8, 3, PALETTE.hair);
+  u(7, 7, 4, 1, PALETTE.hairShade);
+  u(13, 6, 5, 2, PALETTE.hair);
+  u(13, 7, 4, 1, PALETTE.hairShade);
 
-  // Cara
-  u(4, 4, 8, 5, PALETTE.skin);
-  u(4, 8, 8, 1, PALETTE.skinShade);
+  // ---------- Cara ----------
+  u(6, 7, 12, 7, PALETTE.skin);
+  u(6, 13, 12, 1, PALETTE.skinShade);
+  u(6, 7, 1, 1, PALETTE.skinShade);
+  u(17, 7, 1, 1, PALETTE.skinShade);
+  // Mejillas
+  u(7, 11, 2, 1, PALETTE.blush);
+  u(15, 11, 2, 1, PALETTE.blush);
 
-  // Ojos
+  // ---------- Cejas ----------
+  u(8, 8, 2, 1, PALETTE.brow);
+  u(14, 8, 2, 1, PALETTE.brow);
+
+  // ---------- Ojos ----------
   if (!blink) {
-    u(6, 6, 1, 2, PALETTE.eye);
-    u(10, 6, 1, 2, PALETTE.eye);
+    u(8, 9, 2, 3, PALETTE.eye);
+    u(14, 9, 2, 3, PALETTE.eye);
+    // Brillo en los ojos (vida!)
+    u(9, 9, 1, 1, PALETTE.eyeShine);
+    u(15, 9, 1, 1, PALETTE.eyeShine);
   } else {
-    u(6, 7, 2, 1, PALETTE.eye);
-    u(10, 7, 2, 1, PALETTE.eye);
+    u(8, 11, 2, 1, PALETTE.eye);
+    u(14, 11, 2, 1, PALETTE.eye);
   }
-  // Boca (sonrisa pequeña)
-  u(8, 8, 2, 1, PALETTE.mouth);
 
-  // Capucha de la sudadera (asoma por detrás de la cabeza)
-  u(2, 6, 1, 4, PALETTE.hoodie);
-  u(13, 6, 1, 4, PALETTE.hoodie);
+  // ---------- Boca ----------
+  u(11, 12, 2, 1, PALETTE.mouth);
+  u(10, 12, 1, 1, PALETTE.mouth);
+  u(13, 12, 1, 1, PALETTE.mouth);
 
-  // Cuerpo / sudadera
-  u(4, 9, 8, 6, PALETTE.hoodie);
-  u(4, 14, 8, 1, PALETTE.hoodieShade);
-  // Bolsillo central
-  u(6, 12, 4, 2, PALETTE.hoodieShade);
-  u(7, 13, 2, 1, PALETTE.hoodieDark);
+  // ---------- Capucha (asoma por detrás de la cabeza) ----------
+  u(2, 9, 1, 6, PALETTE.hoodie);
+  u(21, 9, 1, 6, PALETTE.hoodie);
+  u(3, 14, 18, 1, PALETTE.hoodieShade);
+
+  // ---------- Cuerpo / sudadera ----------
+  u(5, 14, 14, 9, PALETTE.hoodie);
+  // Highlight superior
+  u(5, 14, 14, 1, PALETTE.hoodieHighlight);
+  // Sombra inferior
+  u(5, 21, 14, 2, PALETTE.hoodieMid);
+  u(5, 22, 14, 1, PALETTE.hoodieShade);
+  // Bolsillo central canguro
+  u(8, 18, 8, 4, PALETTE.hoodieShade);
+  u(8, 18, 8, 1, PALETTE.hoodieDark);
+  u(9, 19, 1, 2, PALETTE.hoodieDark);
+  u(14, 19, 1, 2, PALETTE.hoodieDark);
   // Cordones de la capucha
-  u(7, 9, 1, 2, PALETTE.hairShade);
-  u(8, 9, 1, 2, PALETTE.hairShade);
+  u(10, 14, 1, 4, PALETTE.hairShade);
+  u(13, 14, 1, 4, PALETTE.hairShade);
+  // Remates de cordón
+  u(10, 18, 1, 1, PALETTE.swordGuard);
+  u(13, 18, 1, 1, PALETTE.swordGuard);
+  // Pequeño detalle (corazón) en pecho
+  u(15, 16, 1, 1, PALETTE.hoodieHighlight);
+  u(16, 17, 1, 1, PALETTE.hoodieHighlight);
+  u(15, 17, 1, 1, PALETTE.hoodieHighlight);
 
-  // Brazos
-  const armSwing = jumping ? -1 : (walk === 1 ? 1 : walk === 3 ? -1 : 0);
-  u(3, 10, 1, 4 + (armSwing > 0 ? 1 : 0), PALETTE.hoodie);
-  u(12, 10, 1, 4 + (armSwing < 0 ? 1 : 0), PALETTE.hoodie);
-  // manos
-  u(3, 14, 1, 1, PALETTE.skin);
-  u(12, 14, 1, 1, PALETTE.skin);
+  // ---------- Brazos ----------
+  const armSwing = swinging ? 1 : (jumping ? -1 : (walk === 1 ? 1 : walk === 3 ? -1 : 0));
+  // Brazo izquierdo (desde nuestra perspectiva)
+  u(4, 15, 1, 7 + (armSwing > 0 ? 1 : 0), PALETTE.hoodie);
+  u(4, 15, 1, 1, PALETTE.hoodieHighlight);
+  // Manga (cuff)
+  u(3, 21 + (armSwing > 0 ? 1 : 0), 2, 1, PALETTE.hoodieDark);
+  // Mano izquierda
+  u(3, 22 + (armSwing > 0 ? 1 : 0), 2, 1, PALETTE.skin);
 
-  // Jeans
-  u(5, 15, 6, 5, PALETTE.jeans);
-  u(5, 19, 6, 1, PALETTE.jeansShade);
-  u(8, 15, 1, 5, PALETTE.jeansShade); // separación de piernas
+  // Brazo derecho
+  u(19, 15, 1, 7 + (armSwing < 0 ? 1 : 0), PALETTE.hoodie);
+  u(19, 15, 1, 1, PALETTE.hoodieHighlight);
+  u(19, 21 + (armSwing < 0 ? 1 : 0), 2, 1, PALETTE.hoodieDark);
+  u(19, 22 + (armSwing < 0 ? 1 : 0), 2, 1, PALETTE.skin);
 
-  // Piernas / zapatillas — animación de caminar
+  // ---------- Cinturón ----------
+  u(5, 23, 14, 1, PALETTE.jeansDark);
+  u(11, 23, 2, 1, PALETTE.swordGuard); // hebilla
+
+  // ---------- Jeans ----------
+  u(5, 24, 14, 6, PALETTE.jeans);
+  u(5, 24, 14, 1, PALETTE.jeansSeam);
+  // División de piernas
+  u(11, 24, 2, 6, PALETTE.jeansShade);
+  // Bolsillo trasero (lado)
+  u(6, 26, 3, 2, PALETTE.jeansShade);
+  u(15, 26, 3, 2, PALETTE.jeansShade);
+  u(6, 26, 3, 1, PALETTE.jeansDark);
+  u(15, 26, 3, 1, PALETTE.jeansDark);
+
+  // ---------- Piernas ----------
   let legL = 0, legR = 0;
   if (jumping) { legL = -1; legR = 1; }
+  else if (falling) { legL = 1; legR = -1; }
   else if (walk === 1) { legL = -1; legR = 1; }
   else if (walk === 3) { legL = 1; legR = -1; }
 
-  u(5, 20 + legL, 3, 2, PALETTE.jeans);
-  u(9, 20 + legR, 3, 2, PALETTE.jeans);
-  // zapatillas
-  u(5, 22 + legL, 3, 1, PALETTE.shoe);
-  u(9, 22 + legR, 3, 1, PALETTE.shoe);
-  u(5, 23 + legL, 3, 1, PALETTE.shoeSole);
-  u(9, 23 + legR, 3, 1, PALETTE.shoeSole);
+  // Pantorrillas
+  u(6, 30 + legL, 4, 3, PALETTE.jeans);
+  u(14, 30 + legR, 4, 3, PALETTE.jeans);
+  u(6, 32 + legL, 4, 1, PALETTE.jeansShade);
+  u(14, 32 + legR, 4, 1, PALETTE.jeansShade);
 
-  // Auriculares mágicos (overlay)
+  // ---------- Zapatillas ----------
+  // Pie izquierdo
+  u(5, 33 + legL, 5, 2, PALETTE.shoe);
+  u(5, 33 + legL, 5, 1, '#ffffff');
+  u(5, 34 + legL, 5, 1, PALETTE.shoeShade);
+  u(5, 35 + legL, 5, 1, PALETTE.shoeSole);
+  u(5, 33 + legL, 1, 2, PALETTE.shoeStripe); // raya lateral
+  u(8, 34 + legL, 1, 1, PALETTE.shoeStripe);
+
+  // Pie derecho
+  u(14, 33 + legR, 5, 2, PALETTE.shoe);
+  u(14, 33 + legR, 5, 1, '#ffffff');
+  u(14, 34 + legR, 5, 1, PALETTE.shoeShade);
+  u(14, 35 + legR, 5, 1, PALETTE.shoeSole);
+  u(18, 33 + legR, 1, 2, PALETTE.shoeStripe);
+  u(15, 34 + legR, 1, 1, PALETTE.shoeStripe);
+
+  // ---------- Auriculares mágicos (overlay sobre cabello) ----------
   if (hp) {
-    u(3, 1, 10, 1, PALETTE.headphones);             // banda
-    u(2, 1, 1, 2, PALETTE.headphones);
-    u(13, 1, 1, 2, PALETTE.headphones);
-    u(2, 3, 2, 3, PALETTE.headphonesPad);           // copa izq
-    u(12, 3, 2, 3, PALETTE.headphonesPad);          // copa der
+    u(4, 1, 16, 1, PALETTE.headphones);
+    u(3, 1, 1, 3, PALETTE.headphones);
+    u(20, 1, 1, 3, PALETTE.headphones);
+    u(2, 4, 3, 5, PALETTE.headphonesPad);
+    u(19, 4, 3, 5, PALETTE.headphonesPad);
+    u(2, 4, 3, 1, PALETTE.headphones);
+    u(19, 4, 3, 1, PALETTE.headphones);
   }
 
+  // ---------- Espada en la mano derecha ----------
+  if (showSword) {
+    if (swinging) {
+      // Arco de swing visible: la espada pivota frente a Mía (~135°)
+      ctx.restore();
+      ctx.save();
+      // Re-aplicar transforms para el arco
+      const cx2 = x + w / 2;
+      const baseY2 = y + h;
+      ctx.translate(cx2, baseY2);
+      ctx.scale(stretchX, stretchY);
+      ctx.translate(-cx2, -baseY2);
+      if (facing < 0) {
+        ctx.translate(x + w, y);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(x, y);
+      }
+      _drawSwordSwing(ctx, sx, sy, swingT);
+    } else {
+      // En reposo: empuñada al costado
+      _drawSwordIdle(ctx, sx, sy, walk, jumping);
+    }
+  }
+
+  ctx.restore();
+}
+
+// Espada en reposo (empuñada al costado/derecha)
+function _drawSwordIdle(ctx, sx, sy, walk, jumping) {
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
+
+  // Mango (lo agarra la mano derecha, x≈19-20, y≈22-23)
+  // La espada cuelga hacia abajo
+  const ox = 21;
+  const oy = 19;
+  // Hoja
+  u(ox, oy, 2, 8, PALETTE.swordBlade);
+  u(ox, oy, 1, 8, '#ffffff');
+  u(ox + 1, oy, 1, 8, PALETTE.swordEdge);
+  u(ox, oy, 2, 1, '#ffffff');
+  // Guarda
+  u(ox - 1, oy + 8, 4, 1, PALETTE.swordGuard);
+  // Mango
+  u(ox, oy + 9, 2, 2, PALETTE.swordHilt);
+  // Pomo
+  u(ox - 1, oy + 11, 4, 1, PALETTE.swordPommel);
+}
+
+// Espada haciendo swing (arco frente a Mía)
+function _drawSwordSwing(ctx, sx, sy, swingT) {
+  // swingT va de 0 (inicio) a 1 (fin). El ángulo va de -45° a +90° aprox.
+  // La espada pivota desde el hombro derecho (~20, 16).
+  const angle = -Math.PI / 4 + swingT * (Math.PI * 0.85);
+  const px0 = 18 * sx;
+  const py0 = 17 * sy;
+  ctx.save();
+  ctx.translate(px0, py0);
+  ctx.rotate(angle);
+
+  // Hoja extendida
+  const bladeLen = 14 * sx;
+  const bladeW = 3 * sy;
+  ctx.fillStyle = PALETTE.swordBlade;
+  ctx.fillRect(0, -bladeW / 2, bladeLen, bladeW);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, -bladeW / 2, bladeLen, 1);
+  ctx.fillStyle = PALETTE.swordEdge;
+  ctx.fillRect(0, bladeW / 2 - 1, bladeLen, 1);
+  // Punta
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bladeLen - 2, -bladeW / 2 + 1, 2, bladeW - 2);
+  // Guarda (cruz)
+  ctx.fillStyle = PALETTE.swordGuard;
+  ctx.fillRect(-2, -bladeW / 2 - 1, 4, bladeW + 2);
+  // Mango
+  ctx.fillStyle = PALETTE.swordHilt;
+  ctx.fillRect(-5 * sx, -1, 5 * sx, 2);
+  // Pomo
+  ctx.fillStyle = PALETTE.swordPommel;
+  ctx.fillRect(-6 * sx, -2, 2, 4);
+
+  ctx.restore();
+
+  // Estela del swing (arco translúcido)
+  ctx.save();
+  ctx.translate(px0, py0);
+  ctx.fillStyle = `rgba(255,255,255,${0.4 * (1 - swingT)})`;
+  ctx.beginPath();
+  const r = 16 * sx;
+  ctx.arc(0, 0, r, -Math.PI / 4, angle, false);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
