@@ -1,1870 +1,1549 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0a0a12" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="format-detection" content="telephone=no" />
-  <title>Neo-Gravity: Elastic Escape</title>
-  <style>
-    /* =====================================================
-       RESET + GLOBAL — block accidental scroll/zoom on mobile
-       ===================================================== */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%; height: 100%;
-      background: #0a0a12;
-      color: #cfd5ff;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      overscroll-behavior: none;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      overflow: hidden;
-    }
-    /* Canvas fills the viewport. We use a single <canvas> covering the
-       full screen and letterbox the virtual world inside it. */
-    #game {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      background: #0a0a12;
-      touch-action: none;
-      will-change: transform;
-    }
-    /* Overlay layer holds DOM-based UI (menu, panels, HUD chips). It is
-       fixed on top of the canvas with `pointer-events: none` so taps
-       pass through to the canvas unless re-enabled per child. */
-    .overlay {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      contain: strict;
-
-    }
-    .overlay > * { pointer-events: auto; }
-    /* Full-screen panels (menu, level select, pause, etc.) — hardware
-       compositing via opacity transitions to avoid layout thrash. */
-    .panel {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at center,
-                  rgba(20,20,40,0.85) 0%,
-                  rgba(10,10,18,0.95) 70%);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
-      padding: 24px;
-      transition: opacity 220ms ease;
-      will-change: opacity;
-    }
-    .panel.hidden { opacity: 0; pointer-events: none; }
-    .title {
-      font-size: clamp(28px, 6vw, 56px);
-      font-weight: 800;
-      letter-spacing: 0.18em;
-      color: #7df9ff;
-      text-transform: uppercase;
-      text-shadow: 0 0 18px rgba(125,249,255,0.6),
-                   0 0 36px rgba(125,249,255,0.3);
-    }
-    .subtitle {
-      font-size: clamp(12px, 2.4vw, 16px);
-      color: #ff39b8;
-      letter-spacing: 0.32em;
-      text-transform: uppercase;
-      text-shadow: 0 0 10px rgba(255,57,184,0.55);
-    }
-    .btn {
-      min-width: 220px;
-      padding: 14px 28px;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: #0a0a12;
-
-      background: #7df9ff;
-      border: 0;
-      border-radius: 8px;
-      cursor: pointer;
-      box-shadow: 0 0 24px rgba(125,249,255,0.45),
-                  inset 0 0 0 1px rgba(255,255,255,0.4);
-      transition: transform 120ms ease, box-shadow 120ms ease;
-      will-change: transform;
-    }
-    .btn:active { transform: translateY(1px) scale(0.98); }
-    .btn.ghost {
-      background: transparent;
-      color: #cfd5ff;
-      box-shadow: inset 0 0 0 1px rgba(207,213,255,0.35);
-    }
-    .btn.danger {
-      background: #ff39b8;
-      color: #0a0a12;
-      box-shadow: 0 0 24px rgba(255,57,184,0.5);
-    }
-    /* Level selector grid — flexible, no media-query breakpoints. */
-    .levels {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-      gap: 12px;
-      max-width: min(520px, 90vw);
-      width: 100%;
-    }
-    .level-tile {
-      aspect-ratio: 1 / 1;
-      border-radius: 10px;
-      background: rgba(125,249,255,0.06);
-      box-shadow: inset 0 0 0 1px rgba(125,249,255,0.4);
-      color: #7df9ff;
-      font-size: 22px;
-      font-weight: 800;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
-    }
-    .level-tile.locked { opacity: 0.35; cursor: not-allowed; }
-    .level-tile .best {
-      position: absolute;
-      bottom: 6px;
-      font-size: 10px;
-      color: #ff39b8;
-      letter-spacing: 0.2em;
-
-    }
-    /* HUD: top bar with chips. Uses fixed positioning + transform-only
-       updates from JS so no relayout occurs during gameplay. */
-    #hud {
-      position: fixed;
-      top: env(safe-area-inset-top, 0);
-      left: 0; right: 0;
-      padding: 14px 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      pointer-events: none;
-      font-size: 13px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: #cfd5ff;
-      gap: 8px;
-    }
-    #hud.hidden { display: none; }
-    #hud .chip {
-      background: rgba(10,10,18,0.55);
-      box-shadow: inset 0 0 0 1px rgba(125,249,255,0.25);
-      padding: 8px 12px;
-      border-radius: 6px;
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-    }
-    #hud .actions { display: flex; gap: 8px; pointer-events: auto; }
-    .icon-btn {
-      width: 38px; height: 38px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(10,10,18,0.55);
-      box-shadow: inset 0 0 0 1px rgba(125,249,255,0.35);
-      color: #7df9ff;
-      border-radius: 8px;
-      border: 0;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-    }
-    .icon-btn:active { transform: scale(0.95); }
-    /* Toast: transient bottom message. */
-    .toast {
-      position: fixed;
-      bottom: 28px;
-
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 16px;
-      background: rgba(10,10,18,0.7);
-      box-shadow: inset 0 0 0 1px rgba(255,57,184,0.4);
-      border-radius: 6px;
-      color: #ff39b8;
-      letter-spacing: 0.2em;
-      font-size: 11px;
-      text-transform: uppercase;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 200ms ease;
-      will-change: opacity;
-    }
-    .toast.show { opacity: 1; }
-    /* Ad overlay: opaque scrim shown while a CrazyGames ad request is
-       in-flight. Physics + audio are paused via JS during this state. */
-    #ad-scrim {
-      position: fixed;
-      inset: 0;
-      background: rgba(5,5,10,0.92);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #7df9ff;
-      letter-spacing: 0.32em;
-      text-transform: uppercase;
-      font-size: 12px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 180ms ease;
-      z-index: 99;
-    }
-    #ad-scrim.show { opacity: 1; pointer-events: auto; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>Neo-Gravity: Elastic Escape</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;font-family:'Segoe UI',sans-serif;color:#eee}
+canvas{display:block;position:absolute;top:0;left:0}
+.panel{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,10,18,0.92);backdrop-filter:blur(8px);z-index:100;transition:opacity 0.3s}
+.panel.hidden{display:none;opacity:0;pointer-events:none}
+.panel h1{font-size:2rem;letter-spacing:4px;text-transform:uppercase;margin-bottom:1rem;text-shadow:0 0 12px #7df9ff}
+.panel h2{font-size:1.4rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:0.8rem;color:#9b59ff;text-shadow:0 0 8px #9b59ff}
+.btn{display:inline-block;padding:12px 32px;margin:8px;border:1px solid #7df9ff;background:transparent;color:#7df9ff;font-size:0.9rem;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;border-radius:4px}
+.btn:hover{background:#7df9ff22;box-shadow:0 0 16px #7df9ff44}
+.btn.pink{border-color:#ff39b8;color:#ff39b8}
+.btn.pink:hover{background:#ff39b822;box-shadow:0 0 16px #ff39b844}
+.btn.gold{border-color:#ffd84d;color:#ffd84d}
+.btn.gold:hover{background:#ffd84d22;box-shadow:0 0 16px #ffd84d44}
+.btn.green{border-color:#39ff88;color:#39ff88}
+.btn.green:hover{background:#39ff8822;box-shadow:0 0 16px #39ff8844}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+#panel-shop .shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;max-width:600px;width:90%;margin:1rem auto}
+.skin-card{border:1px solid #333;border-radius:8px;padding:16px;text-align:center;background:#12121f;transition:border-color 0.2s}
+.skin-card.equipped{border-color:#7df9ff;box-shadow:0 0 12px #7df9ff44}
+.skin-card .preview{width:48px;height:48px;border-radius:50%;margin:0 auto 8px;box-shadow:0 0 12px currentColor}
+.skin-card .sname{font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.skin-card .sprice{font-size:0.75rem;color:#aaa;margin-bottom:8px}
+.balance-display{font-size:1rem;color:#ffd84d;margin-bottom:1rem;letter-spacing:2px}
+#hud{position:fixed;top:12px;left:12px;z-index:50;pointer-events:none;font-size:0.8rem;letter-spacing:1px}
+#hud span{display:block;margin-bottom:4px;text-shadow:0 0 6px #7df9ff}
+.level-btn{display:inline-block;width:56px;height:56px;line-height:56px;text-align:center;margin:6px;border:1px solid #7df9ff;border-radius:8px;color:#7df9ff;font-size:1.1rem;cursor:pointer;letter-spacing:1px}
+.level-btn.locked{opacity:0.3;cursor:not-allowed;border-color:#555;color:#555}
+.level-btn:hover:not(.locked){background:#7df9ff22;box-shadow:0 0 12px #7df9ff44}
+</style>
 </head>
 <body>
-  <!-- Single rendering surface. Everything visual is drawn on this canvas. -->
-  <canvas id="game" aria-label="Neo-Gravity game canvas"></canvas>
 
-  <!-- DOM overlay for menus, HUD, and toasts. Pointer-events disabled
-       at the root so taps reach the canvas; re-enabled per-child. -->
-  <div id="overlay" class="overlay">
+<canvas id="gc"></canvas>
+<div id="hud" class="hidden">
+<span id="hud-shots">Shots: 0</span>
+<span id="hud-stars">Stars: 0/0</span>
+<span id="hud-dust">Stardust: 0</span>
+</div>
 
-    <!-- HUD (only visible during PLAYING) -->
-    <div id="hud" class="hidden">
-      <div class="chip" id="hud-level">LV 01</div>
-      <div class="chip" id="hud-shots">SHOTS 00</div>
+<div class="panel" id="panel-menu">
+<h1>Neo-Gravity</h1>
+<p style="color:#aaa;letter-spacing:2px;margin-bottom:1.5rem">ELASTIC ESCAPE</p>
+<button class="btn" onclick="UI.showLevelSelect()">PLAY</button>
+<button class="btn pink" onclick="UI.showShop()">COSMETIC VAULT</button>
+</div>
 
-      <div class="actions">
-        <button class="icon-btn" id="btn-mute" aria-label="Mute">M</button>
-        <button class="icon-btn" id="btn-pause" aria-label="Pause">II</button>
-        <button class="icon-btn" id="btn-restart" aria-label="Restart">R</button>
-      </div>
-    </div>
+<div class="panel hidden" id="panel-levels">
+<h2>Select Level</h2>
+<div id="level-grid"></div>
+<button class="btn" onclick="UI.showMenu()" style="margin-top:1rem">BACK</button>
+</div>
 
-    <!-- MAIN MENU -->
-    <div class="panel" id="panel-menu">
-      <div class="subtitle">// Neo-Gravity</div>
-      <div class="title">Elastic Escape</div>
-      <button class="btn" id="btn-play">Play</button>
-      <button class="btn ghost" id="btn-levels">Level Select</button>
-    </div>
+<div class="panel hidden" id="panel-shop">
+<h2>COSMETIC VAULT</h2>
+<div class="balance-display" id="shop-balance">Stardust: 0</div>
+<div class="shop-grid" id="shop-grid"></div>
+<button class="btn" onclick="UI.showMenu()" style="margin-top:1rem">BACK</button>
+</div>
 
-    <!-- LEVEL SELECT -->
-    <div class="panel hidden" id="panel-levels">
-      <div class="title">Sectors</div>
-      <div class="levels" id="levels-grid"></div>
-      <button class="btn ghost" id="btn-back-menu">Back</button>
-    </div>
+<div class="panel hidden" id="panel-paused">
+<h2>Paused</h2>
+<button class="btn" onclick="Game.resume()">RESUME</button>
+<button class="btn pink" onclick="Game.quitToMenu()">QUIT</button>
+</div>
 
-    <!-- PAUSED -->
-    <div class="panel hidden" id="panel-pause">
-      <div class="title">Paused</div>
-      <button class="btn" id="btn-resume">Resume</button>
-      <button class="btn ghost" id="btn-restart-pause">Restart Sector</button>
-      <button class="btn ghost" id="btn-quit">Main Menu</button>
-    </div>
+<div class="panel hidden" id="panel-victory">
+<h2>Level Complete</h2>
+<p id="victory-msg" style="color:#39ff88;margin-bottom:1rem;letter-spacing:1px"></p>
+<button class="btn green" onclick="Game.nextLevel()">NEXT LEVEL</button>
+<button class="btn" onclick="Game.quitToMenu()">MENU</button>
+</div>
 
-    <!-- GAME OVER -->
-    <div class="panel hidden" id="panel-gameover">
-      <div class="subtitle">// orbital decay</div>
-      <div class="title">Failed</div>
-      <button class="btn danger" id="btn-retry">Retry</button>
-      <button class="btn ghost" id="btn-quit-go">Main Menu</button>
-    </div>
+<div class="panel hidden" id="panel-gameover">
+<h2>Failed</h2>
+<p style="color:#ff39b8;margin-bottom:1rem;letter-spacing:1px">The orb was destroyed</p>
+<button class="btn pink" onclick="Game.retryLevel()">RETRY</button>
+<button class="btn" onclick="Game.quitToMenu()">MENU</button>
+</div>
 
-    <!-- VICTORY -->
-    <div class="panel hidden" id="panel-victory">
-      <div class="subtitle">// vortex breached</div>
-      <div class="title">Cleared</div>
-      <div id="victory-stats" class="chip"></div>
-      <button class="btn" id="btn-next">Next Sector</button>
-      <button class="btn ghost" id="btn-quit-vic">Main Menu</button>
-    </div>
+<script>
 
-    <!-- Toast & Ad scrim -->
-    <div class="toast" id="toast"></div>
-    <div id="ad-scrim">advertisement</div>
-  </div>
-
-
-  <script>
-  /* ================================================================
-   * Neo-Gravity: Elastic Escape
-   * ----------------------------------------------------------------
-   * A high-precision, single-file HTML5 Canvas physics puzzle game.
-   * Pure vanilla JavaScript, zero external dependencies, custom 2D
-   * vector physics, fixed-timestep game loop, full DPR scaling, and
-   * a CrazyGames SDK v3 integration skeleton.
-   *
-   * Architecture (sections numbered below):
-   *   1.  Configuration & color palette
-   *   2.  Math utilities (Vec2 helpers, vector pool)
-   *   3.  Generic Object Pool
-   *   4.  Particle system (pooled, alpha-faded)
-   *   5.  Physics primitives (gravity, attractors, collision math)
-   *   6.  Entity factories
-   *   7.  Level definitions
-   *   8.  Audio (WebAudio synthesis with explicit freeze hook)
-   *   9.  Input (unified Pointer/Touch/Mouse with delta predict)
-   *   10. Viewport (DPR + letterbox + camera shake)
-   *   11. Starfield cache (offscreen, drawn once)
-   *   12. Renderer (neon glow via shadowBlur)
-   *   13. UI / HUD bridge
-   *   14. CrazyGames SDK v3 hooks
-   *   15. Persistence (localStorage best-shots)
-   *   16. Game core (state machine, loop, level lifecycle)
-   *   17. Bootstrap
-   *
-   * Performance contract:
-   *   - No object allocation in update/render loops.
-   *   - All transient particles, vectors, and contacts are pooled.
-   *   - Fixed-timestep physics decoupled from refresh rate.
-   *   - Canvas scaled by devicePixelRatio (clamped at 3 for memory).
-   * ================================================================ */
-  'use strict';
-  (function () {
-
-  /* ================================================================
-   * SECTION 1 — CONFIGURATION
-   * ================================================================
-   * All gameplay tuning lives here. WORLD_W/WORLD_H define a virtual
-   * coordinate space (portrait 1080x1920) that is letterboxed into
-   * the actual viewport, so physics is identical on every device.
-   * FIXED_DT is the physics tick. The game loop accumulates real
-   * frame time and consumes it in fixed slices to ensure 60Hz/90Hz/
-   * 120Hz panels all produce identical simulation output.
-   * ================================================================ */
-  const CFG = Object.freeze({
-    WORLD_W: 1080,
-    WORLD_H: 1920,
-    FIXED_DT: 1 / 120,        // physics step (s)
-    MAX_ACCUM: 0.25,          // cap accumulator to prevent spiral of death
-
-    GRAVITY_X: 0,
-    GRAVITY_Y: 540,           // world units / s^2 (downward)
-    AIR_DRAG: 0.00045,        // exponential velocity damping
-    ORB_RADIUS: 22,
-    ORB_MASS: 1,
-    ORB_RESTITUTION: 0.78,    // wall bounce elasticity
-    BUMPER_RESTITUTION: 1.18, // neon bumpers boost the orb
-    MAX_LAUNCH_SPEED: 1700,
-    MIN_LAUNCH_DRAG: 6,       // below this, drag is treated as a tap-cancel
-    LAUNCH_DRAG_SCALE: 6,     // multiplier from drag-distance to speed
-    AIM_LOOKAHEAD_STEPS: 30,  // trajectory pre-simulation length
-    AIM_LOOKAHEAD_DT: 1 / 60, // dt used inside pre-sim
-    AIM_DOT_SPACING: 1,       // every Nth sample becomes a visible dot
-    PARTICLE_POOL_SIZE: 720,
-    VECTOR_POOL_SIZE: 256,
-    MIN_REST_SPEED: 6,        // below this, orb counts as "settled"
-    REST_TIME: 1.4,           // seconds settled before failure
-    AUDIO_GAIN: 0.18,
-    SHAKE_DECAY: 6,           // per-second decay of camera shake magnitude
-    AD_COOLDOWN_MS: 60_000,   // throttle interstitial ads
-  });
-
-  /* ----------------------------------------------------------------
-   * Color palette — a curated cyber-minimalist neon vocabulary.
-   * Glow is rendered with shadowBlur in the canvas renderer.
-   * ---------------------------------------------------------------- */
-  const COL = Object.freeze({
-    BG: '#0a0a12',
-    GRID: 'rgba(120,140,200,0.045)',
-    ORB: '#7df9ff',
-    ORB_GLOW: '#7df9ff',
-    WALL_FILL: '#171726',
-    WALL_EDGE: '#5b5be6',
-    BUMPER: '#ff39b8',
-    BLACKHOLE: '#000000',
-    BLACKHOLE_RING: '#9b59ff',
-    KILL: '#ff3a3a',
-    PORTAL: '#39ff88',
-    VORTEX: '#ffd84d',
-    AIM: '#7df9ff',
-    STAR: 'rgba(180,200,255,0.55)',
-  });
-
-  /* Finite state machine identifiers. */
-  const STATE = Object.freeze({
-    BOOT: 'BOOT',
-    MENU: 'MENU',
-    LEVEL_SELECT: 'LEVEL_SELECT',
-    PLAYING: 'PLAYING',
-
-    PAUSED: 'PAUSED',
-    GAME_OVER: 'GAME_OVER',
-    VICTORY: 'VICTORY',
-  });
-
-  /* ================================================================
-   * SECTION 2 — MATH UTILITIES
-   * ================================================================
-   * To keep the GC silent during gameplay we avoid `new` in hot paths.
-   * Vectors are plain `{x, y}` records; transient ones come from the
-   * VEC_POOL. All helpers are pure functions on numeric components.
-   * ================================================================ */
-  const PI2 = Math.PI * 2;
-  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
-  function lerp(a, b, t)    { return a + (b - a) * t; }
-  function len(x, y)        { return Math.sqrt(x * x + y * y); }
-  function len2(x, y)       { return x * x + y * y; }
-  function rand(a, b)       { return a + Math.random() * (b - a); }
-  function sign(v)          { return v < 0 ? -1 : v > 0 ? 1 : 0; }
-
-  /* Lightweight vector pool. Use { x, y } records, never `new`. */
-  function makeVecPool(size) {
-    const free = new Array(size);
-    for (let i = 0; i < size; i++) free[i] = { x: 0, y: 0 };
-    let n = size;
-    return {
-      acquire() {
-        if (n === 0) return { x: 0, y: 0 };
-        const v = free[--n];
-        v.x = 0; v.y = 0;
-        return v;
-      },
-      release(v) { if (n < free.length) free[n++] = v; },
-    };
+// ============================================================
+// SECTION 1: CONFIG + SKINS DEFINITION
+// ============================================================
+'use strict';
+const CFG = {
+  VW: 1080,
+  VH: 1920,
+  BG: '#0a0a12',
+  FPS: 60,
+  DT: 1/60,
+  MAX_PARTICLES: 300,
+  GRAVITY: 980,
+  ORB_RADIUS: 22,
+  STAR_RADIUS: 18,
+  SLING_MAX: 220,
+  LAUNCH_MULT: 5.5,
+  DAMPING: 0.998,
+  BOUNCE_DAMP: 0.75,
+  BUMPER_FORCE: 1200,
+  BLACKHOLE_STRENGTH: 420000,
+  VORTEX_RADIUS: 40,
+  SKINS: {
+    'default': { id:'default', name:'Standard', price:0, colorCore:'#7df9ff', colorTrail:'#7df9ff', glowColor:'#7df9ff' },
+    'hyper-drive': { id:'hyper-drive', name:'Hyper-Drive', price:50, colorCore:'#00ff88', colorTrail:'#00ffcc', glowColor:'#00ff88' },
+    'vortex-edge': { id:'vortex-edge', name:'Vortex-Edge', price:150, colorCore:'#ff39b8', colorTrail:'#ff6fd8', glowColor:'#ff39b8' },
+    'singularity-core': { id:'singularity-core', name:'Singularity-Core', price:300, colorCore:'#9b59ff', colorTrail:'#c39bff', glowColor:'#9b59ff' },
+    'solar-flare': { id:'solar-flare', name:'Solar-Flare', price:500, colorCore:'#ffd84d', colorTrail:'#ffe88a', glowColor:'#ffd84d' }
   }
-  const VEC_POOL = makeVecPool(CFG.VECTOR_POOL_SIZE);
+};
 
-  /* ================================================================
-   * SECTION 3 — GENERIC OBJECT POOL
-   * ================================================================
-   * Used by particles. Active objects are kept in a plain array
-   * (cheap iteration); the free list is a stack. Swap-remove is used
-   * on release to avoid array.shift() costs.
-   * ================================================================ */
-  class ObjectPool {
-    constructor(factory, resetFn, size) {
-      this._factory = factory;
-      this._reset = resetFn || null;
-      this._free = new Array(size);
-      this._active = [];
-
-      for (let i = 0; i < size; i++) this._free[i] = factory();
-    }
-    acquire() {
-      const o = this._free.length > 0 ? this._free.pop() : this._factory();
-      this._active.push(o);
-      return o;
-    }
-    release(obj) {
-      const i = this._active.indexOf(obj);
-      if (i === -1) return;
-      const last = this._active.length - 1;
-      this._active[i] = this._active[last];
-      this._active.pop();
-      if (this._reset) this._reset(obj);
-      this._free.push(obj);
-    }
-    releaseAll() {
-      for (let i = 0; i < this._active.length; i++) {
-        if (this._reset) this._reset(this._active[i]);
-        this._free.push(this._active[i]);
-      }
-      this._active.length = 0;
-    }
-    get active() { return this._active; }
-    get activeCount() { return this._active.length; }
+// ============================================================
+// SECTION 2: MATH UTILITIES + VECTOR POOL
+// ============================================================
+const VMath = {
+  _pool: [],
+  _idx: 0,
+  init() {
+    for (let i = 0; i < 200; i++) this._pool.push({x:0, y:0});
+  },
+  get(x, y) {
+    const v = this._pool[this._idx];
+    this._idx = (this._idx + 1) % this._pool.length;
+    v.x = x; v.y = y;
+    return v;
+  },
+  len(x, y) { return Math.sqrt(x*x + y*y); },
+  dist(ax, ay, bx, by) { return Math.sqrt((bx-ax)*(bx-ax)+(by-ay)*(by-ay)); },
+  dot(ax, ay, bx, by) { return ax*bx + ay*by; },
+  normalize(x, y) {
+    const l = Math.sqrt(x*x+y*y);
+    if (l < 0.0001) return VMath.get(0,0);
+    return VMath.get(x/l, y/l);
+  },
+  clamp(v, mn, mx) { return v < mn ? mn : v > mx ? mx : v; },
+  lerp(a, b, t) { return a + (b - a) * t; },
+  pointToSegment(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx*dx + dy*dy;
+    if (lenSq < 0.001) return { dist: VMath.dist(px,py,ax,ay), nx: px-ax, ny: py-ay };
+    let t = ((px-ax)*dx + (py-ay)*dy) / lenSq;
+    t = VMath.clamp(t, 0, 1);
+    const cx = ax + t*dx, cy = ay + t*dy;
+    const nx = px - cx, ny = py - cy;
+    const d = Math.sqrt(nx*nx + ny*ny);
+    return { dist: d, nx: d > 0 ? nx/d : 0, ny: d > 0 ? ny/d : 0, cx: cx, cy: cy };
   }
+};
+VMath.init();
 
-  /* ================================================================
-   * SECTION 4 — PARTICLE SYSTEM
-   * ================================================================
-   * Particles are drawn as small filled rectangles for batch speed.
-   * Each particle has a per-frame `life` countdown which drives both
-   * alpha and culling. The pool is sized at PARTICLE_POOL_SIZE so we
-   * never allocate during play.
-   * ================================================================ */
-  const particlePool = new ObjectPool(
-    () => ({ x:0, y:0, vx:0, vy:0, life:0, maxLife:1, size:2, hue:'#7df9ff', drag:0.92 }),
-    (p) => { p.life = 0; },
-    CFG.PARTICLE_POOL_SIZE
-  );
 
-  /** Emits an omnidirectional burst of `count` particles. */
-  function emitBurst(x, y, color, count, speed, sizeRange, lifeRange) {
+// ============================================================
+// SECTION 3: OBJECT POOL
+// ============================================================
+class Pool {
+  constructor(factory, max) {
+    this.items = [];
+    this.active = 0;
+    this.max = max;
+    for (let i = 0; i < max; i++) this.items.push(factory(i));
+  }
+  spawn() {
+    if (this.active >= this.max) return null;
+    return this.items[this.active++];
+  }
+  kill(idx) {
+    if (idx >= this.active) return;
+    const temp = this.items[idx];
+    this.items[idx] = this.items[this.active - 1];
+    this.items[this.active - 1] = temp;
+    this.active--;
+  }
+  clear() { this.active = 0; }
+  forEach(fn) { for (let i = 0; i < this.active; i++) fn(this.items[i], i); }
+}
+
+// ============================================================
+// SECTION 4: PARTICLE SYSTEM
+// ============================================================
+const Particles = {
+  pool: null,
+  init() {
+    this.pool = new Pool(() => ({
+      x:0, y:0, vx:0, vy:0, life:0, maxLife:1, r:3, color:'#7df9ff', alpha:1
+    }), CFG.MAX_PARTICLES);
+  },
+  emit(x, y, count, color, speed, life, radius) {
     for (let i = 0; i < count; i++) {
-      if (particlePool.activeCount >= CFG.PARTICLE_POOL_SIZE) break;
-      const p = particlePool.acquire();
-      const a = Math.random() * PI2;
-      const s = rand(speed * 0.4, speed);
+      const p = this.pool.spawn();
+      if (!p) return;
+      const a = Math.random() * Math.PI * 2;
+      const s = speed * (0.4 + Math.random() * 0.6);
       p.x = x; p.y = y;
       p.vx = Math.cos(a) * s;
-
       p.vy = Math.sin(a) * s;
-      p.maxLife = rand(lifeRange[0], lifeRange[1]);
-      p.life = p.maxLife;
-      p.size = rand(sizeRange[0], sizeRange[1]);
-      p.hue = color;
-      p.drag = 0.94;
+      p.life = life * (0.5 + Math.random() * 0.5);
+      p.maxLife = p.life;
+      p.r = radius * (0.5 + Math.random() * 0.5);
+      p.color = color;
+      p.alpha = 1;
     }
-  }
-
-  /** Emits a single short-lived trail particle behind the orb. */
-  function emitTrail(x, y, vx, vy, color) {
-    if (particlePool.activeCount >= CFG.PARTICLE_POOL_SIZE) return;
-    const p = particlePool.acquire();
-    p.x = x; p.y = y;
-    p.vx = -vx * 0.05 + rand(-12, 12);
-    p.vy = -vy * 0.05 + rand(-12, 12);
-    p.maxLife = 0.45;
-    p.life = p.maxLife;
-    p.size = rand(1.6, 3.2);
-    p.hue = color;
-    p.drag = 0.88;
-  }
-
-  /** Per-tick particle update. Releases dead particles to the pool. */
-  function updateParticles(dt) {
-    const arr = particlePool.active;
-    for (let i = arr.length - 1; i >= 0; i--) {
-      const p = arr[i];
-      p.life -= dt;
-      if (p.life <= 0) { particlePool.release(p); continue; }
-      p.vx *= p.drag;
-      p.vy *= p.drag;
+  },
+  trail(x, y, color) {
+    const p = this.pool.spawn();
+    if (!p) return;
+    p.x = x + (Math.random()-0.5)*6;
+    p.y = y + (Math.random()-0.5)*6;
+    p.vx = (Math.random()-0.5)*30;
+    p.vy = (Math.random()-0.5)*30;
+    p.life = 0.4 + Math.random()*0.3;
+    p.maxLife = p.life;
+    p.r = 3 + Math.random()*3;
+    p.color = color;
+    p.alpha = 1;
+  },
+  update(dt) {
+    for (let i = 0; i < this.pool.active; i++) {
+      const p = this.pool.items[i];
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      p.life -= dt;
+      p.alpha = Math.max(0, p.life / p.maxLife);
+      if (p.life <= 0) {
+        this.pool.kill(i);
+        i--;
+      }
     }
   }
+};
+Particles.init();
 
-  /** Particle render pass — single fillStyle batches per color. */
-  function renderParticles(ctx) {
-    const arr = particlePool.active;
-    for (let i = 0, n = arr.length; i < n; i++) {
-      const p = arr[i];
-      const a = clamp(p.life / p.maxLife, 0, 1);
-      ctx.globalAlpha = a;
-      ctx.fillStyle = p.hue;
-      ctx.fillRect(p.x - p.size * 0.5, p.y - p.size * 0.5, p.size, p.size);
+
+// ============================================================
+// SECTION 5: PHYSICS (integration, collision resolution)
+// ============================================================
+const Physics = {
+  integrateOrb(orb, dt, level) {
+    // Apply black hole gravity
+    if (level.blackholes) {
+      for (let i = 0; i < level.blackholes.length; i++) {
+        const bh = level.blackholes[i];
+        const dx = bh.x - orb.x;
+        const dy = bh.y - orb.y;
+        const distSq = dx*dx + dy*dy;
+        const dist = Math.sqrt(distSq);
+        if (dist < 10) continue;
+        const force = CFG.BLACKHOLE_STRENGTH / distSq;
+        orb.vx += (dx / dist) * force * dt;
+        orb.vy += (dy / dist) * force * dt;
+      }
     }
-    ctx.globalAlpha = 1;
+    // Velocity integration
+    orb.vx *= CFG.DAMPING;
+    orb.vy *= CFG.DAMPING;
+    orb.x += orb.vx * dt;
+    orb.y += orb.vy * dt;
+  },
+  collideWalls(orb, walls) {
+    const r = CFG.ORB_RADIUS;
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      // AABB collision
+      const cx = VMath.clamp(orb.x, w.x, w.x + w.w);
+      const cy = VMath.clamp(orb.y, w.y, w.y + w.h);
+      const dx = orb.x - cx;
+      const dy = orb.y - cy;
+      const distSq = dx*dx + dy*dy;
+      if (distSq < r*r && distSq > 0) {
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const pen = r - dist;
+        orb.x += nx * pen;
+        orb.y += ny * pen;
+        const vDotN = orb.vx*nx + orb.vy*ny;
+        if (vDotN < 0) {
+          orb.vx -= 2 * vDotN * nx * CFG.BOUNCE_DAMP;
+          orb.vy -= 2 * vDotN * ny * CFG.BOUNCE_DAMP;
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+  collideBumpers(orb, bumpers) {
+    const r = CFG.ORB_RADIUS;
+    for (let i = 0; i < bumpers.length; i++) {
+      const b = bumpers[i];
+      const res = VMath.pointToSegment(orb.x, orb.y, b.x1, b.y1, b.x2, b.y2);
+      if (res.dist < r + (b.thickness || 6)) {
+        const pen = (r + (b.thickness || 6)) - res.dist;
+        orb.x += res.nx * pen;
+        orb.y += res.ny * pen;
+        const speed = VMath.len(orb.vx, orb.vy);
+        const boost = Math.max(speed, CFG.BUMPER_FORCE * 0.5);
+        orb.vx = res.nx * boost;
+        orb.vy = res.ny * boost;
+        return true;
+      }
+    }
+    return false;
+  },
+  collideKillZones(orb, kills) {
+    const r = CFG.ORB_RADIUS;
+    for (let i = 0; i < kills.length; i++) {
+      const k = kills[i];
+      if (k.type === 'rect') {
+        if (orb.x + r > k.x && orb.x - r < k.x + k.w &&
+            orb.y + r > k.y && orb.y - r < k.y + k.h) return true;
+      } else if (k.type === 'circle') {
+        const d = VMath.dist(orb.x, orb.y, k.x, k.y);
+        if (d < r + k.r) return true;
+      }
+    }
+    return false;
+  },
+  collideVortex(orb, vortex) {
+    const d = VMath.dist(orb.x, orb.y, vortex.x, vortex.y);
+    return d < CFG.ORB_RADIUS + CFG.VORTEX_RADIUS;
+  },
+  collideStars(orb, stars) {
+    const r = CFG.ORB_RADIUS;
+    let collected = 0;
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      if (s.collected) continue;
+      const d = VMath.dist(orb.x, orb.y, s.x, s.y);
+      if (d < r + CFG.STAR_RADIUS) {
+        s.collected = true;
+        collected++;
+        Particles.emit(s.x, s.y, 20, '#ffd84d', 300, 0.8, 5);
+        Audio.starCollect();
+      }
+    }
+    return collected;
+  },
+  outOfBounds(orb) {
+    return orb.x < -100 || orb.x > CFG.VW + 100 || orb.y < -100 || orb.y > CFG.VH + 100;
   }
+};
 
 
-  /* ================================================================
-   * SECTION 5 — PHYSICS ENGINE
-   * ================================================================
-   * Custom 2D solver. Integration is semi-implicit Euler (most stable
-   * for arcade physics with restitution-based collisions). Collisions
-   * are circle-vs-AABB and circle-vs-thickened-segment. Penetration
-   * is resolved positionally first, then velocity is reflected with
-   * a configurable restitution coefficient.
-   * ================================================================ */
+// ============================================================
+// SECTION 6: ENTITY FACTORIES
+// ============================================================
+function makeOrb(x, y) {
+  return { x: x, y: y, vx: 0, vy: 0, launched: false, alive: true };
+}
+function makeWall(x, y, w, h, color) {
+  return { x:x, y:y, w:w, h:h, color: color || '#334' };
+}
+function makeKillRect(x, y, w, h) {
+  return { type:'rect', x:x, y:y, w:w, h:h };
+}
+function makeKillCircle(x, y, r) {
+  return { type:'circle', x:x, y:y, r:r };
+}
+function makeBumper(x1, y1, x2, y2, color, thickness) {
+  return { x1:x1, y1:y1, x2:x2, y2:y2, color: color || '#ff39b8', thickness: thickness || 6 };
+}
+function makeBlackHole(x, y, r) {
+  return { x:x, y:y, r: r || 30 };
+}
+function makeVortex(x, y) {
+  return { x:x, y:y, r: CFG.VORTEX_RADIUS, angle: 0 };
+}
+function makeStar(x, y) {
+  return { x:x, y:y, collected: false, pulse: 0 };
+}
 
-  /** Apply gravity, black-hole attraction, drag, and integrate. */
-  function integrateOrb(orb, blackholes, dt) {
-    // (1) World gravity
-    orb.vel.x += CFG.GRAVITY_X * dt;
-    orb.vel.y += CFG.GRAVITY_Y * dt;
+// ============================================================
+// SECTION 7: LEVEL DEFINITIONS (5 levels)
+// ============================================================
+const LEVELS = [
+  {
+    name: 'First Light',
+    par: 2,
+    spawn: { x: 540, y: 1600 },
+    vortex: { x: 540, y: 300 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(200, 900, 680, 25, '#445'),
+      makeWall(400, 600, 25, 300, '#445')
+    ],
+    bumpers: [
+      makeBumper(300, 1200, 780, 1200, '#ff39b8', 8)
+    ],
+    blackholes: [],
+    kills: [
+      makeKillRect(0, 1890, 1080, 30)
+    ],
+    stars: [
+      makeStar(540, 1100),
+      makeStar(300, 700)
+    ]
+  },
+  {
+    name: 'Pinball Corridor',
+    par: 3,
+    spawn: { x: 200, y: 1700 },
+    vortex: { x: 880, y: 200 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(300, 1400, 25, 400, '#445'),
+      makeWall(600, 1000, 25, 500, '#445'),
+      makeWall(300, 600, 500, 25, '#445'),
+      makeWall(150, 300, 25, 400, '#445')
+    ],
+    bumpers: [
+      makeBumper(100, 1300, 300, 1100, '#39ff88', 8),
+      makeBumper(700, 900, 900, 700, '#ff39b8', 8),
+      makeBumper(400, 400, 200, 250, '#9b59ff', 8)
+    ],
+    blackholes: [],
+    kills: [
+      makeKillRect(800, 1400, 250, 200)
+    ],
+    stars: [
+      makeStar(450, 1250),
+      makeStar(750, 800),
+      makeStar(300, 350)
+    ]
+  },
+  {
+    name: 'Gravity Well',
+    par: 3,
+    spawn: { x: 540, y: 1700 },
+    vortex: { x: 540, y: 200 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(200, 1200, 300, 25, '#445'),
+      makeWall(580, 1200, 300, 25, '#445'),
+      makeWall(400, 700, 280, 25, '#445')
+    ],
+    bumpers: [
+      makeBumper(100, 1500, 400, 1400, '#39ff88', 8),
+      makeBumper(680, 1500, 980, 1400, '#39ff88', 8)
+    ],
+    blackholes: [
+      makeBlackHole(540, 1000, 35),
+      makeBlackHole(300, 500, 25)
+    ],
+    kills: [
+      makeKillCircle(540, 1000, 40),
+      makeKillRect(430, 850, 220, 20)
+    ],
+    stars: [
+      makeStar(250, 1100),
+      makeStar(830, 1100),
+      makeStar(540, 500)
+    ]
+  },
+  {
+    name: 'Neon Maze',
+    par: 4,
+    spawn: { x: 150, y: 1750 },
+    vortex: { x: 930, y: 150 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(250, 1500, 25, 400, '#445'),
+      makeWall(250, 1500, 400, 25, '#445'),
+      makeWall(500, 1200, 25, 325, '#445'),
+      makeWall(500, 1200, 300, 25, '#445'),
+      makeWall(750, 900, 25, 325, '#445'),
+      makeWall(300, 900, 475, 25, '#445'),
+      makeWall(300, 600, 25, 325, '#445'),
+      makeWall(300, 600, 500, 25, '#445'),
+      makeWall(750, 300, 25, 325, '#445'),
+      makeWall(400, 300, 375, 25, '#445')
+    ],
+    bumpers: [
+      makeBumper(100, 1400, 250, 1300, '#ff39b8', 6),
+      makeBumper(600, 1100, 750, 1000, '#9b59ff', 6),
+      makeBumper(350, 800, 500, 700, '#39ff88', 6)
+    ],
+    blackholes: [
+      makeBlackHole(900, 600, 28)
+    ],
+    kills: [
+      makeKillRect(600, 1600, 200, 200),
+      makeKillCircle(900, 600, 35)
+    ],
+    stars: [
+      makeStar(400, 1350),
+      makeStar(650, 1050),
+      makeStar(500, 450)
+    ]
+  },
+  {
+    name: 'Singularity',
+    par: 4,
+    spawn: { x: 540, y: 1750 },
+    vortex: { x: 540, y: 150 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(200, 1500, 680, 25, '#445'),
+      makeWall(100, 1100, 400, 25, '#445'),
+      makeWall(580, 1100, 400, 25, '#445'),
+      makeWall(350, 750, 380, 25, '#445'),
+      makeWall(200, 400, 300, 25, '#445'),
+      makeWall(580, 400, 300, 25, '#445')
+    ],
+    bumpers: [
+      makeBumper(150, 1400, 350, 1300, '#ff39b8', 8),
+      makeBumper(730, 1400, 930, 1300, '#ff39b8', 8),
+      makeBumper(200, 900, 400, 850, '#39ff88', 8),
+      makeBumper(680, 900, 880, 850, '#39ff88', 8),
+      makeBumper(400, 550, 680, 550, '#9b59ff', 8)
+    ],
+    blackholes: [
+      makeBlackHole(540, 950, 35),
+      makeBlackHole(300, 600, 25),
+      makeBlackHole(780, 600, 25)
+    ],
+    kills: [
+      makeKillCircle(540, 950, 42),
+      makeKillCircle(300, 600, 30),
+      makeKillCircle(780, 600, 30),
+      makeKillRect(450, 1300, 180, 200)
+    ],
+    stars: [
+      makeStar(540, 1400),
+      makeStar(250, 950),
+      makeStar(830, 950)
+    ]
+  }
+];
 
-    // (2) Black-hole attraction (clamped inverse-square; the radius
-    //     is capped so the orb never tunnels through with infinite a).
+
+// ============================================================
+// SECTION 8: AUDIO SYSTEM (WebAudio procedural synthesis)
+// ============================================================
+const Audio = {
+  ctx: null,
+  _gain: null,
+  init() {
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this._gain = this.ctx.createGain();
+      this._gain.gain.value = 0.3;
+      this._gain.connect(this.ctx.destination);
+    } catch(e) { this.ctx = null; }
+  },
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  _tone(freq, dur, type, vol) {
+    if (!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    g.gain.value = vol || 0.2;
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+    o.connect(g);
+    g.connect(this._gain);
+    o.start(this.ctx.currentTime);
+    o.stop(this.ctx.currentTime + dur);
+  },
+  launch() { this._tone(220, 0.2, 'sawtooth', 0.15); this._tone(330, 0.15, 'sine', 0.1); },
+  bounce() { this._tone(440, 0.1, 'square', 0.08); },
+  bumperHit() { this._tone(660, 0.15, 'sawtooth', 0.12); this._tone(880, 0.1, 'sine', 0.1); },
+  kill() { this._tone(110, 0.4, 'sawtooth', 0.2); this._tone(80, 0.5, 'square', 0.15); },
+  victory() {
+    this._tone(523, 0.15, 'sine', 0.15);
+    setTimeout(() => this._tone(659, 0.15, 'sine', 0.15), 100);
+    setTimeout(() => this._tone(784, 0.2, 'sine', 0.15), 200);
+    setTimeout(() => this._tone(1047, 0.3, 'sine', 0.2), 300);
+  },
+  starCollect() {
+    this._tone(880, 0.08, 'sine', 0.12);
+    setTimeout(() => this._tone(1100, 0.08, 'sine', 0.12), 50);
+    setTimeout(() => this._tone(1320, 0.12, 'sine', 0.15), 100);
+  },
+  click() { this._tone(600, 0.05, 'sine', 0.08); }
+};
+
+// ============================================================
+// SECTION 9: INPUT SYSTEM
+// ============================================================
+const Input = {
+  isDown: false,
+  startX: 0, startY: 0,
+  currX: 0, currY: 0,
+  _canvas: null,
+  _toWorld: null,
+  init(canvas, toWorldFn) {
+    this._canvas = canvas;
+    this._toWorld = toWorldFn;
+    const opts = { passive: false };
+    canvas.addEventListener('mousedown', (e) => this._down(e.clientX, e.clientY), opts);
+    canvas.addEventListener('mousemove', (e) => this._move(e.clientX, e.clientY), opts);
+    canvas.addEventListener('mouseup', () => this._up(), opts);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.touches[0]; this._down(t.clientX, t.clientY); }, opts);
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches[0]; this._move(t.clientX, t.clientY); }, opts);
+    canvas.addEventListener('touchend', (e) => { e.preventDefault(); this._up(); }, opts);
+  },
+  _down(cx, cy) {
+    const p = this._toWorld(cx, cy);
+    this.startX = p.x; this.startY = p.y;
+    this.currX = p.x; this.currY = p.y;
+    this.isDown = true;
+    Audio.resume();
+  },
+  _move(cx, cy) {
+    if (!this.isDown) return;
+    const p = this._toWorld(cx, cy);
+    this.currX = p.x; this.currY = p.y;
+  },
+  _up() {
+    this.isDown = false;
+  },
+  getDrag() {
+    const dx = this.startX - this.currX;
+    const dy = this.startY - this.currY;
+    const dist = Math.min(VMath.len(dx, dy), CFG.SLING_MAX);
+    if (dist < 10) return null;
+    const n = VMath.normalize(dx, dy);
+    return { dx: n.x * dist, dy: n.y * dist, dist: dist };
+  }
+};
+
+
+// ============================================================
+// SECTION 10: VIEWPORT (DPR + letterbox + shake)
+// ============================================================
+const Viewport = {
+  canvas: null,
+  ctx: null,
+  dpr: 1,
+  offsetX: 0, offsetY: 0,
+  scale: 1,
+  shakeX: 0, shakeY: 0,
+  shakeDur: 0,
+  shakeIntensity: 0,
+  init() {
+    this.canvas = document.getElementById('gc');
+    this.ctx = this.canvas.getContext('2d');
+    this.dpr = window.devicePixelRatio || 1;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+  },
+  resize() {
+    const ww = window.innerWidth;
+    const wh = window.innerHeight;
+    const aspect = CFG.VW / CFG.VH;
+    const winAspect = ww / wh;
+    let cw, ch;
+    if (winAspect < aspect) {
+      cw = ww;
+      ch = ww / aspect;
+    } else {
+      ch = wh;
+      cw = wh * aspect;
+    }
+    this.canvas.style.width = cw + 'px';
+    this.canvas.style.height = ch + 'px';
+    this.canvas.style.left = ((ww - cw) / 2) + 'px';
+    this.canvas.style.top = ((wh - ch) / 2) + 'px';
+    this.canvas.width = Math.round(cw * this.dpr);
+    this.canvas.height = Math.round(ch * this.dpr);
+    this.scale = cw / CFG.VW;
+    this.offsetX = (ww - cw) / 2;
+    this.offsetY = (wh - ch) / 2;
+  },
+  screenToWorld(cx, cy) {
+    return {
+      x: (cx - this.offsetX) / this.scale,
+      y: (cy - this.offsetY) / this.scale
+    };
+  },
+  shake(intensity, dur) {
+    this.shakeIntensity = intensity;
+    this.shakeDur = dur;
+  },
+  updateShake(dt) {
+    if (this.shakeDur > 0) {
+      this.shakeDur -= dt;
+      this.shakeX = (Math.random() - 0.5) * this.shakeIntensity * 2;
+      this.shakeY = (Math.random() - 0.5) * this.shakeIntensity * 2;
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+    }
+  },
+  begin() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.scale(this.dpr * this.scale, this.dpr * this.scale);
+    ctx.translate(this.shakeX, this.shakeY);
+  },
+  end() {
+    this.ctx.restore();
+  }
+};
+
+// ============================================================
+// SECTION 11: STARFIELD CACHE (pre-rendered background)
+// ============================================================
+const Starfield = {
+  _canvas: null,
+  init() {
+    this._canvas = document.createElement('canvas');
+    this._canvas.width = CFG.VW;
+    this._canvas.height = CFG.VH;
+    const ctx = this._canvas.getContext('2d');
+    ctx.fillStyle = CFG.BG;
+    ctx.fillRect(0, 0, CFG.VW, CFG.VH);
+    // Stars
+    for (let i = 0; i < 200; i++) {
+      const x = Math.random() * CFG.VW;
+      const y = Math.random() * CFG.VH;
+      const r = Math.random() * 1.5 + 0.3;
+      const alpha = Math.random() * 0.6 + 0.2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,220,255,${alpha})`;
+      ctx.fill();
+    }
+    // Subtle nebula
+    const grad = ctx.createRadialGradient(300, 600, 50, 300, 600, 400);
+    grad.addColorStop(0, 'rgba(155,89,255,0.04)');
+    grad.addColorStop(1, 'rgba(155,89,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CFG.VW, CFG.VH);
+    const grad2 = ctx.createRadialGradient(800, 1400, 50, 800, 1400, 350);
+    grad2.addColorStop(0, 'rgba(125,249,255,0.03)');
+    grad2.addColorStop(1, 'rgba(125,249,255,0)');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(0, 0, CFG.VW, CFG.VH);
+  },
+  draw(ctx) {
+    ctx.drawImage(this._canvas, 0, 0);
+  }
+};
+
+
+// ============================================================
+// SECTION 12: RENDERER (uses equipped skin colors)
+// ============================================================
+const Renderer = {
+  _glowCache: {},
+  _createGlow(color, radius) {
+    const key = color + '_' + radius;
+    if (this._glowCache[key]) return this._glowCache[key];
+    const size = radius * 4;
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0, color + 'cc');
+    grad.addColorStop(0.3, color + '66');
+    grad.addColorStop(0.7, color + '22');
+    grad.addColorStop(1, color + '00');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    this._glowCache[key] = c;
+    return c;
+  },
+  drawOrb(ctx, orb) {
+    const skin = CFG.SKINS[Save.data.equippedSkin] || CFG.SKINS['default'];
+    const glow = this._createGlow(skin.glowColor, CFG.ORB_RADIUS);
+    const gs = CFG.ORB_RADIUS * 4;
+    ctx.drawImage(glow, orb.x - gs/2, orb.y - gs/2, gs, gs);
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, CFG.ORB_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = skin.colorCore;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(orb.x - 5, orb.y - 5, CFG.ORB_RADIUS * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fill();
+  },
+  drawVortex(ctx, vortex, time) {
+    const pulseR = CFG.VORTEX_RADIUS + Math.sin(time * 4) * 5;
+    const glow = this._createGlow('#39ff88', pulseR);
+    const gs = pulseR * 4;
+    ctx.drawImage(glow, vortex.x - gs/2, vortex.y - gs/2, gs, gs);
+    ctx.beginPath();
+    ctx.arc(vortex.x, vortex.y, pulseR * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#39ff88';
+    ctx.fill();
+    // Spinning arms
+    ctx.save();
+    ctx.translate(vortex.x, vortex.y);
+    ctx.rotate(time * 3);
+    for (let i = 0; i < 4; i++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(pulseR * 0.8, pulseR * 0.3);
+      ctx.strokeStyle = 'rgba(57,255,136,0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  drawWalls(ctx, walls) {
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      ctx.fillStyle = w.color || '#334';
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      ctx.strokeStyle = '#556';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    }
+  },
+  drawBumpers(ctx, bumpers) {
+    for (let i = 0; i < bumpers.length; i++) {
+      const b = bumpers[i];
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(b.x2, b.y2);
+      ctx.strokeStyle = b.color || '#ff39b8';
+      ctx.lineWidth = b.thickness || 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      // Glow line overlay
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(b.x2, b.y2);
+      ctx.strokeStyle = (b.color || '#ff39b8') + '44';
+      ctx.lineWidth = (b.thickness || 6) + 8;
+      ctx.stroke();
+    }
+  },
+  drawBlackHoles(ctx, blackholes, time) {
     for (let i = 0; i < blackholes.length; i++) {
       const bh = blackholes[i];
-      const dx = bh.x - orb.pos.x;
-      const dy = bh.y - orb.pos.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < 4) continue;
-      const d = Math.sqrt(d2);
-      const r = Math.max(d, bh.radius * 0.6);
-      const a = bh.strength / (r * r);
-      orb.vel.x += (dx / d) * a * dt;
-      orb.vel.y += (dy / d) * a * dt;
-    }
-
-    // (3) Air drag (frame-rate independent exponential)
-    const damp = Math.pow(1 - CFG.AIR_DRAG, dt * 60);
-    orb.vel.x *= damp;
-    orb.vel.y *= damp;
-
-    // (4) Position update
-    orb.pos.x += orb.vel.x * dt;
-    orb.pos.y += orb.vel.y * dt;
-  }
-
-  /** Resolve a circle penetration along normal (nx,ny) with given depth. */
-  function resolveCircleCollision(orb, nx, ny, pen, restitution) {
-    // Positional correction so the orb is no longer overlapping.
-    orb.pos.x += nx * pen;
-    orb.pos.y += ny * pen;
-    // Reflect velocity along the normal with restitution coefficient.
-    const vn = orb.vel.x * nx + orb.vel.y * ny;
-    if (vn < 0) {
-      const j = -(1 + restitution) * vn;
-
-      orb.vel.x += j * nx;
-      orb.vel.y += j * ny;
-    }
-  }
-
-  /** Circle vs axis-aligned bounding box. Returns true on collision. */
-  function circleVsAABB(orb, rect) {
-    const cx = clamp(orb.pos.x, rect.x, rect.x + rect.w);
-    const cy = clamp(orb.pos.y, rect.y, rect.y + rect.h);
-    const dx = orb.pos.x - cx;
-    const dy = orb.pos.y - cy;
-    const d2 = dx * dx + dy * dy;
-    const r = orb.radius;
-    if (d2 > r * r) return false;
-    let nx, ny, pen;
-    if (d2 > 1e-6) {
-      const d = Math.sqrt(d2);
-      nx = dx / d; ny = dy / d;
-      pen = r - d;
-    } else {
-      // Center is inside the rect — push out along the smallest axis.
-      const lx = orb.pos.x - rect.x;
-      const rx = (rect.x + rect.w) - orb.pos.x;
-      const ty = orb.pos.y - rect.y;
-      const by = (rect.y + rect.h) - orb.pos.y;
-      const m = Math.min(lx, rx, ty, by);
-      if (m === lx)      { nx = -1; ny = 0; pen = r + lx; }
-      else if (m === rx) { nx =  1; ny = 0; pen = r + rx; }
-      else if (m === ty) { nx = 0; ny = -1; pen = r + ty; }
-      else               { nx = 0; ny =  1; pen = r + by; }
-    }
-    resolveCircleCollision(orb, nx, ny, pen, orb.restitution);
-    return true;
-  }
-
-  /** Circle vs thickened segment (used for neon bumper barriers). */
-  function circleVsSegment(orb, ax, ay, bx, by, thickness, restitution) {
-    const ex = bx - ax;
-    const ey = by - ay;
-    const lenSq = ex * ex + ey * ey || 1;
-    let t = ((orb.pos.x - ax) * ex + (orb.pos.y - ay) * ey) / lenSq;
-    t = clamp(t, 0, 1);
-    const cx = ax + ex * t;
-    const cy = ay + ey * t;
-    const dx = orb.pos.x - cx;
-    const dy = orb.pos.y - cy;
-    const d2 = dx * dx + dy * dy;
-    const radius = orb.radius + thickness * 0.5;
-    if (d2 > radius * radius) return false;
-    const d = Math.sqrt(d2) || 0.0001;
-
-    const nx = dx / d, ny = dy / d;
-    const pen = radius - d;
-    resolveCircleCollision(orb, nx, ny, pen, restitution);
-    return true;
-  }
-
-  /* ================================================================
-   * SECTION 6 — ENTITY FACTORIES
-   * ================================================================
-   * Plain-object factories. We never use class instances for level
-   * geometry — the data is small, dense, and avoids prototype lookup
-   * overhead in tight collision loops.
-   * ================================================================ */
-  function makeOrb(x, y) {
-    return {
-      pos: { x: x, y: y },
-      vel: { x: 0, y: 0 },
-      radius: CFG.ORB_RADIUS,
-      mass: CFG.ORB_MASS,
-      restitution: CFG.ORB_RESTITUTION,
-      launched: false,
-      alive: true,
-      restTimer: 0,
-      trailCooldown: 0,
-    };
-  }
-  function makeWall(x, y, w, h)  { return { type: 'wall', x, y, w, h }; }
-  function makeKill(x, y, w, h)  { return { type: 'kill', x, y, w, h }; }
-  function makeBumper(ax, ay, bx, by) {
-    return {
-      type: 'bumper',
-      ax, ay, bx, by,
-      thickness: 8,
-      restitution: CFG.BUMPER_RESTITUTION,
-      flash: 0,
-    };
-  }
-  function makeBlackHole(x, y, strength, radius) {
-    return {
-      type: 'blackhole',
-      x, y, strength, radius,
-      eventHorizon: radius * 0.42,
-      phase: Math.random() * PI2,
-    };
-  }
-  function makePortal(x, y) { return { x, y, radius: 38, phase: 0 }; }
-  function makeVortex(x, y) { return { x, y, radius: 46, phase: 0 }; }
-
-  /* ================================================================
-   * SECTION 7 — LEVEL DEFINITIONS
-
-   * ================================================================
-   * Each level is a static blueprint. `startLevel` clones the data
-   * into a fresh per-attempt object so mutable runtime fields (like
-   * bumper.flash) never leak between attempts.
-   * ================================================================ */
-  const LEVELS = [
-    // -- 01: tutorial — single bumper between portal and vortex ----
-    {
-      name: 'Initiation',
-      portal: { x: 200, y: 1600 },
-      vortex: { x: 880, y: 360 },
-      walls: [
-        makeWall(0, 0, CFG.WORLD_W, 16),
-        makeWall(0, CFG.WORLD_H - 16, CFG.WORLD_W, 16),
-        makeWall(0, 0, 16, CFG.WORLD_H),
-        makeWall(CFG.WORLD_W - 16, 0, 16, CFG.WORLD_H),
-      ],
-      bumpers: [ makeBumper(360, 1100, 720, 1100) ],
-      blackholes: [],
-      kills: [],
-    },
-    // -- 02: chasm — kill-zone gap forces an arc -------------------
-    {
-      name: 'Chasm',
-      portal: { x: 160, y: 1700 },
-      vortex: { x: 920, y: 1700 },
-      walls: [
-        makeWall(0, 0, CFG.WORLD_W, 16),
-        makeWall(0, CFG.WORLD_H - 16, CFG.WORLD_W, 16),
-        makeWall(0, 0, 16, CFG.WORLD_H),
-        makeWall(CFG.WORLD_W - 16, 0, 16, CFG.WORLD_H),
-        makeWall(0, 1820, 280, 16),
-        makeWall(800, 1820, 280, 16),
-      ],
-      bumpers: [ makeBumper(180, 900, 900, 900) ],
-      blackholes: [],
-      kills: [ makeKill(280, 1820, 520, 80) ],
-    },
-    // -- 03: singularity — orbit a black hole ---------------------
-    {
-      name: 'Singularity',
-      portal: { x: 180, y: 1620 },
-      vortex: { x: 900, y: 280 },
-      walls: [
-        makeWall(0, 0, CFG.WORLD_W, 16),
-        makeWall(0, CFG.WORLD_H - 16, CFG.WORLD_W, 16),
-        makeWall(0, 0, 16, CFG.WORLD_H),
-        makeWall(CFG.WORLD_W - 16, 0, 16, CFG.WORLD_H),
-      ],
-      bumpers: [],
-      blackholes: [ makeBlackHole(540, 960, 220000, 80) ],
-
-      kills: [],
-    },
-    // -- 04: pinball — bumper maze --------------------------------
-    {
-      name: 'Pinball',
-      portal: { x: 540, y: 1700 },
-      vortex: { x: 540, y: 220 },
-      walls: [
-        makeWall(0, 0, CFG.WORLD_W, 16),
-        makeWall(0, CFG.WORLD_H - 16, CFG.WORLD_W, 16),
-        makeWall(0, 0, 16, CFG.WORLD_H),
-        makeWall(CFG.WORLD_W - 16, 0, 16, CFG.WORLD_H),
-      ],
-      bumpers: [
-        makeBumper(120, 1300, 460, 1100),
-        makeBumper(620, 1100, 960, 1300),
-        makeBumper(120,  700, 460,  900),
-        makeBumper(620,  900, 960,  700),
-        makeBumper(360,  460, 720,  460),
-      ],
-      blackholes: [],
-      kills: [],
-    },
-    // -- 05: gauntlet — multi-hazard boss level --------------------
-    {
-      name: 'Gauntlet',
-      portal: { x: 160, y: 220 },
-      vortex: { x: 920, y: 1700 },
-      walls: [
-        makeWall(0, 0, CFG.WORLD_W, 16),
-        makeWall(0, CFG.WORLD_H - 16, CFG.WORLD_W, 16),
-        makeWall(0, 0, 16, CFG.WORLD_H),
-        makeWall(CFG.WORLD_W - 16, 0, 16, CFG.WORLD_H),
-        makeWall(0, 720, 700, 24),
-        makeWall(380, 1240, 700, 24),
-      ],
-      bumpers: [
-        makeBumper(700, 720, 1064, 540),
-        makeBumper(16, 1240, 380, 1440),
-      ],
-      blackholes: [ makeBlackHole(820, 980, 140000, 60) ],
-      kills: [
-        makeKill(16, 744, 684, 32),
-        makeKill(380, 1264, 700, 32),
-      ],
-    },
-  ];
-
-  /* ================================================================
-   * SECTION 8 — AUDIO
-   * ================================================================
-
-   * Procedural WebAudio — no external samples needed. Lazy-init on
-   * the first user gesture (mobile autoplay policy). Exposes an
-   * explicit `freeze` hook used during ad playback so the audio
-   * context is suspended while a CrazyGames ad is on screen.
-   * ================================================================ */
-  const Audio = (() => {
-    let ctx = null;
-    let master = null;
-    let muted = false;
-    let frozen = false;
-
-    function ensure() {
-      if (ctx) return ctx;
-      try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        ctx = new AC();
-        master = ctx.createGain();
-        master.gain.value = CFG.AUDIO_GAIN;
-        master.connect(ctx.destination);
-      } catch (e) { ctx = null; }
-      return ctx;
-    }
-
-    function tone(freq, dur, type, gain) {
-      if (muted || frozen) return;
-      const c = ensure(); if (!c) return;
-      const o = c.createOscillator();
-      const g = c.createGain();
-      o.type = type || 'sine';
-      o.frequency.value = freq;
-      g.gain.value = 0;
-      g.gain.linearRampToValueAtTime(gain || 0.6, c.currentTime + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-      o.connect(g).connect(master);
-      o.start();
-      o.stop(c.currentTime + dur + 0.02);
-    }
-
-    return {
-      unlock()   { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume(); },
-      launch()   { tone(220, 0.18, 'sawtooth', 0.4); tone(440, 0.12, 'sine', 0.3); },
-      bounce()   { tone(660, 0.08, 'square', 0.25); },
-      bumper()   { tone(880, 0.10, 'triangle', 0.4); tone(1320, 0.06, 'sine', 0.3); },
-      kill()     { tone(120, 0.40, 'sawtooth', 0.5); },
-      victory()  {
-        tone(660, 0.15, 'sine', 0.5);
-        setTimeout(() => tone(880, 0.18, 'sine', 0.5), 120);
-        setTimeout(() => tone(1320, 0.30, 'triangle', 0.5), 260);
-      },
-      click()    { tone(540, 0.05, 'square', 0.18); },
-
-      setMuted(m){ muted = !!m; if (master) master.gain.value = muted ? 0 : CFG.AUDIO_GAIN; },
-      freeze(f)  { frozen = !!f; if (ctx) { if (f) ctx.suspend(); else ctx.resume(); } },
-      get isMuted() { return muted; },
-    };
-  })();
-
-  /* ================================================================
-   * SECTION 9 — INPUT
-   * ================================================================
-   * Unified pointer: touch-first with mouse fallback. We always call
-   * preventDefault() to block iOS Safari rubber-banding and accidental
-   * page reloads when the user swipes hard. Coordinates are converted
-   * from CSS pixels to world units via the Viewport.cssToWorld helper.
-   * ================================================================ */
-  const Input = {
-    down: false,
-    sx: 0, sy: 0,        // anchor in world coords (where the drag started)
-    x: 0,  y: 0,         // current pointer in world coords
-    onAimStart: null,
-    onAimMove: null,
-    onAimEnd: null,
-    bind(canvas, viewport) {
-      const toWorld = (cx, cy) => {
-        const r = canvas.getBoundingClientRect();
-        return viewport.cssToWorld(cx - r.left, cy - r.top);
-      };
-      const onDown = (e) => {
-        e.preventDefault();
-        const t = e.touches ? e.touches[0] : e;
-        const w = toWorld(t.clientX, t.clientY);
-        Input.down = true;
-        Input.sx = w.x; Input.sy = w.y;
-        Input.x  = w.x; Input.y  = w.y;
-        Audio.unlock();
-        if (Input.onAimStart) Input.onAimStart(w.x, w.y);
-      };
-      const onMove = (e) => {
-        if (!Input.down) return;
-        e.preventDefault();
-        const t = e.touches ? e.touches[0] : e;
-        const w = toWorld(t.clientX, t.clientY);
-        Input.x = w.x; Input.y = w.y;
-        if (Input.onAimMove) Input.onAimMove(w.x, w.y);
-      };
-      const onUp = (e) => {
-        if (!Input.down) return;
-        e.preventDefault();
-        Input.down = false;
-        if (Input.onAimEnd) Input.onAimEnd(Input.x, Input.y);
-      };
-      // Touch (priority on mobile)
-      canvas.addEventListener('touchstart',  onDown, { passive: false });
-      canvas.addEventListener('touchmove',   onMove, { passive: false });
-
-      canvas.addEventListener('touchend',    onUp,   { passive: false });
-      canvas.addEventListener('touchcancel', onUp,   { passive: false });
-      // Mouse fallback for desktop
-      canvas.addEventListener('mousedown', onDown);
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup',   onUp);
-      // Suppress browser gesture defaults that would otherwise zoom or
-      // navigate the page on mobile.
-      window.addEventListener('gesturestart', (e) => e.preventDefault());
-      window.addEventListener('contextmenu',  (e) => e.preventDefault());
-    },
-  };
-
-  /* ================================================================
-   * SECTION 10 — VIEWPORT (DPR + LETTERBOX + CAMERA SHAKE)
-   * ================================================================
-   * Recalculates the canvas backing-store size on resize so output
-   * is sharp on Retina/AMOLED screens. Then computes a single fit
-   * scale + offset to letterbox the virtual world inside the actual
-   * viewport. Camera shake is injected in `apply` as an additional
-   * translation, decaying every frame.
-   * ================================================================ */
-  const Viewport = {
-    canvas: null,
-    ctx: null,
-    cssW: 0, cssH: 0,
-    scale: 1, offX: 0, offY: 0,
-    dpr: 1,
-    shakeX: 0, shakeY: 0, shakeMag: 0,
-    attach(canvas) {
-      this.canvas = canvas;
-      this.ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-      this.resize();
-      window.addEventListener('resize',         () => this.resize(), { passive: true });
-      window.addEventListener('orientationchange', () => this.resize(), { passive: true });
-    },
-    resize() {
-      // Cap DPR at 3 to keep memory in check on very high-density panels.
-      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
-      const cssW = window.innerWidth;
-      const cssH = window.innerHeight;
-      this.cssW = cssW; this.cssH = cssH; this.dpr = dpr;
-      this.canvas.width  = Math.round(cssW * dpr);
-      this.canvas.height = Math.round(cssH * dpr);
-      this.canvas.style.width  = cssW + 'px';
-      this.canvas.style.height = cssH + 'px';
-      // Fit world inside viewport with letterboxing.
-      const sx = cssW / CFG.WORLD_W;
-      const sy = cssH / CFG.WORLD_H;
-      this.scale = Math.min(sx, sy);
-      this.offX = (cssW - CFG.WORLD_W * this.scale) * 0.5;
-      this.offY = (cssH - CFG.WORLD_H * this.scale) * 0.5;
-
-    },
-    addShake(mag) { if (mag > this.shakeMag) this.shakeMag = mag; },
-    updateShake(dt) {
-      if (this.shakeMag > 0.01) {
-        const a = Math.random() * PI2;
-        this.shakeX = Math.cos(a) * this.shakeMag;
-        this.shakeY = Math.sin(a) * this.shakeMag;
-        this.shakeMag *= Math.max(0, 1 - CFG.SHAKE_DECAY * dt);
-      } else {
-        this.shakeX = this.shakeY = 0;
-        this.shakeMag = 0;
-      }
-    },
-    apply(ctx) {
-      // Reset transform stack and apply DPR + letterbox + world scale
-      // in a single setTransform call (faster than save/restore).
-      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-      ctx.fillStyle = COL.BG;
-      ctx.fillRect(0, 0, this.cssW, this.cssH);
-      ctx.translate(this.offX + this.shakeX, this.offY + this.shakeY);
-      ctx.scale(this.scale, this.scale);
-    },
-    cssToWorld(cssX, cssY) {
-      // Note: this allocates a fresh small object on every pointer
-      // event. Pointer events are infrequent (vs frame loops) so
-      // this is acceptable and simpler than thread-stable pooling.
-      return {
-        x: (cssX - this.offX) / this.scale,
-        y: (cssY - this.offY) / this.scale,
-      };
-    },
-  };
-
-  /* ================================================================
-   * SECTION 11 — STARFIELD CACHE
-   * ================================================================
-   * Drawn once into an offscreen canvas, then blitted as a single
-   * drawImage call per frame. This keeps the static background out
-   * of the per-frame allocation budget entirely.
-   * ================================================================ */
-  const Stars = (() => {
-    let canvas = null;
-    function build() {
-      canvas = document.createElement('canvas');
-      canvas.width = CFG.WORLD_W;
-      canvas.height = CFG.WORLD_H;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = COL.BG;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Faint grid (8x grid spacing, single Path2D).
-      ctx.strokeStyle = COL.GRID;
-
-      ctx.lineWidth = 1;
-      const gs = 80;
+      const glow = this._createGlow('#9b59ff', bh.r);
+      const gs = bh.r * 4;
+      ctx.drawImage(glow, bh.x - gs/2, bh.y - gs/2, gs, gs);
       ctx.beginPath();
-      for (let x = 0; x <= CFG.WORLD_W; x += gs) { ctx.moveTo(x, 0); ctx.lineTo(x, CFG.WORLD_H); }
-      for (let y = 0; y <= CFG.WORLD_H; y += gs) { ctx.moveTo(0, y); ctx.lineTo(CFG.WORLD_W, y); }
+      ctx.arc(bh.x, bh.y, bh.r * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a0a12';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bh.x, bh.y, bh.r * 0.7 + Math.sin(time*5)*2, 0, Math.PI * 2);
+      ctx.strokeStyle = '#9b59ff88';
+      ctx.lineWidth = 2;
       ctx.stroke();
-      // Stars (mostly 1x1, occasional 2x2 for parallax depth).
-      for (let i = 0; i < 220; i++) {
-        ctx.fillStyle = COL.STAR;
-        const x = Math.random() * CFG.WORLD_W;
-        const y = Math.random() * CFG.WORLD_H;
-        const s = Math.random() < 0.85 ? 1 : 2;
-        ctx.fillRect(x, y, s, s);
-      }
     }
-    return { get image() { if (!canvas) build(); return canvas; } };
-  })();
-
-  /* ================================================================
-   * SECTION 12 — RENDERER
-   * ================================================================
-   * Single-pass renderer. Drawing order:
-   *   (a) Cached starfield blit
-   *   (b) Walls (filled + neon edge)
-   *   (c) Kill zones (hatched red hazards)
-   *   (d) Bumpers (line segment with flash boost)
-   *   (e) Black holes (rings + core + swirl)
-   *   (f) Portal & vortex (animated rings)
-   *   (g) Trajectory dots (during aim)
-   *   (h) Particles
-   *   (i) Orb
-   *   (j) Vignette
-   * ================================================================ */
-  const Renderer = {
-    drawFrame(ctx, game) {
-      Viewport.apply(ctx);
-      ctx.drawImage(Stars.image, 0, 0);
-
-      const lvl = game.level;
-      if (!lvl) { return; }
-
-      // ---- Walls ----
-      for (let i = 0; i < lvl.walls.length; i++) {
-        const w = lvl.walls[i];
-        ctx.fillStyle = COL.WALL_FILL;
-        ctx.fillRect(w.x, w.y, w.w, w.h);
-        ctx.strokeStyle = COL.WALL_EDGE;
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 18;
-        ctx.shadowColor = COL.WALL_EDGE;
-        ctx.strokeRect(w.x + 1, w.y + 1, w.w - 2, w.h - 2);
-        ctx.shadowBlur = 0;
-      }
-
-
-      // ---- Kill zones ----
-      for (let i = 0; i < lvl.kills.length; i++) {
-        const k = lvl.kills[i];
-        ctx.fillStyle = 'rgba(255,58,58,0.15)';
+  },
+  drawKillZones(ctx, kills) {
+    for (let i = 0; i < kills.length; i++) {
+      const k = kills[i];
+      ctx.fillStyle = 'rgba(255,57,57,0.15)';
+      ctx.strokeStyle = '#ff3939';
+      ctx.lineWidth = 2;
+      if (k.type === 'rect') {
         ctx.fillRect(k.x, k.y, k.w, k.h);
-        ctx.strokeStyle = COL.KILL;
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 16;
-        ctx.shadowColor = COL.KILL;
-        // Diagonal hazard hatching
-        const stripeGap = 18;
-        ctx.beginPath();
-        for (let s = -k.h; s < k.w; s += stripeGap) {
-          ctx.moveTo(k.x + s, k.y + k.h);
-          ctx.lineTo(k.x + s + k.h, k.y);
-        }
-        ctx.stroke();
         ctx.strokeRect(k.x, k.y, k.w, k.h);
-        ctx.shadowBlur = 0;
-      }
-
-      // ---- Bumpers ----
-      for (let i = 0; i < lvl.bumpers.length; i++) {
-        const b = lvl.bumpers[i];
-        const flashBoost = b.flash * 22;
-        ctx.strokeStyle = COL.BUMPER;
-        ctx.lineCap = 'round';
-        ctx.lineWidth = b.thickness + flashBoost * 0.2;
-        ctx.shadowBlur = 22 + flashBoost;
-        ctx.shadowColor = COL.BUMPER;
-        ctx.beginPath();
-        ctx.moveTo(b.ax, b.ay);
-        ctx.lineTo(b.bx, b.by);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        if (b.flash > 0) b.flash = Math.max(0, b.flash - 0.06);
-      }
-
-      // ---- Black holes ----
-      for (let i = 0; i < lvl.blackholes.length; i++) {
-        const bh = lvl.blackholes[i];
-        ctx.strokeStyle = COL.BLACKHOLE_RING;
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 26;
-        ctx.shadowColor = COL.BLACKHOLE_RING;
-        ctx.beginPath();
-        ctx.arc(bh.x, bh.y, bh.radius, 0, PI2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        // Inner core (event horizon)
-        ctx.fillStyle = COL.BLACKHOLE;
-        ctx.beginPath();
-        ctx.arc(bh.x, bh.y, bh.radius * 0.62, 0, PI2);
-        ctx.fill();
-        // Accretion swirl
-        ctx.strokeStyle = 'rgba(155,89,255,0.45)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (let k = 0; k < 3; k++) {
-          const r  = bh.radius * (0.78 + k * 0.06);
-          const a0 = bh.phase + k * 0.7;
-          ctx.moveTo(bh.x + Math.cos(a0) * r, bh.y + Math.sin(a0) * r);
-          ctx.arc(bh.x, bh.y, r, a0, a0 + 1.2);
-        }
-        ctx.stroke();
-      }
-
-      // ---- Portal ----
-      const p = lvl.portal;
-      ctx.strokeStyle = COL.PORTAL;
-      ctx.lineWidth = 2.5;
-      ctx.shadowBlur = 22;
-      ctx.shadowColor = COL.PORTAL;
-      for (let r = 0; r < 3; r++) {
-        ctx.globalAlpha = 0.7 - r * 0.2;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius - r * 6 + Math.sin(p.phase + r) * 1.6, 0, PI2);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-
-      // ---- Vortex ----
-      const v = lvl.vortex;
-      ctx.strokeStyle = COL.VORTEX;
-      ctx.lineWidth = 3;
-      ctx.shadowBlur = 28;
-      ctx.shadowColor = COL.VORTEX;
-      ctx.beginPath();
-      ctx.arc(v.x, v.y, v.radius, 0, PI2);
-      ctx.stroke();
-      ctx.lineWidth = 1.5;
-      for (let r = 1; r <= 3; r++) {
-        ctx.globalAlpha = 0.55 - r * 0.12;
-        ctx.beginPath();
-        ctx.arc(v.x, v.y, v.radius - r * 7 + Math.sin(v.phase * 1.4 + r) * 2, 0, PI2);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-
-      ctx.shadowBlur = 0;
-
-      // ---- Trajectory dots (slingshot prediction) ----
-      if (game.aim.active && !game.orb.launched) {
-        const traj = game.aim.trajectory;
-        ctx.fillStyle = COL.AIM;
-        for (let i = 0; i < traj.length; i++) {
-          const t = traj[i];
-          ctx.globalAlpha = clamp(1 - i / traj.length, 0.05, 1);
-          ctx.beginPath();
-          ctx.arc(t.x, t.y, 3, 0, PI2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        // Slingshot direction line
-        const o = game.orb;
-        ctx.strokeStyle = COL.AIM;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 6]);
-        ctx.shadowBlur = 14;
-        ctx.shadowColor = COL.AIM;
-        ctx.beginPath();
-        ctx.moveTo(o.pos.x, o.pos.y);
-        ctx.lineTo(o.pos.x + game.aim.dx, o.pos.y + game.aim.dy);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.shadowBlur = 0;
-      }
-
-      // ---- Particles ----
-      renderParticles(ctx);
-
-      // ---- Orb ----
-      if (game.orb.alive) {
-        const o = game.orb;
-        ctx.fillStyle = COL.ORB;
-        ctx.shadowBlur = 28;
-        ctx.shadowColor = COL.ORB_GLOW;
-        ctx.beginPath();
-        ctx.arc(o.pos.x, o.pos.y, o.radius, 0, PI2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        // Inner highlight gives the orb depth.
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.beginPath();
-        ctx.arc(o.pos.x - o.radius * 0.3, o.pos.y - o.radius * 0.3,
-                o.radius * 0.3, 0, PI2);
-        ctx.fill();
-      }
-    },
-  };
-
-
-  /* ================================================================
-   * SECTION 13 — UI / HUD BRIDGE
-   * ================================================================
-   * Thin layer over the DOM overlay. We only mutate textContent and
-   * a single class for show/hide — no innerHTML rewrites in hot paths
-   * to avoid layout thrash during gameplay.
-   * ================================================================ */
-  const UI = {
-    panels: {},
-    hud: null,
-    hudLevel: null,
-    hudShots: null,
-    toast: null,
-    adScrim: null,
-    _toastTimer: 0,
-    init() {
-      this.panels.menu     = document.getElementById('panel-menu');
-      this.panels.levels   = document.getElementById('panel-levels');
-      this.panels.pause    = document.getElementById('panel-pause');
-      this.panels.gameover = document.getElementById('panel-gameover');
-      this.panels.victory  = document.getElementById('panel-victory');
-      this.hud      = document.getElementById('hud');
-      this.hudLevel = document.getElementById('hud-level');
-      this.hudShots = document.getElementById('hud-shots');
-      this.toast    = document.getElementById('toast');
-      this.adScrim  = document.getElementById('ad-scrim');
-    },
-    show(name) {
-      for (const k in this.panels) {
-        this.panels[k].classList.toggle('hidden', k !== name);
-      }
-    },
-    hideAll() { for (const k in this.panels) this.panels[k].classList.add('hidden'); },
-    hudVisible(v) { this.hud.classList.toggle('hidden', !v); },
-    setLevel(n) { this.hudLevel.textContent = 'LV ' + String(n + 1).padStart(2, '0'); },
-    setShots(n) { this.hudShots.textContent = 'SHOTS ' + String(n).padStart(2, '0'); },
-    setVictoryStats(level, shots, best) {
-      const el = document.getElementById('victory-stats');
-      if (!el) return;
-      const bestStr = (best != null) ? ' • BEST ' + String(best).padStart(2,'0') : '';
-      el.textContent = 'LV ' + String(level + 1).padStart(2,'0') +
-                       ' • SHOTS ' + String(shots).padStart(2,'0') + bestStr;
-    },
-    flash(msg, ms) {
-      this.toast.textContent = msg;
-      this.toast.classList.add('show');
-      clearTimeout(this._toastTimer);
-      this._toastTimer = setTimeout(
-        () => this.toast.classList.remove('show'), ms || 1300);
-    },
-    showAdScrim(v) { this.adScrim.classList.toggle('show', !!v); },
-
-    buildLevelGrid(unlocked, bestPerLevel, onSelect) {
-      const grid = document.getElementById('levels-grid');
-      grid.innerHTML = '';
-      for (let i = 0; i < LEVELS.length; i++) {
-        const tile = document.createElement('div');
-        const locked = i > unlocked;
-        tile.className = 'level-tile' + (locked ? ' locked' : '');
-        const num = document.createElement('span');
-        num.textContent = String(i + 1).padStart(2, '0');
-        tile.appendChild(num);
-        const best = bestPerLevel && bestPerLevel[i];
-        if (best && !locked) {
-          const tag = document.createElement('span');
-          tag.className = 'best';
-          tag.textContent = 'B ' + String(best).padStart(2, '0');
-          tile.appendChild(tag);
-        }
-        if (!locked) tile.addEventListener('click', () => onSelect(i));
-        grid.appendChild(tile);
-      }
-    },
-  };
-
-  /* ================================================================
-   * SECTION 14 — CRAZYGAMES SDK v3 INTEGRATION
-   * ================================================================
-   * Defensive skeleton. If the SDK is not loaded the shims are
-   * no-ops so the game runs anywhere unchanged. Hooks used:
-   *   sdk.game.gameplayStart()   — entering PLAYING fresh
-   *   sdk.game.gameplayStop()    — leaving PLAYING
-   *   sdk.game.happytime()       — on victory
-   *   sdk.ad.requestAd('midgame')— between levels / on restart
-   * Audio + physics are explicitly frozen during ad callbacks.
-   * ================================================================ */
-  const SDK = (() => {
-    let sdk = null;
-    let inited = false;
-    let lastAd = 0;
-    function tryGet() {
-      if (window.CrazyGames && window.CrazyGames.SDK) return window.CrazyGames.SDK;
-      return null;
-    }
-    async function init() {
-      if (inited) return;
-      inited = true;
-      sdk = tryGet();
-      if (!sdk) return;
-      try { if (typeof sdk.init === 'function') await sdk.init(); } catch (e) {}
-    }
-    function gameplayStart() { try { sdk?.game?.gameplayStart?.(); } catch (e) {} }
-    function gameplayStop()  { try { sdk?.game?.gameplayStop?.();  } catch (e) {} }
-
-    function happytime()     { try { sdk?.game?.happytime?.();     } catch (e) {} }
-    function requestMidgameAd(onStart, onComplete) {
-      const now = Date.now();
-      // No SDK or in cooldown → fast-path complete
-      if (!sdk || !sdk.ad || typeof sdk.ad.requestAd !== 'function') {
-        onComplete && onComplete(); return;
-      }
-      if (now - lastAd < CFG.AD_COOLDOWN_MS) {
-        onComplete && onComplete(); return;
-      }
-      lastAd = now;
-      const callbacks = {
-        adStarted:  () => { onStart    && onStart(); },
-        adFinished: () => { onComplete && onComplete(); },
-        adError:    () => { onComplete && onComplete(); },
-      };
-      try {
-        const r = sdk.ad.requestAd('midgame', callbacks);
-        // Some SDK versions return a Promise instead of using callbacks.
-        if (r && typeof r.then === 'function') {
-          onStart && onStart();
-          r.then(() => onComplete && onComplete())
-           .catch(() => onComplete && onComplete());
-        }
-      } catch (e) { onComplete && onComplete(); }
-    }
-    return { init, gameplayStart, gameplayStop, happytime, requestMidgameAd };
-  })();
-
-  /* ================================================================
-   * SECTION 15 — PERSISTENCE
-   * ================================================================
-   * Tiny localStorage wrapper for unlock progress and per-level best
-   * shots. Failure is swallowed — saves are best-effort, never block.
-   * ================================================================ */
-  const Save = {
-    KEY: 'neoGravity.save.v1',
-    data: { unlocked: 0, best: {} },
-    load() {
-      try {
-        const raw = localStorage.getItem(this.KEY);
-        if (!raw) return;
-        const obj = JSON.parse(raw);
-        if (obj && typeof obj === 'object') {
-          this.data.unlocked = clamp(obj.unlocked|0, 0, LEVELS.length - 1);
-          this.data.best = obj.best && typeof obj.best === 'object' ? obj.best : {};
-        }
-      } catch (e) { /* ignore */ }
-    },
-    persist() {
-      try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {}
-    },
-
-    recordVictory(levelIndex, shots) {
-      if (levelIndex + 1 < LEVELS.length && this.data.unlocked < levelIndex + 1) {
-        this.data.unlocked = levelIndex + 1;
-      }
-      const cur = this.data.best[levelIndex];
-      if (cur == null || shots < cur) this.data.best[levelIndex] = shots;
-      this.persist();
-    },
-  };
-
-  /* ================================================================
-   * SECTION 16 — GAME CORE
-   * ================================================================
-   * Owns the state machine, the fixed-timestep accumulator, the
-   * per-attempt level instance, and the orchestration of audio/SDK
-   * during transitions.
-   *
-   * State transitions:
-   *   MENU         ─Play/LevelSelect→ LEVEL_SELECT ─tile→ PLAYING
-   *   PLAYING      ─pause→ PAUSED ─resume→ PLAYING
-   *   PLAYING      ─orb dies→ GAME_OVER ─retry→ PLAYING (with ad)
-   *   PLAYING      ─vortex→ VICTORY ─next→ PLAYING (with ad)
-   *   any panel    ─quit→ MENU
-   * ================================================================ */
-  const Game = {
-    state: STATE.BOOT,
-    prevState: null,
-    levelIndex: 0,
-    level: null,
-    orb: null,
-    shots: 0,
-    frozen: false,           // hard freeze during ad playback
-    aim: {
-      active: false,
-      dx: 0, dy: 0,
-      trajectory: [],
-      _buffer: null,         // pre-allocated trajectory points
-    },
-    _accum: 0,
-    _last: 0,
-
-    init() {
-      // Pre-allocate trajectory buffer (no allocation in the aim loop).
-      const buf = new Array(CFG.AIM_LOOKAHEAD_STEPS);
-      for (let i = 0; i < CFG.AIM_LOOKAHEAD_STEPS; i++) buf[i] = { x: 0, y: 0 };
-      this.aim._buffer = buf;
-      this.aim.trajectory = [];
-
-      // Persistence
-      Save.load();
-
-      // UI
-      UI.init();
-      this.bindUI();
-
-
-      // Canvas + viewport
-      const canvas = document.getElementById('game');
-      Viewport.attach(canvas);
-
-      // Input
-      Input.bind(canvas, Viewport);
-      Input.onAimStart = (x, y) => this.onAimStart(x, y);
-      Input.onAimMove  = (x, y) => this.onAimMove(x, y);
-      Input.onAimEnd   = (x, y) => this.onAimEnd(x, y);
-
-      // Visibility → auto-pause to save battery & avoid runaway accum.
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.state === STATE.PLAYING) {
-          this.setState(STATE.PAUSED);
-        }
-      });
-
-      // Keyboard shortcuts (desktop QoL)
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'r' || e.key === 'R') { if (this.state === STATE.PLAYING) this.restartLevel(); }
-        else if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-          if (this.state === STATE.PLAYING) this.setState(STATE.PAUSED);
-          else if (this.state === STATE.PAUSED) this.setState(STATE.PLAYING);
-        } else if (e.key === 'm' || e.key === 'M') {
-          Audio.setMuted(!Audio.isMuted);
-          UI.flash(Audio.isMuted ? 'AUDIO MUTED' : 'AUDIO ON', 900);
-        }
-      });
-
-      // Boot SDK (async, non-blocking)
-      SDK.init();
-
-      // Start at menu
-      this.setState(STATE.MENU);
-
-      // Begin loop
-      this._last = performance.now();
-      const loop = (t) => {
-        const now = t;
-        let dt = (now - this._last) / 1000;
-        this._last = now;
-        if (dt > CFG.MAX_ACCUM) dt = CFG.MAX_ACCUM;
-        if (!this.frozen) this.update(dt);
-        Viewport.updateShake(dt);
-        this.render();
-        requestAnimationFrame(loop);
-      };
-      requestAnimationFrame(loop);
-    },
-
-
-    /* ----- UI bindings (one-time at boot) ----- */
-    bindUI() {
-      const $ = (id) => document.getElementById(id);
-      const click = (id, fn) => { const el = $(id); if (el) el.onclick = (e) => { e.preventDefault(); Audio.unlock(); Audio.click(); fn(); }; };
-      click('btn-play',         () => this.startLevel(0));
-      click('btn-levels',       () => {
-        UI.buildLevelGrid(Save.data.unlocked, Save.data.best, (i) => this.startLevel(i));
-        this.setState(STATE.LEVEL_SELECT);
-      });
-      click('btn-back-menu',    () => this.setState(STATE.MENU));
-      click('btn-pause',        () => { if (this.state === STATE.PLAYING) this.setState(STATE.PAUSED); });
-      click('btn-restart',      () => this.restartLevel());
-      click('btn-resume',       () => this.setState(STATE.PLAYING));
-      click('btn-restart-pause',() => this.restartLevel());
-      click('btn-quit',         () => this.setState(STATE.MENU));
-      click('btn-retry',        () => this.restartLevel());
-      click('btn-quit-go',      () => this.setState(STATE.MENU));
-      click('btn-next',         () => {
-        const next = this.levelIndex + 1;
-        if (next >= LEVELS.length) {
-          UI.flash('All sectors cleared', 1600);
-          this.setState(STATE.MENU);
-          return;
-        }
-        this.requestAdAndThen(() => this.startLevel(next));
-      });
-      click('btn-quit-vic',     () => this.setState(STATE.MENU));
-      click('btn-mute',         () => {
-        Audio.setMuted(!Audio.isMuted);
-        UI.flash(Audio.isMuted ? 'AUDIO MUTED' : 'AUDIO ON', 900);
-      });
-    },
-
-    /* ----- Ad gating helper ----- */
-    requestAdAndThen(fn) {
-      this.frozen = true;
-      Audio.freeze(true);
-      UI.showAdScrim(true);
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        Audio.freeze(false);
-        this.frozen = false;
-        UI.showAdScrim(false);
-        fn && fn();
-      };
-      SDK.requestMidgameAd(() => {/* started */}, finish);
-      // Safety timeout — if the SDK silently fails, never strand the player.
-      setTimeout(finish, 6000);
-    },
-
-
-    /* ----- State transitions ----- */
-    setState(next) {
-      if (this.state === next) return;
-      this.prevState = this.state;
-      // onExit hooks
-      if (this.state === STATE.PLAYING && next !== STATE.PAUSED) SDK.gameplayStop();
-      // transition
-      this.state = next;
-      // onEnter hooks
-      switch (next) {
-        case STATE.MENU:
-          UI.show('menu'); UI.hudVisible(false); break;
-        case STATE.LEVEL_SELECT:
-          UI.show('levels'); UI.hudVisible(false); break;
-        case STATE.PLAYING:
-          UI.hideAll(); UI.hudVisible(true); SDK.gameplayStart(); break;
-        case STATE.PAUSED:
-          UI.show('pause'); break;
-        case STATE.GAME_OVER:
-          UI.show('gameover'); break;
-        case STATE.VICTORY:
-          {
-            const best = Save.data.best[this.levelIndex];
-            UI.setVictoryStats(this.levelIndex, this.shots, best);
-          }
-          UI.show('victory');
-          SDK.happytime();
-          break;
-      }
-    },
-
-    /* ----- Level lifecycle ----- */
-    startLevel(index) {
-      this.levelIndex = clamp(index, 0, LEVELS.length - 1);
-      const src = LEVELS[this.levelIndex];
-      // Deep-clone mutable parts so per-attempt fields can't leak.
-      this.level = {
-        name: src.name,
-        portal: makePortal(src.portal.x, src.portal.y),
-        vortex: makeVortex(src.vortex.x, src.vortex.y),
-        walls:   src.walls.map(w => ({ ...w })),
-        bumpers: src.bumpers.map(b => ({ ...b, flash: 0 })),
-        blackholes: src.blackholes.map(b => ({ ...b, phase: Math.random() * PI2 })),
-        kills:   src.kills.map(k => ({ ...k })),
-      };
-      this.orb = makeOrb(this.level.portal.x, this.level.portal.y);
-      this.shots = 0;
-      this.aim.active = false;
-      this.aim.dx = 0; this.aim.dy = 0;
-      this.aim.trajectory = [];
-      particlePool.releaseAll();
-
-      Viewport.shakeMag = 0;
-      UI.setLevel(this.levelIndex);
-      UI.setShots(0);
-      this.setState(STATE.PLAYING);
-      UI.flash(
-        'SECTOR ' + String(this.levelIndex + 1).padStart(2,'0') +
-        ' • ' + this.level.name, 1500);
-    },
-
-    restartLevel() {
-      // Restart triggers an ad slot (subject to cooldown).
-      this.requestAdAndThen(() => this.startLevel(this.levelIndex));
-    },
-
-    /* ----- Aim / Launch ----- */
-    onAimStart(x, y) {
-      if (this.state !== STATE.PLAYING) return;
-      if (!this.orb || !this.orb.alive) return;
-      if (this.orb.launched) return;
-      this.aim.active = true;
-      this.aim.dx = 0; this.aim.dy = 0;
-    },
-    onAimMove(x, y) {
-      if (!this.aim.active) return;
-      // Slingshot: pull-direction is from pointer back to orb.
-      const o = this.orb;
-      let dx = o.pos.x - x;
-      let dy = o.pos.y - y;
-      const m = Math.sqrt(dx * dx + dy * dy);
-      const maxDrag = 280;
-      if (m > maxDrag) { dx = (dx / m) * maxDrag; dy = (dy / m) * maxDrag; }
-      this.aim.dx = dx; this.aim.dy = dy;
-      this.computeTrajectory();
-    },
-    onAimEnd(x, y) {
-      if (!this.aim.active) return;
-      this.aim.active = false;
-      const m = Math.sqrt(this.aim.dx * this.aim.dx + this.aim.dy * this.aim.dy);
-      if (m < CFG.MIN_LAUNCH_DRAG) { this.aim.trajectory = []; return; }
-      const speed = clamp(m * CFG.LAUNCH_DRAG_SCALE, 0, CFG.MAX_LAUNCH_SPEED);
-      const inv = 1 / m;
-      this.orb.vel.x = this.aim.dx * inv * speed;
-      this.orb.vel.y = this.aim.dy * inv * speed;
-      this.orb.launched = true;
-      this.shots++;
-      UI.setShots(this.shots);
-      Audio.launch();
-      this.aim.trajectory = [];
-    },
-
-    /* ----- Trajectory pre-simulation (look-ahead) ----- */
-
-    computeTrajectory() {
-      const buf = this.aim._buffer;
-      const sx = this.orb.pos.x, sy = this.orb.pos.y;
-      const m = Math.sqrt(this.aim.dx * this.aim.dx + this.aim.dy * this.aim.dy);
-      const speed = clamp(m * CFG.LAUNCH_DRAG_SCALE, 0, CFG.MAX_LAUNCH_SPEED);
-      let vx = 0, vy = 0;
-      if (m > 0) {
-        const inv = 1 / m;
-        vx = this.aim.dx * inv * speed;
-        vy = this.aim.dy * inv * speed;
-      }
-      let px = sx, py = sy;
-      const dt = CFG.AIM_LOOKAHEAD_DT;
-      const steps = CFG.AIM_LOOKAHEAD_STEPS;
-      const blackholes = this.level.blackholes;
-      const drag = Math.pow(1 - CFG.AIR_DRAG, dt * 60);
-      const traj = this.aim.trajectory;
-      traj.length = 0;
-      for (let i = 0; i < steps; i++) {
-        // Gravity
-        vy += CFG.GRAVITY_Y * dt;
-        // Black holes
-        for (let k = 0; k < blackholes.length; k++) {
-          const bh = blackholes[k];
-          const dx2 = bh.x - px, dy2 = bh.y - py;
-          const d2 = dx2 * dx2 + dy2 * dy2;
-          if (d2 < 4) continue;
-          const d = Math.sqrt(d2);
-          const r = Math.max(d, bh.radius * 0.6);
-          const a = bh.strength / (r * r);
-          vx += (dx2 / d) * a * dt;
-          vy += (dy2 / d) * a * dt;
-        }
-        vx *= drag; vy *= drag;
-        px += vx * dt; py += vy * dt;
-        if (i % CFG.AIM_DOT_SPACING === 0) {
-          buf[i].x = px; buf[i].y = py;
-          traj.push(buf[i]);
-        }
-        // Stop the prediction at world boundary
-        if (px < 0 || py < 0 || px > CFG.WORLD_W || py > CFG.WORLD_H) break;
-      }
-    },
-
-    /* ----- Per-frame update ----- */
-    update(dt) {
-      // Animate ambient ring/swirl phases regardless of state so the
-      // menu still feels alive when the player is looking at it.
-      if (this.level) {
-        this.level.portal.phase += dt * 1.6;
-        this.level.vortex.phase += dt * 2.0;
-
-        for (let i = 0; i < this.level.blackholes.length; i++) {
-          this.level.blackholes[i].phase += dt * 0.9;
-        }
-      }
-      // Particles always tick (even on game-over panel, for the death
-      // burst to play out under the overlay).
-      updateParticles(dt);
-
-      if (this.state !== STATE.PLAYING) return;
-
-      // Fixed-timestep accumulator decouples physics from frame rate.
-      this._accum += dt;
-      if (this._accum > CFG.MAX_ACCUM) this._accum = CFG.MAX_ACCUM;
-      const step = CFG.FIXED_DT;
-      let safety = 8;
-      while (this._accum >= step && safety-- > 0) {
-        this.fixedStep(step);
-        this._accum -= step;
-      }
-
-      // Live-recompute trajectory while dragging so it stays accurate
-      // even though the orb itself does not move during aim.
-      if (this.aim.active && !this.orb.launched) this.computeTrajectory();
-    },
-
-    /* ----- Fixed-timestep physics step ----- */
-    fixedStep(dt) {
-      const orb = this.orb;
-      if (!orb || !orb.alive) return;
-      if (!orb.launched) return;
-
-      // Black-hole event horizon → instant death (orb is consumed).
-      for (let i = 0; i < this.level.blackholes.length; i++) {
-        const bh = this.level.blackholes[i];
-        const dx = bh.x - orb.pos.x;
-        const dy = bh.y - orb.pos.y;
-        if (dx * dx + dy * dy < bh.eventHorizon * bh.eventHorizon) {
-          this.killOrb(orb.pos.x, orb.pos.y);
-          return;
-        }
-      }
-
-      // Integrate kinematics
-      integrateOrb(orb, this.level.blackholes, dt);
-
-      // Trail emission
-      orb.trailCooldown -= dt;
-      if (orb.trailCooldown <= 0) {
-        emitTrail(orb.pos.x, orb.pos.y, orb.vel.x, orb.vel.y, COL.ORB);
-        orb.trailCooldown = 0.02;
-      }
-
-
-      const lvl = this.level;
-
-      // Wall collisions
-      for (let i = 0; i < lvl.walls.length; i++) {
-        if (circleVsAABB(orb, lvl.walls[i])) {
-          Audio.bounce();
-          Viewport.addShake(2);
-        }
-      }
-
-      // Bumper collisions (with flash + boost + particles)
-      for (let i = 0; i < lvl.bumpers.length; i++) {
-        const b = lvl.bumpers[i];
-        if (circleVsSegment(orb, b.ax, b.ay, b.bx, b.by, b.thickness, b.restitution)) {
-          b.flash = 1;
-          Audio.bumper();
-          Viewport.addShake(5);
-          emitBurst(orb.pos.x, orb.pos.y, COL.BUMPER, 12, 240, [1.2, 2.6], [0.25, 0.55]);
-        }
-      }
-
-      // Kill zones (cheap circle-vs-AABB overlap test)
-      for (let i = 0; i < lvl.kills.length; i++) {
-        const k = lvl.kills[i];
-        const cx = clamp(orb.pos.x, k.x, k.x + k.w);
-        const cy = clamp(orb.pos.y, k.y, k.y + k.h);
-        const dx = orb.pos.x - cx, dy = orb.pos.y - cy;
-        if (dx * dx + dy * dy <= orb.radius * orb.radius) {
-          this.killOrb(orb.pos.x, orb.pos.y);
-          return;
-        }
-      }
-
-      // Vortex (victory) — stricter than rendered radius for fairness.
-      const v = lvl.vortex;
-      const dvx = v.x - orb.pos.x, dvy = v.y - orb.pos.y;
-      if (dvx * dvx + dvy * dvy <= (v.radius - 4) * (v.radius - 4)) {
-        this.victory();
-        return;
-      }
-
-      // Out-of-bounds safety net
-      if (orb.pos.y > CFG.WORLD_H + 200 ||
-          orb.pos.x < -200 || orb.pos.x > CFG.WORLD_W + 200) {
-        this.killOrb(orb.pos.x, clamp(orb.pos.y, 0, CFG.WORLD_H));
-        return;
-      }
-
-      // Rest detection — if the orb is barely moving for too long,
-      // we fail the attempt rather than let the player wait forever.
-      const speed2 = orb.vel.x * orb.vel.x + orb.vel.y * orb.vel.y;
-
-      if (speed2 < CFG.MIN_REST_SPEED * CFG.MIN_REST_SPEED) {
-        orb.restTimer += dt;
-        if (orb.restTimer >= CFG.REST_TIME) {
-          this.killOrb(orb.pos.x, orb.pos.y);
-          return;
-        }
       } else {
-        orb.restTimer = 0;
+        ctx.beginPath();
+        ctx.arc(k.x, k.y, k.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
       }
-    },
-
-    /* ----- Result transitions ----- */
-    killOrb(x, y) {
-      if (!this.orb || !this.orb.alive) return;
-      this.orb.alive = false;
-      emitBurst(x, y, COL.KILL, 40, 360, [1.4, 3.4], [0.4, 1.0]);
-      Audio.kill();
-      Viewport.addShake(12);
-      // Brief delay so the burst is visible before the panel covers it.
-      setTimeout(() => {
-        if (this.state === STATE.PLAYING) this.setState(STATE.GAME_OVER);
-      }, 380);
-    },
-
-    victory() {
-      if (!this.orb || !this.orb.alive) return;
-      this.orb.alive = false;
-      emitBurst(this.level.vortex.x, this.level.vortex.y,
-                COL.VORTEX, 40, 420, [1.4, 3.6], [0.5, 1.1]);
-      emitBurst(this.level.vortex.x, this.level.vortex.y,
-                COL.ORB,    24, 280, [1.0, 2.4], [0.3, 0.8]);
-      Audio.victory();
-      Viewport.addShake(8);
-      Save.recordVictory(this.levelIndex, this.shots);
-      setTimeout(() => {
-        if (this.state === STATE.PLAYING) this.setState(STATE.VICTORY);
-      }, 480);
-    },
-
-    /* ----- Render dispatcher ----- */
-    render() { Renderer.drawFrame(Viewport.ctx, this); },
-  };
-
-  /* ================================================================
-   * SECTION 17 — BOOTSTRAP
-   * ================================================================
-   * Defer until DOM is ready so all overlay elements exist before we
-   * wire up listeners.
-   * ================================================================ */
-  function boot() { Game.init(); }
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-
-    setTimeout(boot, 0);
-  } else {
-    document.addEventListener('DOMContentLoaded', boot);
+    }
+  },
+  drawStars(ctx, stars, time) {
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      if (s.collected) continue;
+      const pulse = 1 + Math.sin(time * 5 + i) * 0.15;
+      const r = CFG.STAR_RADIUS * pulse;
+      const glow = this._createGlow('#ffd84d', r);
+      const gs = r * 4;
+      ctx.drawImage(glow, s.x - gs/2, s.y - gs/2, gs, gs);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r * 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd84d';
+      ctx.fill();
+      // Star cross
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(time * 2 + i);
+      ctx.beginPath();
+      ctx.moveTo(0, -r*0.8); ctx.lineTo(0, r*0.8);
+      ctx.moveTo(-r*0.8, 0); ctx.lineTo(r*0.8, 0);
+      ctx.strokeStyle = '#ffd84daa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  },
+  drawParticles(ctx) {
+    Particles.pool.forEach((p) => {
+      ctx.globalAlpha = p.alpha;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  },
+  drawSlingshot(ctx, orb, drag) {
+    if (!drag) return;
+    const skin = CFG.SKINS[Save.data.equippedSkin] || CFG.SKINS['default'];
+    // Draw line from orb to projected direction
+    const endX = orb.x + drag.dx * 0.5;
+    const endY = orb.y + drag.dy * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(orb.x, orb.y);
+    ctx.lineTo(endX, endY);
+    ctx.strokeStyle = skin.colorCore + '88';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Arrow head
+    const aLen = 12;
+    const angle = Math.atan2(drag.dy, drag.dx);
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - aLen * Math.cos(angle - 0.4), endY - aLen * Math.sin(angle - 0.4));
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - aLen * Math.cos(angle + 0.4), endY - aLen * Math.sin(angle + 0.4));
+    ctx.strokeStyle = skin.colorCore;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Power indicator
+    const pct = drag.dist / CFG.SLING_MAX;
+    ctx.fillStyle = `rgba(255,${Math.round(255*(1-pct))},${Math.round(100*(1-pct))},0.8)`;
+    ctx.fillRect(orb.x - 25, orb.y + CFG.ORB_RADIUS + 10, 50 * pct, 4);
+    ctx.strokeStyle = '#fff3';
+    ctx.strokeRect(orb.x - 25, orb.y + CFG.ORB_RADIUS + 10, 50, 4);
+  },
+  drawSpawn(ctx, spawn) {
+    ctx.beginPath();
+    ctx.arc(spawn.x, spawn.y, 30, 0, Math.PI * 2);
+    ctx.strokeStyle = '#7df9ff33';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
+};
 
-  })();
-  </script>
+
+// ============================================================
+// SECTION 13: UI/HUD + SHOP LOGIC
+// ============================================================
+const UI = {
+  panels: {},
+  init() {
+    this.panels.menu = document.getElementById('panel-menu');
+    this.panels.levels = document.getElementById('panel-levels');
+    this.panels.shop = document.getElementById('panel-shop');
+    this.panels.paused = document.getElementById('panel-paused');
+    this.panels.victory = document.getElementById('panel-victory');
+    this.panels.gameover = document.getElementById('panel-gameover');
+    this.hud = document.getElementById('hud');
+    this._buildLevelGrid();
+  },
+  _hideAll() {
+    Object.values(this.panels).forEach(p => p.classList.add('hidden'));
+    this.hud.classList.add('hidden');
+  },
+  showMenu() {
+    this._hideAll();
+    this.panels.menu.classList.remove('hidden');
+    Game.state = 'MENU';
+    Audio.click();
+  },
+  showLevelSelect() {
+    this._hideAll();
+    this._buildLevelGrid();
+    this.panels.levels.classList.remove('hidden');
+    Game.state = 'LEVEL_SELECT';
+    Audio.click();
+  },
+  showShop() {
+    this._hideAll();
+    this._buildShopGrid();
+    this.panels.shop.classList.remove('hidden');
+    Game.state = 'SHOP';
+    Audio.click();
+  },
+  showHUD() {
+    this._hideAll();
+    this.hud.classList.remove('hidden');
+  },
+  showPaused() {
+    this.panels.paused.classList.remove('hidden');
+  },
+  hidePaused() {
+    this.panels.paused.classList.add('hidden');
+  },
+  showVictory(msg) {
+    document.getElementById('victory-msg').textContent = msg;
+    this.panels.victory.classList.remove('hidden');
+  },
+  showGameOver() {
+    this.panels.gameover.classList.remove('hidden');
+  },
+  updateHUD(shots, starsCollected, totalStars, stardust) {
+    document.getElementById('hud-shots').textContent = 'Shots: ' + shots;
+    document.getElementById('hud-stars').textContent = 'Stars: ' + starsCollected + '/' + totalStars;
+    document.getElementById('hud-dust').textContent = 'Stardust: ' + stardust;
+  },
+  _buildLevelGrid() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    for (let i = 0; i < LEVELS.length; i++) {
+      const el = document.createElement('div');
+      el.className = 'level-btn' + (i > Save.data.unlocked ? ' locked' : '');
+      el.textContent = (i + 1);
+      if (i <= Save.data.unlocked) {
+        el.onclick = () => { Game.startLevel(i); Audio.click(); };
+      }
+      grid.appendChild(el);
+    }
+  },
+  _buildShopGrid() {
+    const grid = document.getElementById('shop-grid');
+    grid.innerHTML = '';
+    document.getElementById('shop-balance').textContent = 'Stardust: ' + Save.data.stardust;
+    const skinKeys = Object.keys(CFG.SKINS);
+    for (let i = 0; i < skinKeys.length; i++) {
+      const skin = CFG.SKINS[skinKeys[i]];
+      const owned = Save.data.unlockedSkins.indexOf(skin.id) !== -1;
+      const equipped = Save.data.equippedSkin === skin.id;
+      const canBuy = !owned && Save.data.stardust >= skin.price;
+      const card = document.createElement('div');
+      card.className = 'skin-card' + (equipped ? ' equipped' : '');
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.style.backgroundColor = skin.colorCore;
+      preview.style.color = skin.colorCore;
+      preview.style.boxShadow = '0 0 16px ' + skin.glowColor;
+      const nameEl = document.createElement('div');
+      nameEl.className = 'sname';
+      nameEl.textContent = skin.name;
+      const priceEl = document.createElement('div');
+      priceEl.className = 'sprice';
+      priceEl.textContent = owned ? (equipped ? 'EQUIPPED' : 'OWNED') : (skin.price + ' Stardust');
+      const btn = document.createElement('button');
+      btn.className = 'btn' + (equipped ? ' green' : canBuy ? ' gold' : owned ? '' : '');
+      if (equipped) {
+        btn.textContent = 'ACTIVE';
+        btn.disabled = true;
+      } else if (owned) {
+        btn.textContent = 'EQUIP';
+        btn.onclick = () => { Save.data.equippedSkin = skin.id; Save.persist(); this._buildShopGrid(); Audio.click(); };
+      } else if (canBuy) {
+        btn.textContent = 'BUY';
+        btn.onclick = () => { Save.data.stardust -= skin.price; Save.data.unlockedSkins.push(skin.id); Save.data.equippedSkin = skin.id; Save.persist(); this._buildShopGrid(); Audio.click(); };
+      } else {
+        btn.textContent = 'LOCKED';
+        btn.disabled = true;
+      }
+      btn.style.padding = '6px 16px';
+      btn.style.fontSize = '0.7rem';
+      card.appendChild(preview);
+      card.appendChild(nameEl);
+      card.appendChild(priceEl);
+      card.appendChild(btn);
+      grid.appendChild(card);
+    }
+  }
+};
+
+
+// ============================================================
+// SECTION 14: CRAZYGAMES SDK SKELETON
+// ============================================================
+const CrazySDK = {
+  initialized: false,
+  init() {
+    // CrazyGames SDK integration placeholder
+    // In production, load the SDK and call:
+    // window.CrazyGames.SDK.init()
+    this.initialized = true;
+  },
+  gameplayStart() {
+    // CrazyGames.SDK.game.gameplayStart()
+  },
+  gameplayStop() {
+    // CrazyGames.SDK.game.gameplayStop()
+  },
+  happyTime() {
+    // CrazyGames.SDK.game.happytime()
+  },
+  showAd(type, cb) {
+    // CrazyGames.SDK.ad.requestAd(type, { adFinished: cb, adError: cb, adStarted: ()=>{} })
+    if (cb) cb();
+  }
+};
+
+// ============================================================
+// SECTION 15: SAVE / PERSISTENCE
+// ============================================================
+const Save = {
+  STORAGE_KEY: 'neogravity_save_v1',
+  data: {
+    unlocked: 0,
+    best: {},
+    stardust: 0,
+    unlockedSkins: ['default'],
+    equippedSkin: 'default'
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Merge with defaults
+        this.data.unlocked = parsed.unlocked || 0;
+        this.data.best = parsed.best || {};
+        this.data.stardust = parsed.stardust || 0;
+        this.data.unlockedSkins = parsed.unlockedSkins || ['default'];
+        this.data.equippedSkin = parsed.equippedSkin || 'default';
+        // Validate equipped skin exists
+        if (!CFG.SKINS[this.data.equippedSkin]) {
+          this.data.equippedSkin = 'default';
+        }
+      }
+    } catch(e) {
+      console.warn('Save load failed, using defaults');
+    }
+  },
+  persist() {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+    } catch(e) {
+      console.warn('Save persist failed');
+    }
+  },
+  recordLevel(idx, shots) {
+    if (!this.data.best[idx] || shots < this.data.best[idx]) {
+      this.data.best[idx] = shots;
+    }
+    if (idx >= this.data.unlocked && idx < LEVELS.length - 1) {
+      this.data.unlocked = idx + 1;
+    }
+    this.persist();
+  }
+};
+
+
+// ============================================================
+// SECTION 16: GAME CORE (state machine, level lifecycle)
+// ============================================================
+const Game = {
+  state: 'MENU',
+  levelIdx: 0,
+  level: null,
+  orb: null,
+  vortex: null,
+  shots: 0,
+  starsCollected: 0,
+  totalStars: 0,
+  time: 0,
+  accumulator: 0,
+  lastTime: 0,
+  trailTimer: 0,
+  _pauseBtn: null,
+
+  startLevel(idx) {
+    this.levelIdx = idx;
+    this.level = LEVELS[idx];
+    this.orb = makeOrb(this.level.spawn.x, this.level.spawn.y);
+    this.vortex = makeVortex(this.level.vortex.x, this.level.vortex.y);
+    this.shots = 0;
+    this.starsCollected = 0;
+    // Reset stars
+    for (let i = 0; i < this.level.stars.length; i++) {
+      this.level.stars[i].collected = false;
+    }
+    this.totalStars = this.level.stars.length;
+    this.time = 0;
+    this.accumulator = 0;
+    Particles.pool.clear();
+    UI.showHUD();
+    UI.updateHUD(this.shots, this.starsCollected, this.totalStars, Save.data.stardust);
+    this.state = 'PLAYING';
+    CrazySDK.gameplayStart();
+  },
+
+  retryLevel() {
+    Audio.click();
+    this.startLevel(this.levelIdx);
+  },
+
+  nextLevel() {
+    Audio.click();
+    if (this.levelIdx < LEVELS.length - 1) {
+      this.startLevel(this.levelIdx + 1);
+    } else {
+      UI.showMenu();
+    }
+  },
+
+  quitToMenu() {
+    Audio.click();
+    CrazySDK.gameplayStop();
+    UI.showMenu();
+  },
+
+  pause() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'PAUSED';
+    UI.showPaused();
+  },
+
+  resume() {
+    if (this.state !== 'PAUSED') return;
+    this.state = 'PLAYING';
+    UI.hidePaused();
+    Audio.click();
+  },
+
+  victory() {
+    this.state = 'VICTORY';
+    CrazySDK.gameplayStop();
+    CrazySDK.happyTime();
+    Audio.victory();
+    Particles.emit(this.vortex.x, this.vortex.y, 50, '#39ff88', 400, 1.2, 6);
+    Viewport.shake(8, 0.3);
+    // Calculate reward
+    const starReward = this.starsCollected * 10;
+    const perfectBonus = (this.shots <= this.level.par) ? 25 : 0;
+    const totalReward = starReward + perfectBonus;
+    Save.data.stardust += totalReward;
+    Save.recordLevel(this.levelIdx, this.shots);
+    // Build message
+    let msg = 'Stars: ' + this.starsCollected + '/' + this.totalStars + ' (+' + starReward + ')';
+    if (perfectBonus > 0) msg += ' | Perfect! (+25)';
+    msg += ' | Total: +' + totalReward + ' Stardust';
+    UI.showVictory(msg);
+  },
+
+  gameOver() {
+    this.state = 'GAME_OVER';
+    CrazySDK.gameplayStop();
+    Audio.kill();
+    Particles.emit(this.orb.x, this.orb.y, 40, '#ff3939', 350, 0.8, 5);
+    Viewport.shake(12, 0.4);
+    UI.showGameOver();
+  },
+
+  launchOrb(drag) {
+    if (this.orb.launched) {
+      // Reset orb for next shot
+      this.orb.x = this.level.spawn.x;
+      this.orb.y = this.level.spawn.y;
+      this.orb.vx = 0;
+      this.orb.vy = 0;
+      this.orb.launched = false;
+      this.orb.alive = true;
+    }
+    this.orb.vx = drag.dx * CFG.LAUNCH_MULT;
+    this.orb.vy = drag.dy * CFG.LAUNCH_MULT;
+    this.orb.launched = true;
+    this.shots++;
+    Audio.launch();
+    Particles.emit(this.orb.x, this.orb.y, 15,
+      CFG.SKINS[Save.data.equippedSkin].colorTrail, 200, 0.5, 4);
+    UI.updateHUD(this.shots, this.starsCollected, this.totalStars, Save.data.stardust);
+  },
+
+  fixedStep(dt) {
+    if (!this.orb.launched || !this.orb.alive) return;
+
+    // Physics integration
+    Physics.integrateOrb(this.orb, dt, this.level);
+
+    // Wall collision
+    if (Physics.collideWalls(this.orb, this.level.walls)) {
+      Audio.bounce();
+      Particles.emit(this.orb.x, this.orb.y, 5, '#aaa', 150, 0.3, 3);
+    }
+
+    // Bumper collision
+    if (Physics.collideBumpers(this.orb, this.level.bumpers)) {
+      Audio.bumperHit();
+      Particles.emit(this.orb.x, this.orb.y, 12, '#ff39b8', 250, 0.5, 4);
+      Viewport.shake(4, 0.15);
+    }
+
+    // Star collision
+    const newStars = Physics.collideStars(this.orb, this.level.stars);
+    if (newStars > 0) {
+      this.starsCollected += newStars;
+      UI.updateHUD(this.shots, this.starsCollected, this.totalStars, Save.data.stardust);
+    }
+
+    // Kill zone collision
+    if (Physics.collideKillZones(this.orb, this.level.kills)) {
+      this.orb.alive = false;
+      this.gameOver();
+      return;
+    }
+
+    // Vortex collision (goal)
+    if (Physics.collideVortex(this.orb, this.vortex)) {
+      this.victory();
+      return;
+    }
+
+    // Out of bounds
+    if (Physics.outOfBounds(this.orb)) {
+      this.orb.alive = false;
+      this.gameOver();
+      return;
+    }
+  },
+
+  update(timestamp) {
+    if (this.lastTime === 0) this.lastTime = timestamp;
+    const frameTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+    this.lastTime = timestamp;
+
+    if (this.state !== 'PLAYING') {
+      requestAnimationFrame((t) => this.update(t));
+      return;
+    }
+
+    this.time += frameTime;
+    Viewport.updateShake(frameTime);
+
+    // Fixed timestep physics
+    this.accumulator += frameTime;
+    while (this.accumulator >= CFG.DT) {
+      this.fixedStep(CFG.DT);
+      this.accumulator -= CFG.DT;
+    }
+
+    // Trail particles
+    if (this.orb.launched && this.orb.alive) {
+      this.trailTimer += frameTime;
+      if (this.trailTimer > 0.03) {
+        this.trailTimer = 0;
+        const skin = CFG.SKINS[Save.data.equippedSkin] || CFG.SKINS['default'];
+        Particles.trail(this.orb.x, this.orb.y, skin.colorTrail);
+      }
+    }
+
+    // Update particles
+    Particles.update(frameTime);
+
+    // Handle input for slingshot
+    if (!this.orb.launched && Input.isDown) {
+      // Player is aiming
+    }
+    if (!this.orb.launched && !Input.isDown) {
+      const drag = Input.getDrag();
+      if (drag && drag.dist > 15) {
+        this.launchOrb(drag);
+        Input.startX = 0; Input.startY = 0;
+        Input.currX = 0; Input.currY = 0;
+      }
+    }
+
+    // Render
+    this.render();
+
+    requestAnimationFrame((t) => this.update(t));
+  },
+
+  render() {
+    const ctx = Viewport.ctx;
+    // Clear
+    ctx.clearRect(0, 0, Viewport.canvas.width, Viewport.canvas.height);
+
+    Viewport.begin();
+
+    // Background
+    Starfield.draw(ctx);
+
+    // Level entities
+    Renderer.drawKillZones(ctx, this.level.kills);
+    Renderer.drawWalls(ctx, this.level.walls);
+    Renderer.drawBumpers(ctx, this.level.bumpers);
+    if (this.level.blackholes.length > 0) {
+      Renderer.drawBlackHoles(ctx, this.level.blackholes, this.time);
+    }
+    Renderer.drawStars(ctx, this.level.stars, this.time);
+    Renderer.drawVortex(ctx, this.vortex, this.time);
+
+    // Spawn indicator
+    if (!this.orb.launched) {
+      Renderer.drawSpawn(ctx, this.level.spawn);
+    }
+
+    // Particles behind orb
+    Renderer.drawParticles(ctx);
+
+    // Orb
+    if (this.orb.alive) {
+      Renderer.drawOrb(ctx, this.orb);
+    }
+
+    // Slingshot UI
+    if (!this.orb.launched && Input.isDown) {
+      const drag = Input.getDrag();
+      Renderer.drawSlingshot(ctx, this.orb, drag);
+    }
+
+    Viewport.end();
+  },
+
+  // Initial kick to keep RAF running during menus
+  _idleLoop(timestamp) {
+    if (this.state === 'PLAYING') return;
+    this.lastTime = timestamp;
+    requestAnimationFrame((t) => {
+      if (this.state === 'PLAYING') {
+        this.update(t);
+      } else {
+        this._idleLoop(t);
+      }
+    });
+  }
+};
+
+
+// ============================================================
+// SECTION 17: BOOTSTRAP
+// ============================================================
+(function bootstrap() {
+  // Initialize systems
+  Save.load();
+  Viewport.init();
+  Starfield.init();
+  Audio.init();
+  Input.init(Viewport.canvas, (cx, cy) => Viewport.screenToWorld(cx, cy));
+  UI.init();
+  CrazySDK.init();
+
+  // Show menu
+  UI.showMenu();
+
+  // Start idle loop
+  Game._idleLoop(performance.now());
+
+  // Pause button via keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      if (Game.state === 'PLAYING') Game.pause();
+      else if (Game.state === 'PAUSED') Game.resume();
+    }
+  });
+
+  // Tap to pause on HUD area
+  document.getElementById('hud').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    if (Game.state === 'PLAYING') Game.pause();
+  });
+  document.getElementById('hud').style.pointerEvents = 'auto';
+
+  console.log('Neo-Gravity: Elastic Escape initialized');
+})();
+
+// ============================================================
+// ADDITIONAL UTILITIES: Level helper functions
+// ============================================================
+// Utility to validate all levels have proper structure
+function validateLevels() {
+  for (let i = 0; i < LEVELS.length; i++) {
+    const lvl = LEVELS[i];
+    if (!lvl.name) console.warn('Level ' + i + ' missing name');
+    if (!lvl.spawn) console.warn('Level ' + i + ' missing spawn');
+    if (!lvl.vortex) console.warn('Level ' + i + ' missing vortex');
+    if (!lvl.walls) console.warn('Level ' + i + ' missing walls');
+    if (!lvl.bumpers) lvl.bumpers = [];
+    if (!lvl.blackholes) lvl.blackholes = [];
+    if (!lvl.kills) lvl.kills = [];
+    if (!lvl.stars) lvl.stars = [];
+    if (typeof lvl.par !== 'number') lvl.par = 3;
+  }
+  return true;
+}
+validateLevels();
+
+// Debug info helper (accessible via console)
+window.NEO_DEBUG = {
+  getSaveData: function() { return JSON.parse(JSON.stringify(Save.data)); },
+  resetSave: function() {
+    Save.data = { unlocked: 0, best: {}, stardust: 0, unlockedSkins: ['default'], equippedSkin: 'default' };
+    Save.persist();
+    console.log('Save data reset');
+  },
+  addStardust: function(amount) {
+    Save.data.stardust += (amount || 100);
+    Save.persist();
+    console.log('Added ' + (amount || 100) + ' stardust. Total: ' + Save.data.stardust);
+  },
+  unlockAll: function() {
+    Save.data.unlocked = LEVELS.length - 1;
+    Save.persist();
+    console.log('All levels unlocked');
+  },
+  getState: function() { return Game.state; },
+  getLevelInfo: function() {
+    if (!Game.level) return 'No level loaded';
+    return {
+      name: Game.level.name,
+      par: Game.level.par,
+      walls: Game.level.walls.length,
+      bumpers: Game.level.bumpers.length,
+      blackholes: Game.level.blackholes.length,
+      kills: Game.level.kills.length,
+      stars: Game.level.stars.length
+    };
+  }
+};
+
+// Performance monitor (development aid)
+const PerfMonitor = {
+  _frames: 0,
+  _lastCheck: 0,
+  _fps: 60,
+  update(timestamp) {
+    this._frames++;
+    if (timestamp - this._lastCheck >= 1000) {
+      this._fps = this._frames;
+      this._frames = 0;
+      this._lastCheck = timestamp;
+    }
+  },
+  getFPS() { return this._fps; }
+};
+</script>
 </body>
 </html>
