@@ -60,6 +60,19 @@ class Game {
     this.shakeOffsetX = 0;
     this.shakeOffsetY = 0;
 
+    // ----- Invasión Alien (cada 3 niveles) -----
+    this.alertActive = false;        // se muestra el aviso imponente
+    this.alertTimer = 0;
+    this.ALERT_TOTAL = 3.6;          // duración del aviso en pantalla
+    this.alienAttackActive = false;  // las naves ya están atacando
+    this.alienSpawnTimer = 0;
+    this.alienSpawnCount = 0;
+    this.alienAttackLevel = false;   // este nivel tiene invasión
+
+    // Polvo al correr / aterrizar (siempre activo en modo ULTRA)
+    this.dustParticles = [];
+    this._dustTimer = 0;
+
     // Bind menu start button
     const startBtn = document.getElementById('startBtn');
     const overlay = document.getElementById('overlay');
@@ -137,6 +150,23 @@ class Game {
       ? '¡La guarida del Mapache Gigante Mutante!'
       : 'Llega a la estación antes de que se agote el tiempo';
     this.bigMessageTimer = 2.4;
+
+    // Reset estado alien
+    this.alertActive = false;
+    this.alertTimer = 0;
+    this.alienAttackActive = false;
+    this.alienSpawnTimer = 0;
+    this.alienSpawnCount = 0;
+    this.alienAttackLevel = !!def.alienAttack;
+    this.dustParticles = [];
+
+    // Si este nivel tiene invasión alien, programar el aviso para que
+    // aparezca justo después del intro normal (encadenado, dramático).
+    if (def.alienAttack) {
+      this._pendingAlertTimer = 2.4;     // dispara el aviso al fin del intro
+    } else {
+      this._pendingAlertTimer = 0;
+    }
 
     this.state = STATE.PLAYING;
   }
@@ -265,6 +295,45 @@ class Game {
     }
     if (this.toastTime > 0) this.toastTime -= dt;
 
+    // ---- Invasión alien: aviso imponente -> ataque ----
+    if (this._pendingAlertTimer > 0) {
+      this._pendingAlertTimer -= dt;
+      if (this._pendingAlertTimer <= 0) {
+        this.alertActive = true;
+        this.alertTimer = this.ALERT_TOTAL;
+        SFX.alarm();
+        this.shake(3, 0.5);
+      }
+    }
+    if (this.alertActive) {
+      this.alertTimer -= dt;
+      // Pequeñas sacudidas durante el aviso para imponencia
+      if (this.alertTimer % 1 < 0.05) this.shake(2, 0.15);
+      if (this.alertTimer <= 0) {
+        this.alertActive = false;
+        this.alienAttackActive = true;
+        this.alienSpawnTimer = 0.5; // primera nave casi inmediata
+        this.alienSpawnCount = 0;
+        this.showToast('¡Esquiva las naves alienígenas!', 2.4);
+      }
+    }
+    if (this.alienAttackActive) {
+      this.alienSpawnTimer -= dt;
+      if (this.alienSpawnTimer <= 0) {
+        // Spawn fuera de la cámara, volando hacia el jugador.
+        // Usar cam.y para que la altura sea siempre visible en pantalla.
+        const fromLeft = Math.random() < 0.5;
+        const x = fromLeft ? this.cam.x - 130 : this.cam.x + VIEW_W + 30;
+        const y = this.cam.y + 40 + Math.random() * 90;
+        const dir = fromLeft ? 1 : -1;
+        this.enemies.push(new AlienShip(x, y, dir));
+        this.alienSpawnCount++;
+        // El intervalo se acelera levemente con el tiempo
+        const base = Math.max(2.5, 5 - this.alienSpawnCount * 0.18);
+        this.alienSpawnTimer = base + Math.random() * 1.5;
+      }
+    }
+
     if (this.state === STATE.LEVEL_COMPLETE) {
       this.completeTimer -= dt;
       // mover a Mía hacia la meta para "celebración"
@@ -294,6 +363,48 @@ class Game {
 
     // Update player (a menos que esté muerto y haya pasado animación)
     this.player.update(dt, this.input, this.world);
+
+    // Polvo (correr + aterrizar) - efecto ULTRA siempre activo
+    if (!this.player.dead) {
+      if (this.player.onGround && Math.abs(this.player.vx) > 200) {
+        this._dustTimer -= dt;
+        if (this._dustTimer <= 0) {
+          this._dustTimer = 0.06;
+          this.dustParticles.push({
+            x: this.player.x + this.player.width / 2 - this.player.facing * 6,
+            y: this.player.y + this.player.height - 4,
+            vx: -this.player.vx * 0.18 + (Math.random() - 0.5) * 30,
+            vy: -25 - Math.random() * 40,
+            life: 0.4, maxLife: 0.4,
+          });
+        }
+      }
+      // Detectar aterrizaje (landSquash recién activado)
+      if (this.player.landSquash > 0.10 && !this._lastFrameLanded) {
+        for (let i = 0; i < 6; i++) {
+          const sign = i < 3 ? 1 : -1;
+          this.dustParticles.push({
+            x: this.player.x + this.player.width / 2 + sign * 4,
+            y: this.player.y + this.player.height - 2,
+            vx: sign * (60 + Math.random() * 100),
+            vy: -30 - Math.random() * 60,
+            life: 0.45, maxLife: 0.45,
+          });
+        }
+        this._lastFrameLanded = true;
+      } else if (this.player.landSquash <= 0) {
+        this._lastFrameLanded = false;
+      }
+    }
+
+    // Update dust particles
+    for (const d of this.dustParticles) {
+      d.life -= dt;
+      d.vy += 200 * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+    }
+    this.dustParticles = this.dustParticles.filter(d => d.life > 0);
 
     // Si el jugador golpeó un bloque por debajo
     if (this.player.justBumped) {
@@ -472,6 +583,32 @@ class Game {
       }
     }
 
+    // Player <-> alien laser beams (rayo activo mata instantáneamente)
+    if (!this.player.dead && this.player.invuln <= 0) {
+      for (const e of this.enemies) {
+        if (e.kind !== 'alien' || e.dead) continue;
+        const lh = e.laserHitbox;
+        if (lh && overlap(this.player.aabb, lh)) {
+          this.killPlayer();
+          this.shake(10, 0.35);
+          // partículas de impacto
+          for (let i = 0; i < 12; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 200 + Math.random() * 200;
+            this.particles.push({
+              x: this.player.x + this.player.width / 2,
+              y: this.player.y + this.player.height / 2,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed - 100,
+              life: 0.6,
+              color: i % 2 === 0 ? '#ff4fa3' : '#6cf0ff',
+            });
+          }
+          break;
+        }
+      }
+    }
+
     // Enemy <-> enemy: una concha en movimiento elimina otros enemigos
     for (const e of this.enemies) {
       if (e.kind !== 'crow' || !e.shellMode || !e.shellMoving || e.dead) continue;
@@ -608,8 +745,16 @@ class Game {
       ctx.fillRect(p.x - this.cam.x, p.y - this.cam.y, size, size);
     }
 
+    // Polvo (modo ULTRA)
+    for (const d of this.dustParticles) {
+      drawDust(ctx, d.x - this.cam.x, d.y - this.cam.y, d.life, d.maxLife);
+    }
+
     // jugador
     if (this.player) this.player.draw(ctx, this.cam, this.t);
+
+    // Foreground del mundo: vignette, lluvia, scanlines (post-fx ULTRA)
+    this.world.drawForeground(ctx, this.cam, VIEW_W, VIEW_H, this.t);
 
     ctx.restore(); // fin de shake — el HUD va encima sin temblar
 
@@ -629,6 +774,12 @@ class Game {
       toastTime: this.toastTime,
       bossHp: this.boss ? this.boss.hp : 0,
       bossHpMax: this.boss && !this.boss.dead ? 5 : 0,
+      // Aviso imponente de invasión alien
+      alertActive: this.alertActive,
+      alertTimer: this.alertTimer,
+      alertTotal: this.ALERT_TOTAL,
+      alienAttackActive: this.alienAttackActive,
+      t: this.t,
     });
   }
 }

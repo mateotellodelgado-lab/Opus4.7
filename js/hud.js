@@ -1,6 +1,18 @@
 // HUD, mensajes, pantallas de pausa/game-over/victoria.
 
 function drawHUD(ctx, viewW, state) {
+  // Aviso imponente de INVASIÓN ALIEN: prioridad máxima, ocupa toda la
+  // pantalla con strobe rojo, barras cinematográficas y texto pulsante.
+  if (state.alertActive) {
+    drawAlienAlert(ctx, viewW, ctx.canvas.height, state.t || 0,
+                   state.alertTimer || 0, state.alertTotal || 3.6);
+  }
+
+  // Indicador permanente de "peligro alien activo" mientras el ataque dura
+  if (state.alienAttackActive && !state.alertActive) {
+    drawAlienDangerBanner(ctx, viewW, state.t || 0);
+  }
+
   // barra superior
   ctx.fillStyle = 'rgba(8,5,22,0.55)';
   ctx.fillRect(0, 0, viewW, 36);
@@ -124,5 +136,153 @@ function drawWin(ctx, viewW, viewH, state) {
   ctx.fillStyle = '#cfc8e3';
   ctx.font = '13px "JetBrains Mono", monospace';
   ctx.fillText('Pulsa Enter para volver a empezar', viewW / 2, viewH / 2 + 56);
+  ctx.textAlign = 'left';
+}
+
+
+
+// =========================================================================
+// AVISO IMPONENTE DE INVASIÓN ALIEN (cada 3 niveles)
+// =========================================================================
+//
+// Diseño cinematográfico:
+//   - Strobe rojo de fondo (alpha pulsante)
+//   - Barras negras superior/inferior (estilo "letterbox")
+//   - Rayas diagonales animadas
+//   - Texto "⚠ ALERTA: INVASIÓN ALIEN ⚠" GIGANTE pulsando + glow
+//   - Subtexto explicativo
+//   - Cuenta regresiva visual (barra de progreso)
+//   - "Static" / scanlines parpadeantes
+//
+function drawAlienAlert(ctx, viewW, viewH, t, alertTimer, alertTotal) {
+  const k = 1 - Math.max(0, Math.min(1, alertTimer / alertTotal)); // 0..1 progresión
+  const fadeIn = Math.min(1, k * 4);          // entra rápido los primeros 0.25
+  const fadeOut = Math.min(1, alertTimer / 0.4); // sale en los últimos 0.4
+  const alpha = Math.min(fadeIn, fadeOut);
+
+  // 1) Strobe rojo (parpadeo)
+  const strobe = (Math.floor(t * 12) % 2 === 0) ? 0.6 : 0.25;
+  ctx.fillStyle = `rgba(180,20,30,${strobe * alpha})`;
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  // Capa oscura sobre el strobe
+  ctx.fillStyle = `rgba(20,5,10,${0.55 * alpha})`;
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  // 2) Rayas diagonales animadas (peligro)
+  const stripeOffset = (t * 200) % 60;
+  ctx.save();
+  ctx.globalAlpha = 0.18 * alpha;
+  ctx.fillStyle = '#ffd14f';
+  for (let x = -viewH; x < viewW + viewH; x += 60) {
+    ctx.beginPath();
+    ctx.moveTo(x + stripeOffset, 0);
+    ctx.lineTo(x + 30 + stripeOffset, 0);
+    ctx.lineTo(x + 30 + stripeOffset + viewH, viewH);
+    ctx.lineTo(x + stripeOffset + viewH, viewH);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 3) Barras letterbox (cinematográficas)
+  const barH = 60 * alpha;
+  ctx.fillStyle = `rgba(0,0,0,${0.95 * alpha})`;
+  ctx.fillRect(0, 0, viewW, barH);
+  ctx.fillRect(0, viewH - barH, viewW, barH);
+  // bordes brillantes
+  ctx.fillStyle = `rgba(255,79,79,${alpha})`;
+  ctx.fillRect(0, barH - 2, viewW, 2);
+  ctx.fillRect(0, viewH - barH, viewW, 2);
+
+  // 4) Iconos UFO en los laterales (entran desde fuera)
+  const ufoX = 40 + Math.sin(t * 4) * 8;
+  drawAlienShip(ctx, ufoX, 80 + Math.sin(t * 2) * 6, 60, 30, { t });
+  drawAlienShip(ctx, viewW - ufoX - 60, 80 + Math.cos(t * 2) * 6, 60, 30, { t: t + 0.7 });
+
+  // 5) Texto principal con glow y escala pulsante
+  ctx.save();
+  ctx.textAlign = 'center';
+  const cx = viewW / 2;
+  const cy = viewH / 2 - 10;
+
+  // Pulse de escala
+  const pulse = 1 + Math.sin(t * 8) * 0.06;
+
+  // Glow fuerte detrás del texto (varios layers)
+  for (let i = 5; i > 0; i--) {
+    ctx.fillStyle = `rgba(255,79,79,${(0.16 / i) * alpha})`;
+    ctx.font = `bold ${Math.round(56 * pulse + i * 6)}px "JetBrains Mono", monospace`;
+    ctx.fillText('⚠ ALERTA ⚠', cx, cy);
+  }
+
+  // Texto principal
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.font = `bold ${Math.round(56 * pulse)}px "JetBrains Mono", monospace`;
+  // Sombra dura
+  ctx.fillStyle = `rgba(80,0,0,${alpha})`;
+  ctx.fillText('⚠ ALERTA ⚠', cx + 4, cy + 4);
+  // Texto blanco
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.fillText('⚠ ALERTA ⚠', cx, cy);
+
+  // Subtexto: INVASIÓN ALIEN
+  ctx.font = `bold ${Math.round(38 * pulse)}px "JetBrains Mono", monospace`;
+  for (let i = 4; i > 0; i--) {
+    ctx.fillStyle = `rgba(108,240,255,${(0.18 / i) * alpha})`;
+    ctx.fillText('INVASIÓN ALIEN', cx, cy + 50);
+  }
+  ctx.fillStyle = `rgba(108,240,255,${alpha})`;
+  ctx.fillText('INVASIÓN ALIEN', cx, cy + 50);
+
+  // Línea pequeña de instrucciones (más suave)
+  ctx.font = `bold 16px "JetBrains Mono", monospace`;
+  ctx.fillStyle = `rgba(255,209,79,${alpha})`;
+  ctx.fillText('NAVES HOSTILES DETECTADAS · ESQUIVA LOS RAYOS LÁSER', cx, cy + 90);
+  ctx.fillStyle = `rgba(220,200,200,${alpha})`;
+  ctx.font = `13px "JetBrains Mono", monospace`;
+  ctx.fillText('un toque de láser o de nave = derrota instantánea', cx, cy + 112);
+
+  ctx.restore();
+
+  // 6) Barra de progreso del aviso (countdown)
+  const barY = viewH - barH - 20;
+  if (alpha > 0.3) {
+    const w = viewW * 0.35;
+    const x = (viewW - w) / 2;
+    ctx.fillStyle = `rgba(0,0,0,${0.6 * alpha})`;
+    ctx.fillRect(x - 2, barY - 2, w + 4, 8);
+    ctx.fillStyle = `rgba(255,79,79,${alpha})`;
+    ctx.fillRect(x, barY, w * (1 - k), 4);
+  }
+
+  // 7) "Static" / scanlines parpadeantes para look de transmisión rota
+  if (Math.random() < 0.18) {
+    ctx.fillStyle = `rgba(255,255,255,${0.04 * alpha})`;
+    const ny = Math.random() * viewH;
+    ctx.fillRect(0, ny, viewW, 2);
+  }
+  ctx.fillStyle = `rgba(0,0,0,${0.18 * alpha})`;
+  for (let y = 0; y < viewH; y += 4) ctx.fillRect(0, y, viewW, 1);
+
+  ctx.textAlign = 'left';
+}
+
+// Banner permanente mientras la invasión está activa (después del aviso).
+function drawAlienDangerBanner(ctx, viewW, t) {
+  const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+
+  // Borde rojo superior pulsante
+  ctx.fillStyle = `rgba(255,40,80,${0.45 + pulse * 0.35})`;
+  ctx.fillRect(0, 0, viewW, 4);
+
+  // Texto centrado de aviso pequeño
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 11px "JetBrains Mono", monospace';
+  const flash = Math.floor(t * 4) % 2 === 0;
+  ctx.fillStyle = flash ? '#ff4f4f' : '#ffd14f';
+  ctx.fillText('⚠  INVASIÓN ALIEN ACTIVA  ⚠', viewW / 2, 16);
+  ctx.restore();
   ctx.textAlign = 'left';
 }

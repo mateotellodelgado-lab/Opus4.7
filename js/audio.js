@@ -45,4 +45,25 @@ const SFX = {
   goal:    () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => blip({ freq: f, dur: 0.12, type: 'square' }), i * 100)); },
   bossHit: () => blip({ freq: 110, dur: 0.2, type: 'sawtooth', slide: -50 }),
   win:     () => { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => blip({ freq: f, dur: 0.18, type: 'square', vol: 0.22 }), i * 140)); },
+
+  // ----- Sonidos del ataque alien -----
+  // Sirena imponente: dos tonos alternándose, baja y alta. Repetida 4 veces.
+  alarm:   () => {
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => blip({ freq: 320, dur: 0.18, type: 'sawtooth', vol: 0.26 }), i * 380);
+      setTimeout(() => blip({ freq: 540, dur: 0.18, type: 'sawtooth', vol: 0.26 }), i * 380 + 180);
+    }
+  },
+  // Carga: zumbido ascendente que sube de tono
+  laserCharge: () => blip({ freq: 200, dur: 0.55, type: 'square', slide: 700, vol: 0.18 }),
+  // Disparo: pulso fuerte y sostenido
+  laserFire:   () => {
+    blip({ freq: 1100, dur: 0.18, type: 'square', slide: -400, vol: 0.22 });
+    setTimeout(() => blip({ freq: 220, dur: 0.35, type: 'sawtooth', slide: -120, vol: 0.18 }), 60);
+  },
+  // Trueno (storm world)
+  thunder: () => {
+    blip({ freq: 80, dur: 0.5, type: 'sawtooth', slide: -40, vol: 0.22 });
+    setTimeout(() => blip({ freq: 120, dur: 0.4, type: 'square', slide: -80, vol: 0.18 }), 120);
+  },
 };
