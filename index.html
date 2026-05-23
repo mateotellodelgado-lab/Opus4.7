@@ -2,89 +2,152 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1, minimum-scale=1">
-<meta name="theme-color" content="#222">
-<title>Mátame Otra Vez — Troll Platformer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,maximum-scale=1,minimum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>La Confesión — Mateo y Rossy</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;background:#111;overflow:hidden;font-family:'Courier New',monospace;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
 #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-#game{background:#222;image-rendering:pixelated;display:block;max-width:100%;max-height:100%;box-shadow:0 0 60px rgba(0,255,0,.08)}
-.tbtn{position:absolute;background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);color:#fff;font-size:30px;display:none;align-items:center;justify-content:center;border-radius:50%;font-family:inherit;font-weight:bold;touch-action:none}
-.tbtn:active{background:rgba(255,255,255,.35)}
-#bL,#bR{width:78px;height:78px;bottom:18px}
-#bL{left:18px}
-#bR{left:108px}
-#bJ{width:96px;height:96px;bottom:18px;right:18px}
+#game{background:#000;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;display:block;max-width:100%;max-height:100%;box-shadow:0 0 80px rgba(180,0,0,.18)}
+.tbtn{position:absolute;background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);color:#fff;font-size:26px;display:none;align-items:center;justify-content:center;border-radius:50%;font-family:inherit;font-weight:bold;touch-action:none}
+.tbtn:active{background:rgba(255,255,255,.4)}
+#dpad{position:absolute;left:14px;bottom:14px;width:160px;height:160px;display:none}
+body.touch #dpad{display:block}
 body.touch .tbtn{display:flex}
-#hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:11px;color:#666;letter-spacing:1px;pointer-events:none;text-align:center;line-height:1.4}
+.dp{position:absolute;width:54px;height:54px;background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;font-family:inherit;font-weight:bold;border-radius:8px}
+#dU{top:0;left:53px}#dD{bottom:0;left:53px}#dL{top:53px;left:0}#dR{top:53px;right:0}
+#bA{width:84px;height:84px;bottom:36px;right:18px;border-radius:50%}
+#hint{position:absolute;top:6px;left:50%;transform:translateX(-50%);font-size:10px;color:#444;letter-spacing:1px;pointer-events:none;text-align:center;line-height:1.4}
 </style>
 </head>
 <body>
 <div id="wrap">
-  <canvas id="game" width="960" height="540"></canvas>
-  <div id="bL" class="tbtn">◀</div>
-  <div id="bR" class="tbtn">▶</div>
-  <div id="bJ" class="tbtn">▲</div>
-  <div id="hint">PC: ← → / A D para moverte · ESPACIO / W / ↑ para saltar · R reinicia · M silencia</div>
+  <canvas id="game" width="480" height="270"></canvas>
+  <div id="dpad">
+    <div id="dU" class="dp">▲</div>
+    <div id="dD" class="dp">▼</div>
+    <div id="dL" class="dp">◀</div>
+    <div id="dR" class="dp">▶</div>
+  </div>
+  <div id="bA" class="tbtn">A</div>
+  <div id="hint">PC: WASD / flechas para moverte · ESPACIO o E para interactuar · M silencia</div>
 </div>
 <script>
 'use strict';
 
+/* ==========================================================================
+   LA CONFESIÓN — Mateo y Rossy
+   Juego pixel art 100% canvas, sin librerías, sin assets externos.
+   --------------------------------------------------------------------------
+   SINOPSIS
+   Mateo lleva meses queriendo confesarle algo a Rossy, la chica que le gusta.
+   Hoy es el día. Pero el Colegio San Esteban no es lo que parece. A medida
+   que las horas avanzan los pasillos cambian, los compañeros susurran y la
+   realidad se desmorona. ¿Logrará Mateo confesarse... antes de que el
+   colegio devore lo que queda de él?
+   --------------------------------------------------------------------------
+   ARQUITECTURA
+   1. Constantes y paletas
+   2. Audio sintetizado (WebAudio)
+   3. Input (teclado + touch)
+   4. Sprites pixel art (arrays 16x16)
+   5. Tiles del mundo (procedurales)
+   6. Mapas por escena
+   7. Diálogos por acto/personaje
+   8. Entidades (Player, NPC)
+   9. Gestor de escenas
+   10. Sistema de diálogo con typewriter
+   11. Estado de juego (acto, flags)
+   12. Render con efectos de horror
+   13. Bucle principal
+   ========================================================================== */
 
-/* ============================================================
-   1. CONSTANTES GLOBALES
-   ============================================================
-   Toda la "feel" del juego se afina aquí. Los valores están
-   calibrados para sentirse crujientes (gravedad alta, salto
-   corto y rápido) — tipo Celeste/Mario, no flotante.
-============================================================ */
-const CFG = {
-  WIDTH: 960, HEIGHT: 540,            // resolución lógica del canvas
-  GRAVITY: 2200,                      // px/s² (caída crujiente)
-  GRAVITY_CUT_MULT: 2.4,              // gravedad extra si sueltas el salto pronto
-  JUMP_VELOCITY: -780,                // velocidad inicial del salto (≈ 138 px de pico)
-  MOVE_SPEED: 290,                    // velocidad horizontal máxima
-  GROUND_ACCEL: 2400, AIR_ACCEL: 1700,
-  GROUND_FRICTION: 2200, AIR_FRICTION: 600,
-  MAX_FALL_SPEED: 1100,
-  COYOTE_TIME: 0.10,                  // 100 ms para saltar tras dejar el borde
-  JUMP_BUFFER: 0.12,                  // 120 ms para que un salto pulsado pronto cuente
-  TILE: 32, CULL_MARGIN: 100,         // culling: 100 px alrededor del viewport
-  PLAYER_W: 26, PLAYER_H: 30,
-  INVGRAV_DURATION: 2.0,              // 2 s de gravedad invertida
-  RESPAWN_DELAY: 0.55,                // pausa breve antes de respawnear
+
+/* ==========================================================================
+   1. CONSTANTES Y PALETAS
+   ========================================================================== */
+const W = 480, H = 270;          // resolución lógica del canvas
+const TILE = 16;                  // tamaño de tile y sprite
+const COLS = 30, ROWS = 14;       // 30x14 tiles = 480x224 (zona jugable)
+const HUD_Y = ROWS * TILE;        // y donde empieza el hud/diálogo (224)
+const HUD_H = H - HUD_Y;          // 46 px de altura para HUD/diálogo
+
+// Estados de juego
+const SCREEN = {
+  TITLE:'title', INTRO:'intro', PLAY:'play',
+  DIALOG:'dialog', TRANS:'trans', END:'end', GAMEOVER:'gameover'
 };
 
-const COLORS = {
-  BG:'#222', PLAYER:'#0F0', PLAYER_DEAD:'#F44',
-  PLATFORM:'#AAA', PLATFORM_TOP:'#888',
-  DANGER:'#F00', DANGER_DARK:'#900',
-  GOAL:'#00F', GOAL_LIGHT:'#3399FF',
-  TEXT:'#FFF', SUB:'#888', UI_BG:'rgba(0,0,0,0.78)',
-  ACCENT:'#0F0', BAD:'#F44',
+// Niveles de horror — afectan paleta, sprites y eventos
+const HORROR = { NORMAL:0, UNEASY:1, BROKEN:2, FINAL:3 };
+
+// Paletas (5 entradas: 0=skin,1=oscuro,2=base,3=acento,4=secundario)
+// Para personajes: idx 0..6 segun referencia en sprite.
+// Aquí lo que cambia por horror son los colores DEL MUNDO.
+const WORLD_PAL = {
+  [HORROR.NORMAL]: {
+    sky:'#7ec0ee', bg:'#1a2540',
+    floor:'#b9a07a', floorDk:'#8c7858',
+    wall:'#5a4a3a', wallDk:'#3a2a20',
+    locker:'#7a8aa0', lockerDk:'#3a4a60', lockerLine:'#a8b8c8',
+    desk:'#8a6a4a', deskDk:'#5a3a20',
+    board:'#1c4a2c', boardFr:'#3a2a1a',
+    door:'#6a3a1a', doorKnob:'#e0c050',
+    grass:'#3a8a3a', grassDk:'#2a6a2a',
+    tree:'#2a5a2a', trunk:'#4a2a1a',
+    bench:'#7a5a3a', benchDk:'#4a2a10',
+    text:'#fff', sub:'#aaa',
+  },
+  [HORROR.UNEASY]: {
+    sky:'#5a708a', bg:'#0e1828',
+    floor:'#a08868', floorDk:'#705840',
+    wall:'#4a3a2a', wallDk:'#2a1a10',
+    locker:'#5a6a80', lockerDk:'#2a3a4a', lockerLine:'#788090',
+    desk:'#6a4a3a', deskDk:'#3a1a10',
+    board:'#1a3a1c', boardFr:'#2a1a10',
+    door:'#5a2a10', doorKnob:'#a08030',
+    grass:'#2a5a2a', grassDk:'#1a3a1a',
+    tree:'#1a3a1a', trunk:'#3a1a10',
+    bench:'#5a3a20', benchDk:'#2a1a08',
+    text:'#fff', sub:'#888',
+  },
+  [HORROR.BROKEN]: {
+    sky:'#3a1010', bg:'#0a0000',
+    floor:'#5a2820', floorDk:'#3a1810',
+    wall:'#2a1010', wallDk:'#1a0808',
+    locker:'#3a2020', lockerDk:'#1a0808', lockerLine:'#5a3030',
+    desk:'#4a2010', deskDk:'#1a0800',
+    board:'#1a0000', boardFr:'#0a0000',
+    door:'#3a0a00', doorKnob:'#8a2020',
+    grass:'#2a1808', grassDk:'#1a0a04',
+    tree:'#1a0808', trunk:'#2a0a00',
+    bench:'#2a1008', benchDk:'#0a0400',
+    text:'#fff', sub:'#a85050',
+  },
+  [HORROR.FINAL]: {
+    sky:'#000', bg:'#000',
+    floor:'#1a0000', floorDk:'#0a0000',
+    wall:'#0a0000', wallDk:'#000',
+    locker:'#1a0000', lockerDk:'#000', lockerLine:'#3a0000',
+    desk:'#1a0000', deskDk:'#000',
+    board:'#000', boardFr:'#1a0000',
+    door:'#1a0000', doorKnob:'#5a0000',
+    grass:'#0a0000', grassDk:'#000',
+    tree:'#000', trunk:'#1a0000',
+    bench:'#0a0000', benchDk:'#000',
+    text:'#fff', sub:'#a00000',
+  },
 };
 
-// IDs de tipos de trampa — usados en la definición JSON de niveles
-const TRAP = {
-  SPIKE:'spike',                      // pincho normal, siempre mortal
-  FAKE_PLATFORM:'fake_platform',      // se ve normal, cae al pisarla (0.18 s)
-  TRIGGERED_SPIKE:'triggered_spike',  // pincho oculto que sale a X px del jugador
-  FALLING_BLOCK:'falling_block',      // bloque de techo que cae cuando pasas debajo
-  FAKE_GOAL:'fake_goal',              // la meta se mueve 50 px revelando un foso
-  INVERTED_GRAV:'inverted_grav',      // zona invisible: invierte la gravedad 2 s
-};
 
-const STATE = { MENU:'menu', PLAYING:'playing', GAME_OVER:'gameover', WIN:'win' };
-
-
-/* ============================================================
-   AUDIO — sonidos sintetizados con WebAudio (sin assets)
-============================================================ */
+/* ==========================================================================
+   2. AUDIO SINTETIZADO
+   ========================================================================== */
 const Audio = {
-  ctx:null, muted:false,
+  ctx:null, muted:false, ambient:null,
   init(){ if(!this.ctx){ try{ this.ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } },
-  tone(freq, dur, type='square', vol=0.10, slide=0){
+  tone(freq, dur, type='square', vol=0.08, slide=0){
     if(!this.ctx || this.muted) return;
     const t = this.ctx.currentTime;
     const o = this.ctx.createOscillator(), g = this.ctx.createGain();
@@ -94,41 +157,50 @@ const Audio = {
     o.connect(g); g.connect(this.ctx.destination);
     o.start(t); o.stop(t+dur);
   },
-  jump(){ this.tone(540, 0.07, 'square', 0.07, 220); },
-  death(){ this.tone(220, 0.18, 'sawtooth', 0.13, -140); setTimeout(()=>this.tone(110, 0.32, 'sawtooth', 0.10, -50), 110); },
-  win(){ this.tone(523,0.10,'square',0.09); setTimeout(()=>this.tone(659,0.10,'square',0.09),110); setTimeout(()=>this.tone(784,0.18,'square',0.10),220); setTimeout(()=>this.tone(1046,0.25,'square',0.09),360); },
-  trap(){ this.tone(190, 0.15, 'sawtooth', 0.10, -90); },
+  blip(){ this.tone(700, 0.04, 'square', 0.04); },
+  step(){ this.tone(120 + Math.random()*40, 0.03, 'square', 0.025); },
+  open(){ this.tone(440, 0.08, 'triangle', 0.07); setTimeout(()=>this.tone(660, 0.08, 'triangle', 0.07), 60); },
+  ok(){ this.tone(523, 0.07, 'square', 0.08); setTimeout(()=>this.tone(784, 0.10, 'square', 0.08), 70); },
+  bad(){ this.tone(220, 0.18, 'sawtooth', 0.10, -120); },
+  scare(){ this.tone(80, 0.35, 'sawtooth', 0.16, -40); setTimeout(()=>this.tone(60, 0.5, 'sawtooth', 0.12, -20), 50); },
+  glitch(){
+    if(!this.ctx || this.muted) return;
+    for(let i=0;i<6;i++) setTimeout(()=>this.tone(100 + Math.random()*900, 0.04, 'sawtooth', 0.06), i*40);
+  },
   toggle(){ this.muted = !this.muted; },
 };
 
-/* ============================================================
-   2. SISTEMA DE ENTRADA — teclado + táctil
-============================================================ */
+
+/* ==========================================================================
+   3. INPUT
+   ========================================================================== */
 const Input = {
-  left:false, right:false, jumpHeld:false, jumpPressed:false, restart:false,
-  _jumpEdge:false,
+  up:false, down:false, left:false, right:false,
+  actionHeld:false, _actionEdge:false, actionPressed:false,
   init(){
     addEventListener('keydown', e => {
       if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Space'].includes(e.key)) e.preventDefault();
       if(e.repeat) return;
       const k = e.key.toLowerCase();
+      if(k==='arrowup'||k==='w') this.up = true;
+      if(k==='arrowdown'||k==='s') this.down = true;
       if(k==='arrowleft'||k==='a') this.left = true;
       if(k==='arrowright'||k==='d') this.right = true;
-      if(k==='arrowup'||k==='w'||k===' '||e.code==='Space'){ if(!this.jumpHeld) this._jumpEdge = true; this.jumpHeld = true; }
-      if(k==='r') this.restart = true;
+      if(k===' '||e.code==='Space'||k==='e'||k==='enter'){ if(!this.actionHeld) this._actionEdge = true; this.actionHeld = true; }
       if(k==='m') Audio.toggle();
-      Audio.init(); // primer input desbloquea audio
+      Audio.init();
     });
     addEventListener('keyup', e => {
       const k = e.key.toLowerCase();
+      if(k==='arrowup'||k==='w') this.up = false;
+      if(k==='arrowdown'||k==='s') this.down = false;
       if(k==='arrowleft'||k==='a') this.left = false;
       if(k==='arrowright'||k==='d') this.right = false;
-      if(k==='arrowup'||k==='w'||k===' '||e.code==='Space') this.jumpHeld = false;
+      if(k===' '||e.code==='Space'||k==='e'||k==='enter') this.actionHeld = false;
     });
 
-    // Touch — botones virtuales
     const setup = (id, on, off) => {
-      const el = document.getElementById(id);
+      const el = document.getElementById(id); if(!el) return;
       const start = e => { e.preventDefault(); on(); Audio.init(); };
       const end = e => { e.preventDefault(); off(); };
       el.addEventListener('touchstart', start, {passive:false});
@@ -138,1045 +210,1638 @@ const Input = {
       el.addEventListener('mouseup', end);
       el.addEventListener('mouseleave', end);
     };
-    setup('bL', ()=>this.left=true,  ()=>this.left=false);
-    setup('bR', ()=>this.right=true, ()=>this.right=false);
-    setup('bJ', ()=>{ if(!this.jumpHeld) this._jumpEdge = true; this.jumpHeld = true; }, ()=>this.jumpHeld=false);
-    // Tap general en el canvas: clicks en menús
+    setup('dU', ()=>this.up=true, ()=>this.up=false);
+    setup('dD', ()=>this.down=true, ()=>this.down=false);
+    setup('dL', ()=>this.left=true, ()=>this.left=false);
+    setup('dR', ()=>this.right=true, ()=>this.right=false);
+    setup('bA',
+      ()=>{ if(!this.actionHeld) this._actionEdge = true; this.actionHeld = true; },
+      ()=>this.actionHeld = false );
+
     const cv = document.getElementById('game');
-    cv.addEventListener('touchstart', e => { e.preventDefault(); this._jumpEdge = true; Audio.init(); }, {passive:false});
-    cv.addEventListener('mousedown', e => { this._jumpEdge = true; Audio.init(); });
-    // Detectar dispositivo táctil
+    cv.addEventListener('touchstart', e => { Audio.init(); }, {passive:true});
+    cv.addEventListener('mousedown', e => { Audio.init(); });
+
     if('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
   },
-  // Llamar al final de cada frame: el "edge" (pulsación nueva) sólo dura un frame
-  pollEdges(){ this.jumpPressed = this._jumpEdge; this._jumpEdge = false; const r = this.restart; this.restart = false; return r; },
+  poll(){ this.actionPressed = this._actionEdge; this._actionEdge = false; },
 };
 
-/* ============================================================
-   3. CLASES DE ENTIDAD — Vector2D, GameObject, etc.
-============================================================ */
-class Vec2 { constructor(x,y){ this.x=x; this.y=y; } }
 
-class GameObject {
-  constructor(x, y, w, h){
-    this.x = x; this.y = y; this.w = w; this.h = h;
-    this.vx = 0; this.vy = 0;
-    this.alive = true;
-    this.solid = false;
-    this.dangerous = false;
-    this.isGoal = false;
-    this.isZone = false;
-    this.dynamic = false; // true ⇒ no se culla en update
+/* ==========================================================================
+   4. SPRITES PIXEL ART
+   --------------------------------------------------------------------------
+   Sprites de 16x16. Cada char es índice de paleta:
+     . = transparente
+     0 = negro (outline / ojos)
+     1 = piel
+     2 = pelo
+     3 = camisa
+     4 = pantalón
+     5 = zapato
+     6 = detalle (cinturón, collar, etc.)
+   Se dibujan con cache: cada combinación (sprite + paleta + dirección)
+   se renderiza una vez en un canvas off-screen.
+   ========================================================================== */
+
+// Personaje base, vista frontal (mirando abajo)
+const SP_BODY_DOWN = [
+  '....22222222....',
+  '...2222222222...',
+  '..221111111122..',
+  '..21100110011 2.',
+  '..21111111111 2.',
+  '..21111001111 2.',
+  '...2111111112...',
+  '....11111111....',
+  '...3333333333...',
+  '..333333333333..',
+  '..333333333333..',
+  '..344444444443..',
+  '..4444....4444..',
+  '..4444....4444..',
+  '..555......555..',
+  '..555......555..',
+];
+
+// Vista trasera (mirando arriba) — pelo cubre cara
+const SP_BODY_UP = [
+  '....22222222....',
+  '...2222222222...',
+  '..222222222222..',
+  '..222222222222..',
+  '..222222222222..',
+  '..222222222222..',
+  '...2222222222...',
+  '....11111111....',
+  '...3333333333...',
+  '..333333333333..',
+  '..333333333333..',
+  '..344444444443..',
+  '..4444....4444..',
+  '..4444....4444..',
+  '..555......555..',
+  '..555......555..',
+];
+
+// Vista lateral (derecha — se voltea para izquierda)
+const SP_BODY_SIDE = [
+  '.....22222......',
+  '....2222222.....',
+  '....2211112.....',
+  '....2110012.....',
+  '....2111110.....',
+  '....2111002.....',
+  '.....211112.....',
+  '......1111......',
+  '.....333333.....',
+  '....33333333....',
+  '....33333333....',
+  '....34444443....',
+  '.....4444.......',
+  '.....4444.......',
+  '.....555........',
+  '.....555........',
+];
+
+// Sprite vacío (transparente) para sombra/secretos
+const SP_EMPTY = Array(16).fill('................');
+
+// Sombra / Entidad — silueta sin rasgos
+const SP_SHADOW = [
+  '....00000000....',
+  '...0000000000...',
+  '..000000000000..',
+  '..000000000000..',
+  '..000000000000..',
+  '..000000000000..',
+  '..000000000000..',
+  '...0000000000...',
+  '...0000000000...',
+  '..000000000000..',
+  '..000000000000..',
+  '..000000000000..',
+  '..0000....0000..',
+  '..0000....0000..',
+  '..000......000..',
+  '..000......000..',
+];
+
+// Profesor (frontal) — más alto, calvo, con corbata
+const SP_PROF = [
+  '....11111111....',
+  '...1111111111...',
+  '..111100110011..',
+  '..111111111111..',
+  '..111110011111..',
+  '...1111111111...',
+  '....11111111....',
+  '...3333033333...',
+  '..3333303333 3..',
+  '..3333303333 3..',
+  '..3333303333 3..',
+  '..3344444444 3..',
+  '..4444....4444..',
+  '..4444....4444..',
+  '..555......555..',
+  '..555......555..',
+];
+
+// Profesor monstruoso (acto 3+)
+const SP_PROF_MON = [
+  '....00000000....',
+  '...0000200000...',
+  '..002200002200..',
+  '..020022200020..',
+  '..002000000200..',
+  '...0220000220...',
+  '....02222220....',
+  '...0222002220...',
+  '..02220002220 0.',
+  '..0222 22 2220..',
+  '..02220002220 0.',
+  '..0244444444 0..',
+  '..4444....4444..',
+  '..4444....4444..',
+  '..555......555..',
+  '..555......555..',
+];
+
+// Rossy frontal — falda en lugar de pantalones
+const SP_ROSSY_DOWN = [
+  '....22222222....',
+  '...2222222222...',
+  '..221111111122..',
+  '..21100110011 2.',
+  '..21111111111 2.',
+  '..21111001111 2.',
+  '...2111111112...',
+  '....11111111....',
+  '...3333333333...',
+  '..333333333333..',
+  '..344333334443..',
+  '..3344444444 3..',
+  '..3344444444 3..',
+  '..3344444444 3..',
+  '..555......555..',
+  '..555......555..',
+];
+
+// Rossy lateral
+const SP_ROSSY_SIDE = [
+  '.....22222......',
+  '....2222222.....',
+  '....2211112.....',
+  '....2110012.....',
+  '....2111110.....',
+  '....2111002.....',
+  '.....211112.....',
+  '......1111......',
+  '.....333333.....',
+  '....33333333....',
+  '....33333333....',
+  '....34444443....',
+  '....34444443....',
+  '....34444443....',
+  '.....555........',
+  '.....555........',
+];
+
+// Sombra parpadeante en la pared (16x16)
+const SP_FACE_WALL = [
+  '................',
+  '................',
+  '..0000....0000..',
+  '..0000....0000..',
+  '..0000....0000..',
+  '..0000....0000..',
+  '................',
+  '......0000......',
+  '....00000000....',
+  '...0000000000...',
+  '...0000000000...',
+  '...0000000000...',
+  '...0000000000...',
+  '....00000000....',
+  '......0000......',
+  '................',
+];
+
+
+/* ==========================================================================
+   PALETAS DE PERSONAJE
+   Indices: 0=outline/ojos, 1=piel, 2=pelo, 3=camisa, 4=pantalón/falda, 5=zapato
+   ========================================================================== */
+const PAL_MATEO  = ['#000', '#f0c8a0', '#5a3a20', '#e0e0e0', '#3050a0', '#1a1a1a'];
+const PAL_ROSSY  = ['#000', '#f8d8b0', '#c83060', '#f070a0', '#a02050', '#1a1a1a']; // pelo magenta, falda rosa
+const PAL_PABLO  = ['#000', '#d8a878', '#1a1a1a', '#308040', '#404040', '#1a1a1a'];
+const PAL_SOFIA  = ['#000', '#f0c8a0', '#e0d040', '#f0e070', '#9070a0', '#1a1a1a'];
+const PAL_DIEGO  = ['#000', '#d89860', '#a82020', '#c02020', '#1a1a1a', '#1a1a1a'];
+const PAL_PROF   = ['#000', '#e8b888', '#000',    '#603020', '#1a1a1a', '#1a1a1a'];
+const PAL_PROF_M = ['#000', '#a01818', '#000',    '#3a0a00', '#1a0000', '#1a0000'];
+const PAL_SHADOW = ['#000', '#000',    '#000',    '#000',    '#000',    '#000'];
+
+// Paleta blood (manchas en horror)
+const BLOOD_RED = '#a01818';
+const BLOOD_DK  = '#5a0808';
+
+
+/* ==========================================================================
+   Utilidad: dibujar un sprite (16x16) en un canvas off-screen
+   con una paleta dada. Cachea por (sprite + paleta + flip).
+   ========================================================================== */
+const SPRITE_CACHE = new Map();
+function getSprite(spriteData, palette, flip = false){
+  const key = palette.join('') + '|' + spriteData[0].length + '|' + spriteData.length + '|' + (flip?1:0) + '|' + spriteData[1] + spriteData[5];
+  if(SPRITE_CACHE.has(key)) return SPRITE_CACHE.get(key);
+  const c = document.createElement('canvas');
+  c.width = 16; c.height = 16;
+  const cx = c.getContext('2d');
+  for(let y = 0; y < 16; y++){
+    const row = spriteData[y];
+    for(let x = 0; x < 16; x++){
+      const ch = row[x];
+      if(ch === '.' || ch === ' ') continue;
+      const idx = parseInt(ch, 10);
+      if(isNaN(idx)) continue;
+      const col = palette[idx % palette.length];
+      if(!col) continue;
+      cx.fillStyle = col;
+      const px = flip ? (15 - x) : x;
+      cx.fillRect(px, y, 1, 1);
+    }
+  }
+  SPRITE_CACHE.set(key, c);
+  return c;
+}
+
+
+/* ==========================================================================
+   5. TILES — dibujados proceduralmente sobre canvas off-screen
+   y cacheados por (tipo + paleta de horror).
+   ========================================================================== */
+const TILE_CACHE = new Map();
+function getTile(type, horror){
+  const key = type + '|' + horror;
+  if(TILE_CACHE.has(key)) return TILE_CACHE.get(key);
+  const c = document.createElement('canvas');
+  c.width = TILE; c.height = TILE;
+  const cx = c.getContext('2d');
+  const P = WORLD_PAL[horror];
+  drawTile(cx, type, P, horror);
+  TILE_CACHE.set(key, c);
+  return c;
+}
+
+function drawTile(cx, type, P, horror){
+  // Helper para "mancha" de sangre aleatoria pero estable por tipo
+  function bloodSplat(seed){
+    if(horror < HORROR.BROKEN) return;
+    // PRNG simple basado en seed
+    let s = seed;
+    const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    const drops = horror === HORROR.FINAL ? 5 : 3;
+    for(let i = 0; i < drops; i++){
+      cx.fillStyle = i % 2 === 0 ? BLOOD_RED : BLOOD_DK;
+      const x = Math.floor(rnd() * 14);
+      const y = Math.floor(rnd() * 14);
+      cx.fillRect(x, y, 2, 1);
+      cx.fillRect(x + 1, y + 1, 1, 2);
+    }
+  }
+
+  switch(type){
+    case 'floor': {
+      cx.fillStyle = P.floor;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.floorDk;
+      cx.fillRect(0, 0, TILE, 1);
+      cx.fillRect(0, 0, 1, TILE);
+      // patrón sutil
+      cx.fillRect(7, 4, 1, 1);
+      cx.fillRect(11, 11, 1, 1);
+      bloodSplat(101);
+      break;
+    }
+    case 'wall': {
+      cx.fillStyle = P.wall;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.wallDk;
+      cx.fillRect(0, 0, TILE, 2);
+      cx.fillRect(0, TILE - 2, TILE, 2);
+      // ladrillos
+      cx.fillStyle = P.wallDk;
+      cx.fillRect(0, 7, TILE, 1);
+      cx.fillRect(8, 0, 1, 7);
+      cx.fillRect(4, 8, 1, 8);
+      cx.fillRect(12, 8, 1, 8);
+      bloodSplat(202);
+      break;
+    }
+    case 'locker': {
+      cx.fillStyle = P.locker;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.lockerDk;
+      cx.fillRect(0, 0, TILE, 1);
+      cx.fillRect(0, TILE - 1, TILE, 1);
+      cx.fillRect(7, 0, 1, TILE);
+      cx.fillStyle = P.lockerLine;
+      cx.fillRect(2, 5, 4, 1);
+      cx.fillRect(10, 5, 4, 1);
+      // candados
+      cx.fillStyle = P.lockerDk;
+      cx.fillRect(3, 9, 2, 2);
+      cx.fillRect(11, 9, 2, 2);
+      bloodSplat(303);
+      break;
+    }
+    case 'desk': {
+      cx.fillStyle = P.floor;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.desk;
+      cx.fillRect(1, 4, 14, 9);
+      cx.fillStyle = P.deskDk;
+      cx.fillRect(1, 4, 14, 1);
+      cx.fillRect(1, 12, 14, 1);
+      cx.fillRect(2, 13, 2, 3);
+      cx.fillRect(12, 13, 2, 3);
+      bloodSplat(404);
+      break;
+    }
+    case 'board': {
+      cx.fillStyle = P.boardFr;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.board;
+      cx.fillRect(1, 1, TILE - 2, TILE - 2);
+      // tiza
+      cx.fillStyle = horror >= HORROR.BROKEN ? BLOOD_RED : '#cfcfcf';
+      cx.fillRect(3, 4, 6, 1);
+      cx.fillRect(3, 7, 8, 1);
+      cx.fillRect(3, 10, 4, 1);
+      bloodSplat(505);
+      break;
+    }
+    case 'door': {
+      cx.fillStyle = P.wall;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.door;
+      cx.fillRect(2, 1, 12, 15);
+      cx.fillStyle = P.wallDk;
+      cx.fillRect(2, 1, 12, 1);
+      cx.fillRect(2, 1, 1, 15);
+      cx.fillRect(13, 1, 1, 15);
+      cx.fillStyle = P.doorKnob;
+      cx.fillRect(11, 8, 2, 2);
+      bloodSplat(606);
+      break;
+    }
+    case 'grass': {
+      cx.fillStyle = P.grass;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.grassDk;
+      cx.fillRect(2, 3, 1, 2);
+      cx.fillRect(8, 6, 1, 2);
+      cx.fillRect(12, 11, 1, 2);
+      cx.fillRect(5, 13, 1, 2);
+      bloodSplat(707);
+      break;
+    }
+    case 'tree': {
+      cx.fillStyle = P.grass;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.tree;
+      cx.fillRect(2, 0, 12, 11);
+      cx.fillRect(1, 2, 14, 7);
+      cx.fillStyle = P.trunk;
+      cx.fillRect(7, 11, 2, 5);
+      bloodSplat(808);
+      break;
+    }
+    case 'bench': {
+      cx.fillStyle = P.grass;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.bench;
+      cx.fillRect(1, 6, 14, 4);
+      cx.fillStyle = P.benchDk;
+      cx.fillRect(2, 10, 2, 4);
+      cx.fillRect(12, 10, 2, 4);
+      cx.fillRect(1, 6, 14, 1);
+      bloodSplat(909);
+      break;
+    }
+    case 'window': {
+      cx.fillStyle = P.wall;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = P.sky;
+      cx.fillRect(2, 2, 12, 12);
+      cx.fillStyle = P.wallDk;
+      cx.fillRect(7, 2, 2, 12);
+      cx.fillRect(2, 7, 12, 2);
+      bloodSplat(1010);
+      break;
+    }
+    case 'exit': {
+      // Marca visual de salida
+      cx.fillStyle = P.floor;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = horror >= HORROR.BROKEN ? BLOOD_RED : '#fff';
+      cx.fillRect(2, 7, 4, 2);
+      cx.fillRect(10, 7, 4, 2);
+      cx.fillRect(7, 2, 2, 4);
+      cx.fillRect(7, 10, 2, 4);
+      break;
+    }
+    case 'water': {
+      // Charco de "algo" en el suelo (acto 3+)
+      cx.fillStyle = P.floor;
+      cx.fillRect(0, 0, TILE, TILE);
+      cx.fillStyle = horror >= HORROR.BROKEN ? BLOOD_RED : '#3070a0';
+      cx.fillRect(3, 5, 10, 6);
+      cx.fillStyle = horror >= HORROR.BROKEN ? BLOOD_DK : '#1a4070';
+      cx.fillRect(3, 5, 10, 1);
+      cx.fillRect(3, 10, 10, 1);
+      cx.fillRect(2, 6, 1, 4);
+      cx.fillRect(13, 6, 1, 4);
+      break;
+    }
+    default: {
+      cx.fillStyle = '#f0f';
+      cx.fillRect(0, 0, TILE, TILE);
+    }
+  }
+}
+
+
+/* ==========================================================================
+   6. MAPAS DE ESCENAS
+   --------------------------------------------------------------------------
+   Cada mapa es un array de 14 strings de 30 chars. Códigos:
+     . = floor / grass     # = wall          L = locker
+     D = desk              B = board         O = door
+     T = tree              N = bench         W = window
+     g = grass (en patio)  X = exit (no sólido, dispara cambio escena)
+     w = water/sangre charco
+     space = vacío fuera del mapa
+   ========================================================================== */
+
+const MAP_HALLWAY = [
+  '##############################',
+  '#WW##WW##WW##WW##WW##WW##WW#W#',
+  '#............................#',
+  '#.LLL.....LLL.....LLL........#',
+  '#.LLL.....LLL.....LLL........#',
+  '#............................#',
+  '#............................#',
+  '#............................#',
+  '#............................#',
+  '#.LLL.....LLL.....LLL........#',
+  '#.LLL.....LLL.....LLL........#',
+  '#............................#',
+  '#.....O.............O........#',
+  '##############################',
+];
+
+const MAP_CLASSROOM = [
+  '##############################',
+  '#WWWWWWWWWWBBBBBBBWWWWWWWWWWW#',
+  '#............................#',
+  '#............................#',
+  '#..D.D.D.D.D.D.D.D.D.D.D.D...#',
+  '#............................#',
+  '#............................#',
+  '#..D.D.D.D.D.D.D.D.D.D.D.D...#',
+  '#............................#',
+  '#............................#',
+  '#..D.D.D.D.D.D.D.D.D.D.D.D...#',
+  '#............................#',
+  '#..............O.............#',
+  '##############################',
+];
+
+const MAP_COURTYARD = [
+  '##############################',
+  '#gggggggggggggggggggggggggggg#',
+  '#gggggT.ggggggggggggT.ggggggg#',
+  '#gggggggggggggggggggggggggggg#',
+  '#ggggggggNNgggggggggggggggggg#',
+  '#gggggggggggggggggggggggggggg#',
+  '#gggT.gggggggggggggggggggT.gg#',
+  '#gggggggggggggggggggggggggggg#',
+  '#gggggggggggNNggggggggggggggg#',
+  '#gggggggggggggggggggggggggggg#',
+  '#gggggT.ggggggggggggT.ggggggg#',
+  '#gggggggggggggggggggggggggggg#',
+  '#..............O.............#',
+  '##############################',
+];
+
+const MAP_HALLWAY_BROKEN = [
+  '##############################',
+  '#WW##WW##WW##WW##WW##WW##WW#W#',
+  '#......w........w............#',
+  '#.LLL.....LLL.....LLL.....w..#',
+  '#.LLL.....LLL.....LLL........#',
+  '#..............w.............#',
+  '#............................#',
+  '#......w.....................#',
+  '#............................#',
+  '#.LLL.....LLL.....LLL.....w..#',
+  '#.LLL.....LLL.....LLL........#',
+  '#......w........w............#',
+  '#...................O........#',
+  '##############################',
+];
+
+const MAP_FINAL = [
+  '##############################',
+  '#WWWWWWWWWWBBBBBBBWWWWWWWWWWW#',
+  '#......w........w............#',
+  '#............................#',
+  '#..D.D.D.D.w.D.D.D.w.D.D.D...#',
+  '#............................#',
+  '#......w........w............#',
+  '#..D.D.D.D.D.D.D.D.D.D.D.D...#',
+  '#............................#',
+  '#......w...........w.........#',
+  '#..D.D.D.D.D.w.D.D.D.D.D.D...#',
+  '#............................#',
+  '#............................#',
+  '##############################',
+];
+
+
+/* ==========================================================================
+   7. ESCENAS — definen el mapa, los NPCs, las salidas y el título
+   ========================================================================== */
+
+// Escena: id, mapa, título, lista de NPCs (ver Game.spawnNPCs), salidas
+const SCENES = {
+  hallway: {
+    id:'hallway', map:MAP_HALLWAY, title:'COLEGIO SAN ESTEBAN — Pasillo principal',
+    spawn:{ x:2, y:7 },
+    exits:[
+      // (tx,ty) tile coords + a dónde lleva + spawn destino
+      { tx:6,  ty:12, to:'classroom', sx:14, sy:11 },
+      { tx:20, ty:12, to:'courtyard', sx:14, sy:11 },
+    ],
+  },
+  classroom: {
+    id:'classroom', map:MAP_CLASSROOM, title:'AULA 3-B',
+    spawn:{ x:14, y:11 },
+    exits:[
+      { tx:15, ty:12, to:'hallway', sx:6,  sy:11 },
+    ],
+  },
+  courtyard: {
+    id:'courtyard', map:MAP_COURTYARD, title:'PATIO',
+    spawn:{ x:14, y:11 },
+    exits:[
+      { tx:15, ty:12, to:'hallway', sx:20, sy:11 },
+    ],
+  },
+  hallway_broken: {
+    id:'hallway_broken', map:MAP_HALLWAY_BROKEN, title:'??????',
+    spawn:{ x:2, y:7 },
+    exits:[
+      { tx:20, ty:12, to:'final_room', sx:14, sy:12 },
+    ],
+  },
+  final_room: {
+    id:'final_room', map:MAP_FINAL, title:'AULA 3-B',
+    spawn:{ x:14, y:12 },
+    exits:[],
+  },
+};
+
+// Tile -> sólido (bloquea movimiento)
+function isSolid(ch){
+  return ch === '#' || ch === 'L' || ch === 'D' || ch === 'B' ||
+         ch === 'T' || ch === 'N' || ch === 'W';
+}
+// Tile -> es salida (no sólido pero dispara transición)
+function isExitMark(ch){ return ch === 'O'; }
+// Tile -> renderiza decoración con offset (ej. mesa más grande)
+function tileTypeFor(ch){
+  switch(ch){
+    case '#': return 'wall';
+    case 'L': return 'locker';
+    case 'D': return 'desk';
+    case 'B': return 'board';
+    case 'O': return 'door';
+    case 'T': return 'tree';
+    case 'N': return 'bench';
+    case 'W': return 'window';
+    case 'g': return 'grass';
+    case 'w': return 'water';
+    case 'X': return 'exit';
+    default:  return 'floor';
+  }
+}
+
+
+/* ==========================================================================
+   8. DIÁLOGOS
+   --------------------------------------------------------------------------
+   Estructura: dialogs[npcId][actNumber] = [linea1, linea2, ...]
+   El último carácter de una línea NO debe ser espacio.
+   El sistema de diálogo presenta una línea a la vez con efecto typewriter.
+   Algunas líneas pueden disparar un evento (formato '!event_name|texto').
+   ========================================================================== */
+const DIALOGS = {
+  pablo: {
+    1: [
+      'Pablo: Eyy, Mateo, llegaste tarde otra vez.',
+      'Pablo: ¿Hoy es el día? ¿Por fin se lo dirás?',
+      'Mateo: ...sí. Hoy.',
+      'Pablo: Está en el aula 3-B. Suerte, hermano.',
+    ],
+    2: [
+      'Pablo: ¿Sigues sin decirle nada?',
+      'Pablo: Oye... ¿no notas el aire raro hoy?',
+      'Pablo: Como si... como si nos miraran.',
+    ],
+    3: [
+      'Pablo: ......',
+      'Pablo: Mateo... ¿por qué tienes las manos así?',
+      'Pablo: ¿Qué hiciste, Mateo?',
+      '!glitch|Pablo: ¿QUÉ HICISTE?',
+    ],
+  },
+  sofia: {
+    1: [
+      'Sofía: ¡Hola, Mateo!',
+      'Sofía: Rossy te estaba buscando, ¿sabes?',
+      'Sofía: Dijo que tenía algo que decirte.',
+      'Mateo: ...¿yo? ¿en serio?',
+      'Sofía: Está en el aula. Ve.',
+    ],
+    2: [
+      'Sofía: Mateo... ¿estás bien?',
+      'Sofía: Te ves pálido. Y... raro.',
+      'Sofía: Rossy salió al patio. No sé por qué.',
+    ],
+    3: [
+      'Sofía: ¿Por qué no te miras al espejo, Mateo?',
+      'Sofía: ¿Por qué no recuerdas?',
+      '!glitch|Sofía: Ella ya no está aquí.',
+    ],
+  },
+  diego: {
+    1: [
+      'Diego: Apártate, idiota.',
+      'Diego: Si te le acercas a Rossy te parto la cara.',
+      'Mateo: (mejor lo evito por ahora)',
+    ],
+    2: [
+      'Diego: ¿Qué me miras?',
+      'Diego: ...¿por qué tiembla todo?',
+      'Diego: ¿Qué pasa con las luces?',
+    ],
+    3: [
+      'Diego: ......',
+      'Diego: Tú lo hiciste. Tú lo hiciste, ¿verdad?',
+      'Diego: TE VI. TE VI HACERLO.',
+      '!scare|Diego ya no parpadea.',
+    ],
+  },
+  prof: {
+    1: [
+      'Prof. Ramírez: Llega tarde, Sr. Mateo.',
+      'Prof. Ramírez: A su asiento. Ya.',
+    ],
+    2: [
+      'Prof. Ramírez: ¿Algo le perturba, Sr. Mateo?',
+      'Prof. Ramírez: La clase aún no termina.',
+      'Prof. Ramírez: Quédese. Aquí. Conmigo.',
+    ],
+    3: [
+      'Prof. Ramírez: ssssMateoooo...',
+      'Prof. Ramírez: la pizarra tiene tu nombre',
+      'Prof. Ramírez: escrito con LO QUE QUEDA DE ELLA',
+      '!scare|Prof. Ramírez sonríe sin labios.',
+    ],
+  },
+  rossy_class: {
+    1: [
+      'Rossy: ¡Mateo! Te estaba buscando.',
+      'Rossy: Yo... yo también quería decirte algo.',
+      'Rossy: Pero no aquí. En el patio, ¿sí?',
+      'Rossy: A las diez y media. Por favor.',
+      '!flag_rossy_meet|',
+    ],
+  },
+  rossy_yard: {
+    2: [
+      'Rossy: Viniste...',
+      'Rossy: Mateo, escucha. Yo...',
+      '!cut_diego|Rossy: ¡D-Diego! ¿Qué haces aquí?',
+      'Rossy: Mateo, espera, no te vayas, no...',
+      'Rossy: ...¿Mateo? ¿qué tienes en la mano?',
+      '!flag_yard_done|',
+    ],
+  },
+  rossy_final: {
+    4: [
+      'Rossy: Mateo. Por fin viniste.',
+      'Rossy: Tres años después.',
+      'Mateo: ...¿tres años?',
+      'Rossy: Tres años desde aquel recreo.',
+      'Rossy: Desde que Diego me empujó.',
+      'Rossy: Desde que tú agarraste la piedra.',
+      '!reveal|Rossy: Y nunca te confesaste.',
+      'Rossy: Pero estoy aquí, Mateo. Siempre lo estuve.',
+      'Mateo: ...quiero decírtelo. Ahora.',
+      'Mateo: Rossy. Yo te quiero. Te quise siempre.',
+      'Rossy: Lo sé.',
+      'Rossy: Ahora ven. Quédate conmigo.',
+      '!ending|',
+    ],
+  },
+  shadow: {
+    2: [
+      '... Mateo ...',
+      '... no debiste volver ...',
+    ],
+    3: [
+      'no recuerdas',
+      'no recuerdas porque no QUIERES',
+      'mírate las manos',
+    ],
+  },
+  pablo_broken: {
+    3: [
+      'Pablo: ......',
+      'Pablo: hola Mateo',
+      'Pablo: yo ya no estoy aquí',
+      'Pablo: pero tú tampoco',
+    ],
+  },
+};
+
+
+/* ==========================================================================
+   9. ENTIDADES (Player, NPC)
+   ========================================================================== */
+
+class Entity {
+  constructor(x, y, sprite, palette, name){
+    this.x = x; this.y = y;             // posición en píxeles
+    this.w = 16; this.h = 16;
+    this.sprite = sprite;               // SP_BODY_DOWN, SP_BODY_SIDE...
+    this.palette = palette;
+    this.name = name || '';
+    this.dir = 'down';                  // down/up/left/right
+    this.moving = false;
+    this.bobTimer = 0;
   }
   get cx(){ return this.x + this.w/2; }
   get cy(){ return this.y + this.h/2; }
-}
-
-/* ============================================================
-   4. MOTOR DE COLISIONES — AABB exacto al píxel
-============================================================ */
-function aabb(a, b){
-  return a.x < b.x + b.w && a.x + a.w > b.x &&
-         a.y < b.y + b.h && a.y + a.h > b.y;
-}
-function inView(e, cam){
-  const m = CFG.CULL_MARGIN;
-  return e.x + e.w > cam.x - m && e.x < cam.x + cam.w + m &&
-         e.y + e.h > cam.y - m && e.y < cam.y + cam.h + m;
-}
-
-
-/* Helpers de dibujo reutilizables ---------------------------- */
-function drawSpikes(ctx, x, y, w, h, color){
-  ctx.fillStyle = color || COLORS.DANGER;
-  const n = Math.max(1, Math.round(w / 14));
-  const sw = w / n;
-  for(let i=0;i<n;i++){
-    ctx.beginPath();
-    ctx.moveTo(x + i*sw, y + h);
-    ctx.lineTo(x + i*sw + sw/2, y);
-    ctx.lineTo(x + (i+1)*sw, y + h);
-    ctx.closePath(); ctx.fill();
-  }
-  // sombra base
-  ctx.fillStyle = COLORS.DANGER_DARK;
-  ctx.fillRect(x, y + h - 2, w, 2);
-}
-function drawGoal(ctx, g){
-  // poste blanco
-  ctx.fillStyle = '#FFF';
-  ctx.fillRect(g.x + g.w/2 - 2, g.y, 4, g.h);
-  // bandera azul
-  ctx.fillStyle = COLORS.GOAL;
-  ctx.beginPath();
-  ctx.moveTo(g.x + g.w/2 + 2, g.y + 4);
-  ctx.lineTo(g.x + g.w + 18, g.y + 14);
-  ctx.lineTo(g.x + g.w/2 + 2, g.y + 24);
-  ctx.closePath(); ctx.fill();
-  // base
-  ctx.fillStyle = '#FFF';
-  ctx.fillRect(g.x - 4, g.y + g.h - 4, g.w + 8, 4);
-}
-
-/* Plataforma sólida estándar -------------------------------- */
-class Platform extends GameObject {
-  constructor(def){ super(def.x, def.y, def.w, def.h); this.solid = true; this.kind = 'platform'; }
-  update(){}
-  render(ctx){
-    ctx.fillStyle = COLORS.PLATFORM;
-    ctx.fillRect(this.x, this.y, this.w, this.h);
-    ctx.fillStyle = COLORS.PLATFORM_TOP;
-    ctx.fillRect(this.x, this.y, this.w, 2);
+  rect(){ return { x:this.x + 2, y:this.y + 8, w:this.w - 4, h:this.h - 8 }; }
+  render(ctx, time){
+    let sp, flip = false;
+    if(this.dir === 'up')         sp = (this.spUp || SP_BODY_UP);
+    else if(this.dir === 'left')  { sp = (this.spSide || SP_BODY_SIDE); flip = true; }
+    else if(this.dir === 'right') sp = (this.spSide || SP_BODY_SIDE);
+    else                          sp = (this.spDown || SP_BODY_DOWN);
+    const cv = getSprite(sp, this.palette, flip);
+    // pequeño bob al caminar
+    let bob = 0;
+    if(this.moving) bob = Math.floor(time * 0.012) % 2 === 0 ? 0 : -1;
+    ctx.drawImage(cv, Math.round(this.x), Math.round(this.y) + bob);
   }
 }
 
-/* Meta REAL (sin trampa) ------------------------------------ */
-class Goal extends GameObject {
-  constructor(def){ super(def.x, def.y, def.w || 24, def.h || 56); this.isGoal = true; this.fake = false; this.kind = 'goal'; }
-  update(){}
-  render(ctx){ drawGoal(ctx, this); }
-}
-
-
-/* ============================================================
-   TRAMPAS — clase única, comportamiento por type
-============================================================ */
-class Trap extends GameObject {
-  constructor(def){
-    const w = def.w !== undefined ? def.w : CFG.TILE;
-    const h = def.h !== undefined ? def.h : CFG.TILE;
-    super(def.x, def.y, w, h);
-    this.type = def.type;
-    this.def = def;
-    this.startX = def.x; this.startY = def.y;
-    this.timer = 0;
-    this.triggered = false;
-    this.activated = false;
-    this.fallVy = 0;
-    this.linked = [];          // referencias activadas al disparar (p.ej. spikes del fake_goal)
-    this.kind = 'trap';
-
-    switch(this.type){
-      case TRAP.SPIKE:
-        this.dangerous = true;
-        break;
-      case TRAP.FAKE_PLATFORM:
-        this.solid = true;
-        this.delay = def.delay !== undefined ? def.delay : 0.18;
-        break;
-      case TRAP.TRIGGERED_SPIKE:
-        // Empieza oculto: lo bajamos popHeight px bajo su startY
-        this.popHeight = def.popHeight || 26;
-        this.triggerDist = def.triggerDist || 100;
-        this.targetY = this.startY;
-        this.hiddenY = this.startY + this.popHeight;
-        this.y = this.hiddenY;
-        break;
-      case TRAP.FALLING_BLOCK:
-        this.solid = true;
-        this.triggerDist = def.triggerDist || 30; // banda horizontal extra a cada lado
-        this.fallReach = def.fallReach || 360;    // sólo dispara si el jugador está dentro de este rango vertical
-        break;
-      case TRAP.FAKE_GOAL:
-        this.isGoal = true; this.fake = true;
-        this.triggerDist = def.triggerDist || 130;
-        this.shiftAmount = def.shift !== undefined ? def.shift : 50;
-        this.shiftSpeed = def.shiftSpeed || 280;
-        break;
-      case TRAP.INVERTED_GRAV:
-        this.isZone = true;
-        this.duration = def.duration || CFG.INVGRAV_DURATION;
-        break;
-    }
-  }
-
-
-  // Llamado cuando el jugador aterriza encima — usado por la plataforma falsa
-  onPlayerStand(player, dt){
-    if(this.type === TRAP.FAKE_PLATFORM && !this.activated){
-      this.timer += dt;
-      if(this.timer >= this.delay){
-        this.activated = true;
-        this.solid = false;
-        this.dynamic = true;
-        Audio.trap();
-      }
-    }
-  }
-
-  update(dt, game){
-    if(!this.alive) return;
-    const p = game.player;
-
-    switch(this.type){
-      case TRAP.FAKE_PLATFORM:
-        if(this.activated){
-          // Cae un poco más rápido que el jugador para que se vea
-          // claramente la plataforma desplomándose bajo sus pies.
-          this.fallVy += CFG.GRAVITY * 1.4 * dt;
-          this.y += this.fallVy * dt;
-          if(this.y > game.level.height + 200){ this.alive = false; this.dynamic = false; }
-        }
-        break;
-
-      case TRAP.TRIGGERED_SPIKE: {
-        if(!this.triggered){
-          // Sólo dispara si el jugador está cerca horizontalmente Y a una altura cercana
-          const dx = p.cx - (this.x + this.w/2);
-          const dy = (p.y + p.h) - this.startY;
-          if(Math.abs(dx) < this.triggerDist && dy > -160 && dy < 80){
-            this.triggered = true; this.dangerous = true; this.dynamic = true;
-            Audio.trap();
-          }
-        } else if(this.y > this.targetY){
-          this.y -= 900 * dt;
-          if(this.y <= this.targetY){ this.y = this.targetY; this.dynamic = false; }
-        }
-        break;
-      }
-
-      case TRAP.FALLING_BLOCK: {
-        if(!this.triggered){
-          // Dispara cuando el jugador está bajo la columna del bloque
-          const dx = p.cx - (this.x + this.w/2);
-          const dy = p.y - (this.y + this.h);
-          if(Math.abs(dx) < (this.w/2 + this.triggerDist) && dy > 0 && dy < this.fallReach){
-            this.triggered = true; this.dangerous = true; this.solid = true; this.dynamic = true;
-            Audio.trap();
-          }
-        } else {
-          this.fallVy += CFG.GRAVITY * 1.4 * dt;
-          this.y += this.fallVy * dt;
-          if(this.y > game.level.height + 200){ this.alive = false; this.dynamic = false; }
-        }
-        break;
-      }
-
-
-      case TRAP.FAKE_GOAL: {
-        if(!this.activated){
-          const dx = p.cx - (this.x + this.w/2);
-          if(Math.abs(dx) < this.triggerDist && Math.abs(p.cy - this.cy) < 220){
-            this.activated = true; this.dynamic = true;
-            Audio.trap();
-            // Despertar pinchos enlazados (el "foso revelado")
-            for(const s of this.linked) s.alive = true;
-          }
-        } else {
-          const target = this.startX + this.shiftAmount;
-          if(this.x < target){
-            this.x += this.shiftSpeed * dt;
-            if(this.x >= target){ this.x = target; this.dynamic = false; }
-          }
-        }
-        break;
-      }
-
-      case TRAP.INVERTED_GRAV:
-        // El efecto se aplica desde el update del Player
-        break;
-    }
-  }
-
-  render(ctx){
-    if(!this.alive) return;
-    switch(this.type){
-      case TRAP.SPIKE:
-        drawSpikes(ctx, this.x, this.y, this.w, this.h);
-        break;
-      case TRAP.TRIGGERED_SPIKE:
-        // sólo lo dibujamos cuando ya empezó a salir
-        if(this.triggered || this.y < this.hiddenY - 0.5){
-          drawSpikes(ctx, this.x, this.y, this.w, this.h);
-        }
-        break;
-      case TRAP.FAKE_PLATFORM:
-        // Idéntica a una plataforma normal — esa es la trampa
-        ctx.fillStyle = COLORS.PLATFORM; ctx.fillRect(this.x, this.y, this.w, this.h);
-        ctx.fillStyle = COLORS.PLATFORM_TOP; ctx.fillRect(this.x, this.y, this.w, 2);
-        break;
-      case TRAP.FALLING_BLOCK:
-        ctx.fillStyle = this.triggered ? '#C44' : COLORS.PLATFORM;
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-        ctx.fillStyle = this.triggered ? '#700' : COLORS.PLATFORM_TOP;
-        ctx.fillRect(this.x, this.y, this.w, 2);
-        ctx.fillRect(this.x, this.y + this.h - 2, this.w, 2);
-        break;
-      case TRAP.FAKE_GOAL:
-        drawGoal(ctx, this);
-        break;
-      case TRAP.INVERTED_GRAV:
-        // Invisible en producción. Descomenta para depurar.
-        // ctx.strokeStyle = 'rgba(255,0,255,.3)'; ctx.strokeRect(this.x,this.y,this.w,this.h);
-        break;
-    }
-  }
-}
-
-
-/* ============================================================
-   PLAYER — física tight (coyote, buffer, jump-cut, gravedad invertida)
-============================================================ */
-class Player extends GameObject {
+class Player extends Entity {
   constructor(x, y){
-    super(x, y, CFG.PLAYER_W, CFG.PLAYER_H);
-    this.spawnX = x; this.spawnY = y;
-    this.onGround = false;
-    this.coyoteTimer = 0;
-    this.jumpBufferTimer = 0;
-    this.facing = 1;
-    this.invGravTimer = 0;
-    this.gravSign = 1;
-    this.deadTimer = 0;
-    this.dynamic = true;
-    this._wasGoingUp = false;
+    super(x, y, SP_BODY_DOWN, PAL_MATEO, 'Mateo');
+    this.spDown = SP_BODY_DOWN;
+    this.spUp   = SP_BODY_UP;
+    this.spSide = SP_BODY_SIDE;
+    this.speed = 70;       // px/seg
+    this.stepTimer = 0;
   }
-  reset(x, y){
-    this.x = x !== undefined ? x : this.spawnX;
-    this.y = y !== undefined ? y : this.spawnY;
-    if(x !== undefined){ this.spawnX = x; this.spawnY = y; }
-    this.vx = 0; this.vy = 0;
-    this.onGround = false; this.alive = true;
-    this.coyoteTimer = 0; this.jumpBufferTimer = 0;
-    this.invGravTimer = 0; this.gravSign = 1;
-    this.deadTimer = 0; this.facing = 1;
-  }
-
   update(dt, game){
-    if(!this.alive) return;
-    const ix = (Input.left ? -1 : 0) + (Input.right ? 1 : 0);
+    let dx = 0, dy = 0;
+    if(Input.up)    dy -= 1;
+    if(Input.down)  dy += 1;
+    if(Input.left)  dx -= 1;
+    if(Input.right) dx += 1;
+    // diagonal normalizada
+    if(dx && dy){ dx *= 0.7071; dy *= 0.7071; }
+    this.moving = (dx !== 0 || dy !== 0);
+    if(dy < 0) this.dir = 'up';
+    else if(dy > 0) this.dir = 'down';
+    else if(dx < 0) this.dir = 'left';
+    else if(dx > 0) this.dir = 'right';
 
-    // ---- Coyote time + jump buffer --------------------------
-    if(Input.jumpPressed) this.jumpBufferTimer = CFG.JUMP_BUFFER;
-    this.jumpBufferTimer -= dt;
+    const nx = this.x + dx * this.speed * dt;
+    const ny = this.y + dy * this.speed * dt;
 
-    if(this.onGround) this.coyoteTimer = CFG.COYOTE_TIME;
-    else this.coyoteTimer -= dt;
+    // Resolver colisión por ejes con el mapa
+    if(!game.collidesAt(nx, this.y, this.rectOff())) this.x = nx;
+    if(!game.collidesAt(this.x, ny, this.rectOff())) this.y = ny;
 
-    // ---- Gravedad invertida ---------------------------------
-    if(this.invGravTimer > 0){ this.invGravTimer -= dt; this.gravSign = -1; }
-    else this.gravSign = 1;
+    // Pasos
+    if(this.moving){
+      this.stepTimer += dt;
+      if(this.stepTimer > 0.28){ this.stepTimer = 0; Audio.step(); }
+    } else this.stepTimer = 0;
 
-    // ---- Aceleración horizontal -----------------------------
-    if(ix !== 0){
-      this.facing = ix;
-      const acc = (this.onGround ? CFG.GROUND_ACCEL : CFG.AIR_ACCEL) * ix;
-      this.vx += acc * dt;
-      if(this.vx >  CFG.MOVE_SPEED) this.vx =  CFG.MOVE_SPEED;
-      if(this.vx < -CFG.MOVE_SPEED) this.vx = -CFG.MOVE_SPEED;
-    } else {
-      const fric = (this.onGround ? CFG.GROUND_FRICTION : CFG.AIR_FRICTION) * dt;
-      if(this.vx >  fric) this.vx -= fric;
-      else if(this.vx < -fric) this.vx += fric;
-      else this.vx = 0;
-    }
-
-
-    // ---- Salto (con buffer + coyote) ------------------------
-    if(this.jumpBufferTimer > 0 && this.coyoteTimer > 0){
-      this.vy = CFG.JUMP_VELOCITY * this.gravSign;
-      this.jumpBufferTimer = 0; this.coyoteTimer = 0;
-      this.onGround = false;
-      Audio.jump();
-    }
-
-    // ---- Variable jump cut: si sueltas el botón mientras subes, gravedad extra
-    const goingUp = (this.vy * this.gravSign) < 0;
-    if(goingUp && !Input.jumpHeld){
-      this.vy += CFG.GRAVITY * this.gravSign * (CFG.GRAVITY_CUT_MULT - 1) * dt;
-    }
-
-    // ---- Gravedad ------------------------------------------
-    this.vy += CFG.GRAVITY * this.gravSign * dt;
-    if(this.gravSign > 0 && this.vy >  CFG.MAX_FALL_SPEED) this.vy =  CFG.MAX_FALL_SPEED;
-    if(this.gravSign < 0 && this.vy < -CFG.MAX_FALL_SPEED) this.vy = -CFG.MAX_FALL_SPEED;
-
-    // ---- Movimiento + colisiones (eje a eje, AABB) ----------
-    const solids = game.solids();
-
-    // X
-    this.x += this.vx * dt;
-    for(const e of solids){
-      if(e === this || !e.alive || !e.solid) continue;
-      if(aabb(this, e)){
-        if(this.vx > 0)      this.x = e.x - this.w;
-        else if(this.vx < 0) this.x = e.x + e.w;
-        this.vx = 0;
-      }
-    }
-
-    // Y
-    this.onGround = false;
-    this.y += this.vy * dt;
-    for(const e of solids){
-      if(e === this || !e.alive || !e.solid) continue;
-      if(aabb(this, e)){
-        if(this.vy > 0){
-          // Cae sobre la cara superior
-          this.y = e.y - this.h; this.vy = 0;
-          if(this.gravSign > 0){ this.onGround = true; if(e.onPlayerStand) e.onPlayerStand(this, dt); }
-        } else if(this.vy < 0){
-          // Sube y choca con la cara inferior
-          this.y = e.y + e.h; this.vy = 0;
-          if(this.gravSign < 0){ this.onGround = true; if(e.onPlayerStand) e.onPlayerStand(this, dt); }
-        }
-      }
-    }
-
-
-    // ---- Daño (pinchos, bloques cayendo, etc.) --------------
-    for(const e of game.entities){
-      if(e === this || !e.alive || !e.dangerous) continue;
-      if(aabb(this, e)){ this.die(game); return; }
-    }
-
-    // ---- Meta (real o falsa, ambas son válidas para ganar) --
-    for(const e of game.entities){
-      if(e === this || !e.alive || !e.isGoal) continue;
-      if(aabb(this, e)){ game.win(); return; }
-    }
-
-    // ---- Zonas (gravedad invertida) -------------------------
-    for(const e of game.entities){
-      if(e === this || !e.alive || !e.isZone) continue;
-      const inside = aabb(this, e);
-      if(inside && !e.triggered){
-        e.triggered = true;
-        this.invGravTimer = e.duration;
-        Audio.trap();
-      } else if(!inside){ e.triggered = false; }
-    }
-
-    // ---- Caída fuera del mundo ------------------------------
-    if(this.y > game.level.height + 250 || this.y < -500) this.die(game);
+    // Mantener dentro del canvas (zona jugable)
+    if(this.x < 0) this.x = 0;
+    if(this.y < 0) this.y = 0;
+    if(this.x + this.w > COLS * TILE) this.x = COLS * TILE - this.w;
+    if(this.y + this.h > ROWS * TILE) this.y = ROWS * TILE - this.h;
   }
-
-  die(game){
-    if(!this.alive) return;
-    this.alive = false;
-    this.deadTimer = CFG.RESPAWN_DELAY;
-    Audio.death();
-    game.onPlayerDeath();
+  rectOff(){
+    return { ox:2, oy:8, w:this.w - 4, h:this.h - 8 };
   }
+}
 
-  render(ctx){
-    ctx.fillStyle = this.alive ? COLORS.PLAYER : COLORS.PLAYER_DEAD;
-    ctx.fillRect(this.x, this.y, this.w, this.h);
-    if(this.alive){
-      // Dos "ojos" pequeños para personalidad
-      ctx.fillStyle = '#000';
-      const eyeY = this.y + 7 + (this.gravSign < 0 ? 14 : 0);
-      const off = this.facing > 0 ? 10 : 4;
-      ctx.fillRect(this.x + off, eyeY, 4, 4);
-      ctx.fillRect(this.x + off + 8, eyeY, 4, 4);
+class NPC extends Entity {
+  constructor(x, y, palette, dialogId, name, sprite){
+    const sp = sprite || SP_BODY_DOWN;
+    super(x, y, sp, palette, name);
+    this.spDown = sp;
+    this.spUp   = sp === SP_BODY_DOWN ? SP_BODY_UP : sp;
+    this.spSide = sp === SP_BODY_DOWN ? SP_BODY_SIDE : sp;
+    this.dialogId = dialogId;       // clave en DIALOGS
+    this.dir = 'down';
+    this.wander = false;            // no patrulla por ahora
+    this.bobOffset = Math.random() * Math.PI * 2;
+  }
+  update(dt, game){
+    this.bobOffset += dt;
+  }
+  render(ctx, time){
+    super.render(ctx, time);
+    // En horror, parpadea ligeramente
+    if(game.horror >= HORROR.UNEASY && Math.random() < 0.005){
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(this.x, this.y, 16, 16);
     }
   }
 }
 
 
-/* ============================================================
-   CÁMARA — sigue al jugador con lerp y se queda en bounds
-============================================================ */
-class Camera {
-  constructor(){ this.x = 0; this.y = 0; this.w = CFG.WIDTH; this.h = CFG.HEIGHT; this.shakeT = 0; this.shakeAmp = 0; }
-  clampTo(target, lvlW, lvlH){
-    let tx = target.cx - this.w/2;
-    let ty = target.cy - this.h/2;
-    tx = Math.max(0, Math.min(tx, Math.max(0, lvlW - this.w)));
-    ty = Math.max(0, Math.min(ty, Math.max(0, lvlH - this.h)));
-    return [tx, ty];
-  }
-  follow(target, lvlW, lvlH){
-    const [tx, ty] = this.clampTo(target, lvlW, lvlH);
-    this.x += (tx - this.x) * 0.18;
-    this.y += (ty - this.y) * 0.18;
-  }
-  snap(target, lvlW, lvlH){
-    const [tx, ty] = this.clampTo(target, lvlW, lvlH);
-    this.x = tx; this.y = ty;
-  }
-  shake(amp, dur){ this.shakeAmp = amp; this.shakeT = dur; }
-  shakeOffset(dt){
-    if(this.shakeT <= 0) return [0,0];
-    this.shakeT -= dt;
-    const a = this.shakeAmp * (this.shakeT > 0 ? 1 : 0);
-    return [(Math.random()*2-1)*a, (Math.random()*2-1)*a];
-  }
-}
+/* ==========================================================================
+   10. SISTEMA DE DIÁLOGO
+   ========================================================================== */
+const DialogBox = {
+  active:false,
+  lines:[], idx:0,
+  shown:'', target:'',
+  charT:0, charSpd:0.025,    // segundos por carácter
+  speakerName:'',
+  done:false,
+  callbackOnEnd:null,
+  glitch:false,
 
-/* ============================================================
-   5. GESTOR DE ESTADOS (GAME)
-============================================================ */
-const TAUNTS = [
-  "Otra vez será.","Te lo merecías.","Eso lo viste venir.","Inevitable.",
-  "Confiabas en el suelo, ¿eh?","Predecible.","Pulgares de mantequilla.","Casi.",
-  "Eso fue elegante.","La meta se ríe de ti.","La gravedad te traicionó.","Ouch.",
-];
-const LEVEL_WIN_MSGS = [
-  "¡Sobreviviste!","Imposible.","¿Suerte? ¿Habilidad?","Bien jugado.",
-];
+  start(npcId, actNum, onEnd){
+    const block = DIALOGS[npcId] && DIALOGS[npcId][actNum];
+    if(!block){ if(onEnd) onEnd(); return; }
+    this.active = true;
+    this.lines = block.slice();
+    this.idx = 0;
+    this.callbackOnEnd = onEnd || null;
+    this._setLine(this.lines[0]);
+  },
 
-
-class Game {
-  constructor(canvas){
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.cam = new Camera();
-    this.state = STATE.MENU;
-    this.entities = [];
-    this.player = new Player(0, 0);
-    this.level = null;
-    this.levelIndex = 0;
-    this.deaths = 0;
-    this.levelDeaths = 0;
-    this.tauntIdx = 0;
-    this.winMsgIdx = 0;
-    this.timeInState = 0;
-    this.totalTime = 0;
-    this.respawnDelay = 0;
-    this.frameCount = 0;
-  }
-
-  // Listas calculadas: sólidos para colisión rápida
-  solids(){
-    const out = [];
-    for(const e of this.entities) if(e.alive && e.solid) out.push(e);
-    return out;
-  }
-
-  loadLevel(idx){
-    this.levelIndex = idx;
-    this.level = LEVELS[idx];
-    this.entities = [];
-    this.levelDeaths = 0;
-
-    // Plataformas
-    for(const p of this.level.platforms || []) this.entities.push(new Platform(p));
-    // Pinchos estáticos
-    for(const s of this.level.spikes || []) this.entities.push(new Trap({type:TRAP.SPIKE, ...s}));
-    // Trampas tipadas
-    for(const t of this.level.traps || []){
-      const trap = new Trap(t);
-      this.entities.push(trap);
-      // pinchos enlazados (revelados por fake_goal)
-      if(t.linkedSpikes){
-        for(const s of t.linkedSpikes){
-          const sp = new Trap({type:TRAP.SPIKE, ...s});
-          sp.alive = false;        // ocultos hasta que el fake_goal active
-          this.entities.push(sp);
-          trap.linked.push(sp);
-        }
-      }
-    }
-    // Meta real
-    if(this.level.goal) this.entities.push(new Goal(this.level.goal));
-
-    // Player
-    this.player.reset(this.level.spawn.x, this.level.spawn.y);
-    this.cam.snap(this.player, this.level.width, this.level.height);
-    this.respawnDelay = 0;
-  }
-
-
-  start(){
-    this.deaths = 0;
-    this.totalTime = 0;
-    this.loadLevel(0);
-    this.state = STATE.PLAYING;
-    this.timeInState = 0;
-  }
-
-  onPlayerDeath(){
-    this.deaths++;
-    this.levelDeaths++;
-    this.tauntIdx = Math.floor(Math.random() * TAUNTS.length);
-    this.cam.shake(8, 0.25);
-    this.state = STATE.GAME_OVER;
-    this.timeInState = 0;
-  }
-
-  win(){
-    Audio.win();
-    this.winMsgIdx = Math.floor(Math.random() * LEVEL_WIN_MSGS.length);
-    if(this.levelIndex + 1 >= LEVELS.length){
-      this.state = STATE.WIN;
-      this.timeInState = 0;
+  _setLine(line){
+    this.glitch = false;
+    if(line.startsWith('!')){
+      // formato: !event|texto (texto puede estar vacío)
+      const sep = line.indexOf('|');
+      const ev = line.slice(1, sep);
+      const txt = line.slice(sep + 1);
+      // Disparar evento (game lo intercepta)
+      Game.fireEvent(ev);
+      if(!txt){ this._next(); return; }
+      this.target = txt;
+      if(ev === 'glitch' || ev === 'scare') this.glitch = true;
     } else {
-      // Pasar al siguiente nivel tras una breve pausa
-      const next = this.levelIndex + 1;
-      this.state = 'transition';
-      this.timeInState = 0;
-      this._nextLevel = next;
+      this.target = line;
     }
-  }
-
-  retry(){
-    this.loadLevel(this.levelIndex);
-    this.state = STATE.PLAYING;
-    this.timeInState = 0;
-  }
+    this.shown = '';
+    this.charT = 0;
+    this.done = false;
+  },
 
   update(dt){
-    this.timeInState += dt;
-    if(this.state === STATE.PLAYING) this.totalTime += dt;
+    if(!this.active) return;
+    if(this.done) return;
+    this.charT += dt;
+    while(this.charT >= this.charSpd && this.shown.length < this.target.length){
+      this.shown += this.target.charAt(this.shown.length);
+      this.charT -= this.charSpd;
+      if(Math.random() < 0.4) Audio.blip();
+    }
+    if(this.shown.length >= this.target.length) this.done = true;
 
-    // R reinicia siempre el nivel
-    if(Input.restart && this.state !== STATE.MENU){ Input.restart = false; this.retry(); return; }
+    if(Input.actionPressed){
+      if(!this.done){
+        this.shown = this.target; this.done = true;
+      } else {
+        this._next();
+      }
+    }
+  },
 
-    if(this.state === STATE.MENU){
-      if(Input.jumpPressed){ this.start(); }
+  _next(){
+    this.idx++;
+    if(this.idx >= this.lines.length){
+      this.active = false;
+      if(this.callbackOnEnd){ const cb = this.callbackOnEnd; this.callbackOnEnd = null; cb(); }
       return;
     }
+    this._setLine(this.lines[this.idx]);
+  },
 
+  render(ctx, P){
+    if(!this.active) return;
+    const x = 4, y = HUD_Y + 2, w = W - 8, h = HUD_H - 4;
+    // marco
+    ctx.fillStyle = 'rgba(0,0,0,0.92)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = this.glitch ? '#a00000' : P.text;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 
-    if(this.state === 'transition'){
-      if(this.timeInState > 0.55){ this.loadLevel(this._nextLevel); this.state = STATE.PLAYING; this.timeInState = 0; }
-      return;
+    // Texto
+    ctx.fillStyle = this.glitch ? '#ff4040' : '#fff';
+    ctx.font = '10px "Courier New", monospace';
+    ctx.textBaseline = 'top';
+    let txt = this.shown;
+    if(this.glitch){
+      // Reemplazar caracteres aleatorios por glitch
+      let g = '';
+      for(let i = 0; i < txt.length; i++){
+        if(Math.random() < 0.06) g += String.fromCharCode(33 + Math.floor(Math.random() * 90));
+        else g += txt.charAt(i);
+      }
+      txt = g;
+    }
+    // Wrap simple
+    const maxChars = Math.floor((w - 12) / 6);
+    const wrapped = wrapText(txt, maxChars);
+    for(let i = 0; i < wrapped.length && i < 3; i++){
+      ctx.fillText(wrapped[i], x + 6, y + 6 + i * 12);
     }
 
-    if(this.state === STATE.GAME_OVER){
-      if(this.timeInState > 0.45 && Input.jumpPressed){ this.retry(); }
+    // indicador "siguiente"
+    if(this.done){
+      const blink = (Math.floor(performance.now() / 300) % 2) === 0;
+      if(blink){
+        ctx.fillStyle = '#fff';
+        ctx.fillText('>', x + w - 10, y + h - 12);
+      }
+    }
+  },
+};
+
+function wrapText(text, maxChars){
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for(const w of words){
+    if((cur + ' ' + w).trim().length > maxChars){
+      if(cur) lines.push(cur);
+      cur = w;
+    } else {
+      cur = cur ? cur + ' ' + w : w;
+    }
+  }
+  if(cur) lines.push(cur);
+  return lines;
+}
+
+
+/* ==========================================================================
+   11. ESTADO DE JUEGO
+   ========================================================================== */
+const Game = {
+  canvas:null, ctx:null,
+  screen:SCREEN.TITLE,
+  scene:null,           // objeto scene actual
+  sceneId:null,
+  player:null,
+  npcs:[],
+  act:1,                // 1..4
+  horror:HORROR.NORMAL,
+  flags:{},
+  transTimer:0,
+  transDur:0.6,
+  pendingScene:null,
+  pendingSpawn:null,
+  time:0,
+  introLines:[],
+  introIdx:0,
+  introTimer:0,
+  endingType:null,
+  endTimer:0,
+  scareTimer:0,         // efecto de "scare" (chasco visual)
+  glitchTimer:0,        // efecto de glitch general
+  shakeT:0, shakeAmp:0,
+
+  init(){
+    this.canvas = document.getElementById('game');
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    Input.init();
+    this.player = new Player(2 * TILE, 7 * TILE);
+    this.flags = { metPablo:false, metSofia:false, metRossyClass:false,
+                   metRossyYard:false, sawShadow:false, finalReached:false };
+    this.screen = SCREEN.TITLE;
+  },
+
+  /* ---- Construcción de NPCs por escena+acto ---- */
+  spawnNPCs(){
+    this.npcs = [];
+    const id = this.sceneId, act = this.act;
+
+    if(id === 'hallway'){
+      if(act === 1){
+        this.npcs.push(new NPC(7  * TILE, 6 * TILE,  PAL_PABLO, 'pablo', 'Pablo'));
+        this.npcs.push(new NPC(15 * TILE, 6 * TILE,  PAL_SOFIA, 'sofia', 'Sofía'));
+        this.npcs.push(new NPC(22 * TILE, 7 * TILE,  PAL_DIEGO, 'diego', 'Diego'));
+      } else if(act === 2){
+        this.npcs.push(new NPC(7  * TILE, 6 * TILE,  PAL_PABLO, 'pablo', 'Pablo'));
+        this.npcs.push(new NPC(15 * TILE, 6 * TILE,  PAL_SOFIA, 'sofia', 'Sofía'));
+        // sombra parpadeante
+        const sh = new NPC(25 * TILE, 4 * TILE, PAL_SHADOW, 'shadow', '???', SP_SHADOW);
+        sh.spDown = sh.spUp = sh.spSide = SP_SHADOW;
+        this.npcs.push(sh);
+      }
+    } else if(id === 'classroom'){
+      if(act === 1){
+        // Profesor en la pizarra
+        const prof = new NPC(14 * TILE, 3 * TILE, PAL_PROF, 'prof', 'Prof. Ramírez', SP_PROF);
+        prof.spDown = SP_PROF; prof.spUp = SP_PROF; prof.spSide = SP_PROF;
+        this.npcs.push(prof);
+        // Rossy en su asiento
+        const rossy = new NPC(10 * TILE, 7 * TILE, PAL_ROSSY, 'rossy_class', 'Rossy', SP_ROSSY_DOWN);
+        rossy.spDown = SP_ROSSY_DOWN;
+        rossy.spUp = SP_BODY_UP;
+        rossy.spSide = SP_ROSSY_SIDE;
+        this.npcs.push(rossy);
+      }
+    } else if(id === 'courtyard'){
+      if(act === 2){
+        const rossy = new NPC(14 * TILE, 6 * TILE, PAL_ROSSY, 'rossy_yard', 'Rossy', SP_ROSSY_DOWN);
+        rossy.spDown = SP_ROSSY_DOWN;
+        rossy.spUp = SP_BODY_UP;
+        rossy.spSide = SP_ROSSY_SIDE;
+        this.npcs.push(rossy);
+        // Diego al fondo, no interactuable hasta que se dispare 'cut_diego'
+        const diego = new NPC(22 * TILE, 4 * TILE, PAL_DIEGO, 'diego', 'Diego');
+        this.npcs.push(diego);
+      }
+    } else if(id === 'hallway_broken'){
+      if(act === 3){
+        // Profesor monstruoso bloqueando casi
+        const prof = new NPC(15 * TILE, 6 * TILE, PAL_PROF_M, 'prof', 'Prof. Ramírez', SP_PROF_MON);
+        prof.spDown = SP_PROF_MON; prof.spUp = SP_PROF_MON; prof.spSide = SP_PROF_MON;
+        this.npcs.push(prof);
+        // Pablo sentado, deformado
+        const pablo = new NPC(7 * TILE, 7 * TILE, PAL_PABLO, 'pablo_broken', 'Pablo');
+        this.npcs.push(pablo);
+        // Sombra
+        const sh = new NPC(22 * TILE, 4 * TILE, PAL_SHADOW, 'shadow', '???', SP_SHADOW);
+        sh.spDown = sh.spUp = sh.spSide = SP_SHADOW;
+        this.npcs.push(sh);
+      }
+    } else if(id === 'final_room'){
+      if(act === 4){
+        const rossy = new NPC(14 * TILE, 5 * TILE, PAL_ROSSY, 'rossy_final', 'Rossy', SP_ROSSY_DOWN);
+        rossy.spDown = SP_ROSSY_DOWN;
+        rossy.spUp = SP_BODY_UP;
+        rossy.spSide = SP_ROSSY_SIDE;
+        this.npcs.push(rossy);
+      }
+    }
+  },
+
+  /* ---- Cambio de escena con fundido ---- */
+  goToScene(id, sx, sy){
+    this.pendingScene = id;
+    this.pendingSpawn = { x: sx * TILE, y: sy * TILE };
+    this.screen = SCREEN.TRANS;
+    this.transTimer = 0;
+  },
+
+  _applyScene(){
+    this.sceneId = this.pendingScene;
+    this.scene = SCENES[this.sceneId];
+    this.player.x = this.pendingSpawn.x;
+    this.player.y = this.pendingSpawn.y;
+    this.player.dir = 'up';
+    this.spawnNPCs();
+    Audio.open();
+  },
+
+  /* ---- Avanzar a un nuevo acto ---- */
+  advanceAct(newAct){
+    this.act = newAct;
+    if(newAct === 1) this.horror = HORROR.NORMAL;
+    else if(newAct === 2) this.horror = HORROR.UNEASY;
+    else if(newAct === 3) this.horror = HORROR.BROKEN;
+    else if(newAct === 4) this.horror = HORROR.FINAL;
+    // Limpiar caché de tiles para forzar redibujado con paleta nueva
+    TILE_CACHE.clear();
+    this.glitchTimer = 0.8;
+    Audio.glitch();
+  },
+
+  /* ---- Eventos disparados por el sistema de diálogo ---- */
+  fireEvent(ev){
+    switch(ev){
+      case 'flag_rossy_meet':
+        // Tras hablar con Rossy en el aula (acto 1), avanzar a acto 2
+        this.flags.metRossyClass = true;
+        // Programar avance al volver a moverse
+        setTimeout(() => {
+          this.advanceAct(2);
+          // Volver al pasillo, no a la clase
+          this.goToScene('hallway', 6, 11);
+        }, 100);
+        break;
+      case 'cut_diego':
+        // Mostrar a Diego acercándose / sangre apareciendo
+        this.shake(2, 0.4);
+        this.glitchTimer = 0.6;
+        Audio.scare();
+        break;
+      case 'flag_yard_done':
+        // Al final del diálogo del patio, saltar a acto 3
+        this.flags.metRossyYard = true;
+        setTimeout(() => {
+          this.advanceAct(3);
+          this.goToScene('hallway_broken', 2, 7);
+        }, 100);
+        break;
+      case 'glitch':
+        this.glitchTimer = 0.6;
+        Audio.glitch();
+        break;
+      case 'scare':
+        this.shake(3, 0.5);
+        this.glitchTimer = 0.7;
+        Audio.scare();
+        break;
+      case 'reveal':
+        this.shake(1.5, 0.7);
+        Audio.scare();
+        break;
+      case 'ending':
+        // Final
+        this.endingType = 'reunion';
+        this.screen = SCREEN.END;
+        this.endTimer = 0;
+        break;
+    }
+  },
+
+  shake(amp, dur){ this.shakeAmp = amp; this.shakeT = dur; },
+
+  /* ---- Colisión con mapa (rect del player relativo) ---- */
+  collidesAt(px, py, off){
+    const r = { x:px + off.ox, y:py + off.oy, w:off.w, h:off.h };
+    const m = this.scene.map;
+    const x0 = Math.floor(r.x / TILE);
+    const y0 = Math.floor(r.y / TILE);
+    const x1 = Math.floor((r.x + r.w - 1) / TILE);
+    const y1 = Math.floor((r.y + r.h - 1) / TILE);
+    for(let ty = y0; ty <= y1; ty++){
+      if(ty < 0 || ty >= ROWS) return true;
+      const row = m[ty];
+      for(let tx = x0; tx <= x1; tx++){
+        if(tx < 0 || tx >= COLS) return true;
+        if(isSolid(row.charAt(tx))) return true;
+      }
+    }
+    // Colisión con NPCs (bloqueo suave, los traspasas si te pegas: para evitar lock,
+    // permitimos overlap pero no caminar a través centrado)
+    for(const n of this.npcs){
+      const nr = { x:n.x + 2, y:n.y + 8, w:12, h:8 };
+      if(r.x < nr.x + nr.w && r.x + r.w > nr.x && r.y < nr.y + nr.h && r.y + r.h > nr.y) return true;
+    }
+    return false;
+  },
+
+  /* ---- Comprobar interacción ---- */
+  tryInteract(){
+    // 1. Salidas: ¿pisamos un tile 'O' (door)?
+    const px = this.player.cx, py = this.player.cy;
+    const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
+    for(const ex of (this.scene.exits || [])){
+      if(Math.abs(ex.tx - tx) <= 1 && Math.abs(ex.ty - ty) <= 1){
+        this.goToScene(ex.to, ex.sx, ex.sy);
+        return true;
+      }
+    }
+    // 2. NPC delante del jugador
+    const dirOff = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[this.player.dir];
+    const tx2 = Math.floor((px + dirOff[0] * 14) / TILE);
+    const ty2 = Math.floor((py + dirOff[1] * 14) / TILE);
+    for(const n of this.npcs){
+      const nx = Math.floor(n.cx / TILE), ny = Math.floor(n.cy / TILE);
+      const dist = Math.abs(nx - tx) + Math.abs(ny - ty);
+      if(dist <= 1 || (nx === tx2 && ny === ty2)){
+        // Hacerlo mirar al jugador
+        if(this.player.x < n.x) n.dir = 'left';
+        else if(this.player.x > n.x) n.dir = 'right';
+        else if(this.player.y < n.y) n.dir = 'up';
+        else n.dir = 'down';
+        this.startDialog(n.dialogId);
+        return true;
+      }
+    }
+    return false;
+  },
+
+  startDialog(npcId){
+    Audio.ok();
+    this.screen = SCREEN.DIALOG;
+    DialogBox.start(npcId, this.act, () => {
+      // Solo restauramos a PLAY si el evento del diálogo no
+      // ha cambiado ya la pantalla (p.ej. !ending va a SCREEN.END,
+      // o flag_* dispara una transición). Sin esta guarda, el
+      // final del juego se sobreescribe inmediatamente.
+      if(this.screen === SCREEN.DIALOG) this.screen = SCREEN.PLAY;
+    });
+  },
+
+  /* ---- Lógica de progresión (avanzar acto cuando corresponde) ---- */
+  checkProgression(){
+    // Si en el aula (acto 1) hablaste con Rossy y volviste al pasillo,
+    // ya está marcado el flag. Eso lo gestiona fireEvent('flag_rossy_meet').
+    // Nada que hacer aquí.
+  },
+
+  /* ---- Bucle de update general ---- */
+  update(dt){
+    this.time += dt * 1000;
+    Input.poll();
+    if(this.glitchTimer > 0) this.glitchTimer -= dt;
+    if(this.shakeT > 0) this.shakeT -= dt;
+    if(this.scareTimer > 0) this.scareTimer -= dt;
+
+    if(this.screen === SCREEN.TITLE){
+      if(Input.actionPressed){ this.startIntro(); }
       return;
     }
-
-    if(this.state === STATE.WIN){
-      if(Input.jumpPressed && this.timeInState > 0.6){
-        this.levelIndex = 0;
-        this.start();
+    if(this.screen === SCREEN.INTRO){
+      this.introTimer += dt;
+      if(Input.actionPressed && this.introTimer > 0.3){
+        this.introIdx++;
+        this.introTimer = 0;
+        if(this.introIdx >= this.introLines.length){
+          this.beginGame();
+        }
+      }
+      return;
+    }
+    if(this.screen === SCREEN.TRANS){
+      this.transTimer += dt;
+      if(this.transTimer >= this.transDur / 2 && this.pendingScene){
+        this._applyScene();
+        this.pendingScene = null; this.pendingSpawn = null;
+      }
+      if(this.transTimer >= this.transDur){
+        this.screen = SCREEN.PLAY;
+      }
+      return;
+    }
+    if(this.screen === SCREEN.DIALOG){
+      DialogBox.update(dt);
+      return;
+    }
+    if(this.screen === SCREEN.END){
+      this.endTimer += dt;
+      if(Input.actionPressed && this.endTimer > 2.5){
+        // Reiniciar
+        location.reload();
       }
       return;
     }
 
-    // ---- PLAYING --------------------------------------------
-    // Update entidades (con culling para estáticos)
-    for(const e of this.entities){
-      if(!e.alive) continue;
-      if(!e.dynamic && !inView(e, this.cam)) continue;
-      if(e.update) e.update(dt, this);
-    }
-    // Player siempre se actualiza
+    // SCREEN.PLAY
     this.player.update(dt, this);
+    for(const n of this.npcs) n.update(dt, this);
 
-    // Cámara: sigue al jugador
-    this.cam.follow(this.player, this.level.width, this.level.height);
-  }
+    if(Input.actionPressed){ this.tryInteract(); }
+  },
 
-  /* ============================================================
-     8. FUNCIONES DE RENDERIZADO
-  ============================================================ */
+  /* ---- Render ---- */
   render(){
     const ctx = this.ctx;
-    ctx.fillStyle = COLORS.BG;
-    ctx.fillRect(0, 0, CFG.WIDTH, CFG.HEIGHT);
+    if(this.screen === SCREEN.TITLE){ this.renderTitle(ctx); return; }
+    if(this.screen === SCREEN.INTRO){ this.renderIntro(ctx); return; }
+    if(this.screen === SCREEN.END){   this.renderEnd(ctx);   return; }
 
-    if(this.state === STATE.MENU){ this.renderMenu(ctx); return; }
+    // Render world
+    const P = WORLD_PAL[this.horror];
+    ctx.fillStyle = P.bg;
+    ctx.fillRect(0, 0, W, H);
 
-    // World transform
     ctx.save();
-    const [sx, sy] = this.cam.shakeOffset(0); // se actualizó en update
-    ctx.translate(-Math.round(this.cam.x + sx), -Math.round(this.cam.y + sy));
-
-    // Cuadrícula sutil de fondo (decorativa, ayuda a leer movimiento)
-    this.renderBgGrid(ctx);
-
-
-    // Entidades (culling: sólo las que se ven)
-    for(const e of this.entities){
-      if(!e.alive) continue;
-      if(!inView(e, this.cam)) continue;
-      e.render(ctx);
+    // Shake
+    if(this.shakeT > 0){
+      const a = this.shakeAmp;
+      ctx.translate(Math.round((Math.random() * 2 - 1) * a), Math.round((Math.random() * 2 - 1) * a));
     }
-    // Player encima
-    this.player.render(ctx);
+
+    // Tiles (suelo + decoración)
+    const m = this.scene.map;
+    for(let ty = 0; ty < ROWS; ty++){
+      const row = m[ty];
+      for(let tx = 0; tx < COLS; tx++){
+        const ch = row.charAt(tx);
+        // primer pase: suelo / hierba siempre
+        const baseType = (this.sceneId === 'courtyard' || this.sceneId === 'final_room' && false) ? 'grass' : 'floor';
+        // En patio: hierba como base. En el resto: suelo.
+        const grassScene = this.sceneId === 'courtyard';
+        const baseTile = grassScene && ch !== '#' && ch !== 'W' ? 'grass' : 'floor';
+        if(ch !== '#' && ch !== 'W'){
+          ctx.drawImage(getTile(baseTile, this.horror), tx * TILE, ty * TILE);
+        }
+        const t = tileTypeFor(ch);
+        if(t === 'floor' || t === 'grass') continue; // ya pintado
+        ctx.drawImage(getTile(t, this.horror), tx * TILE, ty * TILE);
+      }
+    }
+
+    // En horror, manchas extra y "caras" en pared
+    if(this.horror >= HORROR.BROKEN){
+      this.renderHorrorOverlay(ctx);
+    }
+
+    // Entidades (orden por Y para profundidad)
+    const ents = [this.player, ...this.npcs];
+    ents.sort((a, b) => (a.y + a.h) - (b.y + b.h));
+    for(const e of ents) e.render(ctx, this.time);
 
     ctx.restore();
 
     // HUD
-    this.renderHUD(ctx);
+    this.renderHUD(ctx, P);
 
-    // Overlays según estado
-    if(this.state === STATE.GAME_OVER) this.renderGameOver(ctx);
-    if(this.state === STATE.WIN) this.renderWinScreen(ctx);
-    if(this.state === 'transition') this.renderTransition(ctx);
-  }
+    // Dialog
+    if(this.screen === SCREEN.DIALOG) DialogBox.render(ctx, P);
 
-  renderBgGrid(ctx){
-    const step = 64;
-    const x0 = Math.floor(this.cam.x / step) * step;
-    const y0 = Math.floor(this.cam.y / step) * step;
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for(let x = x0; x < this.cam.x + this.cam.w + step; x += step){ ctx.moveTo(x, this.cam.y - step); ctx.lineTo(x, this.cam.y + this.cam.h + step); }
-    for(let y = y0; y < this.cam.y + this.cam.h + step; y += step){ ctx.moveTo(this.cam.x - step, y); ctx.lineTo(this.cam.x + this.cam.w + step, y); }
-    ctx.stroke();
-  }
+    // Glitch global
+    if(this.glitchTimer > 0) this.renderGlitch(ctx);
 
-  renderHUD(ctx){
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = 'bold 16px Courier New, monospace';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText('NIVEL ' + (this.levelIndex+1) + ' / ' + LEVELS.length, 14, 12);
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '12px Courier New, monospace';
-    ctx.fillText(this.level.name.toUpperCase(), 14, 32);
-    // Contador de muertes (grande, viral)
+    // Transición (fundido a negro)
+    if(this.screen === SCREEN.TRANS){
+      const t = this.transTimer / this.transDur;
+      const a = t < 0.5 ? t * 2 : (1 - t) * 2;
+      ctx.fillStyle = 'rgba(0,0,0,' + a + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Vignette en horror
+    if(this.horror >= HORROR.UNEASY) this.renderVignette(ctx);
+  },
+
+  renderHorrorOverlay(ctx){
+    // "Caras" en las paredes en posiciones fijas
+    const P = WORLD_PAL[this.horror];
+    const positions = [
+      [3, 1], [12, 1], [22, 1],
+      [5, 12], [18, 12], [27, 12],
+    ];
+    const sp = getSprite(SP_FACE_WALL, ['#000','#1a0000','#2a0000','#000','#000','#000']);
+    // parpadea
+    if(Math.floor(this.time / 600) % 3 === 0){
+      for(const [tx, ty] of positions){
+        if(this.scene.map[ty] && (this.scene.map[ty].charAt(tx) === '#' || this.scene.map[ty].charAt(tx) === 'W')){
+          ctx.drawImage(sp, tx * TILE, ty * TILE);
+        }
+      }
+    }
+  },
+
+  renderVignette(ctx){
+    const grad = ctx.createRadialGradient(W/2, H/2, W * 0.25, W/2, H/2, W * 0.7);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    const a = this.horror === HORROR.UNEASY ? 0.35 : (this.horror === HORROR.BROKEN ? 0.55 : 0.75);
+    grad.addColorStop(1, 'rgba(0,0,0,' + a + ')');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  },
+
+  renderGlitch(ctx){
+    // Líneas horizontales aleatorias rojas y desplazamiento
+    const lines = 6;
+    for(let i = 0; i < lines; i++){
+      const y = Math.floor(Math.random() * HUD_Y);
+      const h = 1 + Math.floor(Math.random() * 3);
+      const dx = Math.floor(Math.random() * 12) - 6;
+      // Capturar slice y redibujar desplazado
+      try {
+        const img = ctx.getImageData(0, y, W, h);
+        ctx.putImageData(img, dx, y);
+      } catch(e){}
+      if(Math.random() < 0.4){
+        ctx.fillStyle = 'rgba(160,0,0,' + (Math.random() * 0.5) + ')';
+        ctx.fillRect(0, y, W, h);
+      }
+    }
+  },
+
+  renderHUD(ctx, P){
+    // Barra superior con título de la escena
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, 12);
+    ctx.fillStyle = P.text;
+    ctx.font = '8px "Courier New", monospace';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    let title = this.scene.title;
+    if(this.horror >= HORROR.BROKEN) title = corrupt(title);
+    ctx.fillText(title, 4, 2);
     ctx.textAlign = 'right';
-    ctx.fillStyle = COLORS.BAD;
-    ctx.font = 'bold 22px Courier New, monospace';
-    ctx.fillText('☠ ' + this.deaths, CFG.WIDTH - 14, 12);
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '12px Courier New, monospace';
-    ctx.fillText('NIVEL: ' + this.levelDeaths, CFG.WIDTH - 14, 38);
-    ctx.fillText('T: ' + this.totalTime.toFixed(1) + 's', CFG.WIDTH - 14, 54);
-  }
+    const actLabel = ['','I — La carta','II — El recreo','III — Lo que se rompió','IV — La confesión'][this.act] || '';
+    ctx.fillText(actLabel, W - 4, 2);
+  },
 
+  /* ---- Title ---- */
+  renderTitle(ctx){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
 
-  renderMenu(ctx){
-    ctx.fillStyle = COLORS.BG; ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
+    // Fondo: silueta de colegio
+    ctx.fillStyle = '#0a0a18';
+    ctx.fillRect(0, H - 100, W, 100);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(60, H - 130, 360, 30);
+    // ventanas amarillas
+    ctx.fillStyle = '#a08020';
+    for(let i = 0; i < 8; i++){
+      ctx.fillRect(80 + i * 40, H - 122, 8, 6);
+    }
+    // luna roja
+    ctx.fillStyle = '#a01818';
+    ctx.beginPath();
+    ctx.arc(W - 80, 50, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(W - 70, 45, 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Goteo de sangre
+    ctx.fillStyle = '#a01818';
+    for(let i = 0; i < 12; i++){
+      const x = 20 + i * 38;
+      const len = 8 + ((i * 7919) % 16);
+      ctx.fillRect(x, 0, 2, len);
+      ctx.fillRect(x - 1, len - 2, 4, 2);
+    }
+
     // Título
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = COLORS.PLAYER;
-    ctx.font = 'bold 56px Courier New, monospace';
-    ctx.fillText('MÁTAME OTRA VEZ', CFG.WIDTH/2, 130);
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '16px Courier New, monospace';
-    ctx.fillText('un troll platformer · vanilla js · sin asco', CFG.WIDTH/2, 175);
+    ctx.font = 'bold 28px "Courier New", monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LA CONFESIÓN', W/2, 80);
+    ctx.fillStyle = '#a01818';
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillText('— mateo y rossy —', W/2, 100);
 
-    // Caja central
-    ctx.fillStyle = 'rgba(255,255,255,0.04)';
-    ctx.fillRect(CFG.WIDTH/2 - 280, 220, 560, 220);
-
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = 'bold 18px Courier New, monospace';
-    ctx.fillText('PC: ← → / A D · ESPACIO o W para saltar', CFG.WIDTH/2, 255);
-    ctx.fillText('Móvil: usa los botones de pantalla', CFG.WIDTH/2, 285);
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '14px Courier New, monospace';
-    ctx.fillText('R reinicia el nivel · M silencia · 3 niveles, infinitas muertes.', CFG.WIDTH/2, 320);
-
-    ctx.fillStyle = COLORS.BAD;
-    ctx.font = 'italic 13px Courier New, monospace';
-    ctx.fillText('regla nº 1: no confíes en nada que parezca seguro.', CFG.WIDTH/2, 360);
-    ctx.fillText('regla nº 2: cuando mueras, mira dónde lo hiciste. luego repite.', CFG.WIDTH/2, 380);
-
-    // Prompt parpadeante
-    if(Math.floor(performance.now()/500) % 2 === 0){
-      ctx.fillStyle = COLORS.ACCENT;
-      ctx.font = 'bold 22px Courier New, monospace';
-      ctx.fillText('▶ PULSA ESPACIO O TOCA LA PANTALLA ◀', CFG.WIDTH/2, 480);
+    // Press to start
+    if(Math.floor(performance.now() / 600) % 2 === 0){
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px "Courier New", monospace';
+      ctx.fillText('PULSA ESPACIO O TOCA PARA EMPEZAR', W/2, H - 20);
     }
-  }
+  },
 
-  renderGameOver(ctx){
-    ctx.fillStyle = COLORS.UI_BG; ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = COLORS.BAD;
-    ctx.font = 'bold 72px Courier New, monospace';
-    ctx.fillText('HAS MUERTO', CFG.WIDTH/2, 180);
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = '20px Courier New, monospace';
-    ctx.fillText('"' + TAUNTS[this.tauntIdx] + '"', CFG.WIDTH/2, 240);
+  startIntro(){
+    Audio.init();
+    Audio.ok();
+    this.screen = SCREEN.INTRO;
+    this.introIdx = 0;
+    this.introTimer = 0;
+    this.introLines = [
+      'Colegio San Esteban. 8:00 AM.',
+      'Llevo seis meses queriendo decírselo.',
+      'Hoy. Tiene que ser hoy.',
+      'Mi nombre es Mateo.',
+      'Y ella se llama Rossy.',
+      '',
+      'Algo no encaja en este colegio.',
+      'Pero no recuerdo qué.',
+      '',
+      '— pulsa para empezar —',
+    ];
+  },
 
-
-    // Contador de muertes ENORME (viral)
-    ctx.fillStyle = COLORS.PLAYER;
-    ctx.font = 'bold 120px Courier New, monospace';
-    ctx.fillText(this.deaths.toString(), CFG.WIDTH/2, 340);
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '14px Courier New, monospace';
-    ctx.fillText('MUERTES TOTALES', CFG.WIDTH/2, 410);
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = '14px Courier New, monospace';
-    ctx.fillText('en este nivel: ' + this.levelDeaths, CFG.WIDTH/2, 432);
-
-    if(this.timeInState > 0.45 && Math.floor(performance.now()/450) % 2 === 0){
-      ctx.fillStyle = COLORS.ACCENT;
-      ctx.font = 'bold 20px Courier New, monospace';
-      ctx.fillText('▶ ESPACIO / TAP para reintentar  ·  R para reiniciar', CFG.WIDTH/2, 490);
+  renderIntro(ctx){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = '11px "Courier New", monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for(let i = 0; i <= this.introIdx && i < this.introLines.length; i++){
+      const a = i === this.introIdx ? Math.min(1, this.introTimer * 1.6) : 1;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fillText(this.introLines[i], W/2, 60 + i * 18);
     }
-  }
-
-  renderTransition(ctx){
-    ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.85, this.timeInState*2) + ')';
-    ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = COLORS.GOAL_LIGHT;
-    ctx.font = 'bold 56px Courier New, monospace';
-    ctx.fillText('NIVEL ' + (this.levelIndex+1) + ' COMPLETADO', CFG.WIDTH/2, 220);
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = '20px Courier New, monospace';
-    ctx.fillText('"' + LEVEL_WIN_MSGS[this.winMsgIdx] + '"', CFG.WIDTH/2, 270);
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '14px Courier New, monospace';
-    ctx.fillText('muertes en este nivel: ' + this.levelDeaths + ' · totales: ' + this.deaths, CFG.WIDTH/2, 310);
-  }
-
-  renderWinScreen(ctx){
-    ctx.fillStyle = COLORS.UI_BG; ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = COLORS.PLAYER;
-    ctx.font = 'bold 72px Courier New, monospace';
-    ctx.fillText('LO LOGRASTE', CFG.WIDTH/2, 170);
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = '18px Courier New, monospace';
-    ctx.fillText('Eres masoquista, pero respetable.', CFG.WIDTH/2, 220);
-
-    // Stats viralizables
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '14px Courier New, monospace';
-    ctx.fillText('TIEMPO TOTAL', CFG.WIDTH/2, 280);
-    ctx.fillStyle = COLORS.TEXT;
-    ctx.font = 'bold 36px Courier New, monospace';
-    ctx.fillText(this.totalTime.toFixed(2) + 's', CFG.WIDTH/2, 312);
-
-
-    ctx.fillStyle = COLORS.SUB;
-    ctx.font = '14px Courier New, monospace';
-    ctx.fillText('MUERTES', CFG.WIDTH/2, 360);
-    ctx.fillStyle = COLORS.BAD;
-    ctx.font = 'bold 64px Courier New, monospace';
-    ctx.fillText(this.deaths.toString(), CFG.WIDTH/2, 408);
-
-    if(Math.floor(performance.now()/500) % 2 === 0){
-      ctx.fillStyle = COLORS.ACCENT;
-      ctx.font = 'bold 18px Courier New, monospace';
-      ctx.fillText('▶ ESPACIO para volver a jugar', CFG.WIDTH/2, 480);
+    if(this.introIdx >= this.introLines.length - 1 && this.introTimer > 0.6){
+      if(Math.floor(performance.now() / 500) % 2 === 0){
+        ctx.fillStyle = '#a8a8a8';
+        ctx.fillText('▼', W/2, H - 28);
+      }
     }
+  },
+
+  beginGame(){
+    this.screen = SCREEN.PLAY;
+    this.act = 1;
+    this.horror = HORROR.NORMAL;
+    this.sceneId = 'hallway';
+    this.scene = SCENES.hallway;
+    this.player.x = SCENES.hallway.spawn.x * TILE;
+    this.player.y = SCENES.hallway.spawn.y * TILE;
+    this.player.dir = 'right';
+    this.spawnNPCs();
+    Audio.open();
+  },
+
+  renderEnd(ctx){
+    this.endTimer += 0;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Goteo de sangre desde arriba
+    ctx.fillStyle = '#a01818';
+    for(let i = 0; i < 16; i++){
+      const x = 12 + i * 28;
+      const len = 20 + ((i * 7919) % 60);
+      ctx.fillRect(x, 0, 2, len);
+      ctx.fillRect(x - 1, len - 2, 4, 2);
+    }
+
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lines = [
+      'Tres años atrás, en este mismo recreo,',
+      'Diego empujó a Rossy.',
+      'Mateo agarró una piedra.',
+      'Y nunca, nunca llegó a confesarse.',
+      '',
+      'Pero el colegio recuerda.',
+      'El colegio guarda.',
+      'Y ella lo esperó.',
+      '',
+      '— FIN —',
+    ];
+    for(let i = 0; i < lines.length; i++){
+      const t = this.endTimer - i * 0.5;
+      const a = Math.min(1, Math.max(0, t * 1.2));
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      if(i === lines.length - 1) ctx.fillStyle = `rgba(255,80,80,${a})`;
+      ctx.fillText(lines[i], W/2, 50 + i * 18);
+    }
+    if(this.endTimer > 2.5 && Math.floor(performance.now() / 600) % 2 === 0){
+      ctx.fillStyle = '#888';
+      ctx.font = '9px "Courier New", monospace';
+      ctx.fillText('pulsa para volver al inicio', W/2, H - 16);
+    }
+  },
+};
+
+function corrupt(s){
+  let r = '';
+  for(let i = 0; i < s.length; i++){
+    if(Math.random() < 0.07) r += String.fromCharCode(33 + Math.floor(Math.random() * 90));
+    else r += s.charAt(i);
   }
+  return r;
 }
 
-/* ============================================================
-   6. SISTEMA DE NIVELES — el "Troll Engine"
-   Cada nivel es JSON puro: plataformas, pinchos, trampas, meta.
-   Coordenadas en píxeles del MUNDO (no del viewport).
-============================================================ */
-const LEVELS = [
 
-/* ─────────────────────────────────────────────────────────────
-   NIVEL 1 — LA FALSA SEGURIDAD
-   Layout horizontal de manual. Saltos sobre fosos vacíos.
-   El troll: el ÚLTIMO salto tiene un Pincho Troll oculto que
-   sale del suelo justo donde el jugador suele aterrizar.
-   La meta es real (no se mueve). Se trata de enseñar al jugador
-   que "incluso lo obvio te puede matar".
-───────────────────────────────────────────────────────────── */
-{
-  name: '1. La falsa seguridad',
-  width: 2400, height: 540,
-  spawn: { x: 60, y: 440 },
-  platforms: [
-    // suelo de inicio
-    { x:    0, y: 496, w: 460, h: 44 },
-    // 3 islas con fosos entre ellas (los 3 saltos "obvios")
-    { x:  600, y: 496, w: 320, h: 44 },
-    { x: 1080, y: 496, w: 320, h: 44 },
-    { x: 1560, y: 496, w: 360, h: 44 }, // la última: la trampa está aquí
-    // suelo final con la meta
-    { x: 2060, y: 496, w: 340, h: 44 },
-  ],
-  spikes: [
-    // pinchos visibles dentro de los fosos (refuerzan la regla del juego)
-    { x:  470, y: 520, w: 120, h: 20 },
-    { x:  930, y: 520, w: 140, h: 20 },
-    { x: 1410, y: 520, w: 140, h: 20 },
-    { x: 1930, y: 520, w: 120, h: 20 },
-  ],
-
-
-  traps: [
-    // EL pincho troll: oculto en el borde de la última isla,
-    // donde el jugador siempre aterriza tras el salto largo.
-    { type: TRAP.TRIGGERED_SPIKE, x: 1576, y: 480, w: 28, h: 16, popHeight: 22, triggerDist: 110 },
-  ],
-  goal: { x: 2330, y: 440, w: 24, h: 56 },
-},
-
-/* ─────────────────────────────────────────────────────────────
-   NIVEL 2 — LA DECEPCIÓN
-   Layout vertical. El jugador sube por una escalera de
-   plataformas. La 3ª es FALSA: cae al pisarla.
-   El truco: hay una plataforma OCULTA debajo que captura al
-   jugador y lleva a la meta REAL por la izquierda.
-   Mientras tanto, la "ruta obvia" hacia arriba a la derecha
-   está plagada de bloques de techo que caen y aplastan.
-───────────────────────────────────────────────────────────── */
-{
-  name: '2. La decepción',
-  width: 720, height: 1240,
-  spawn: { x: 340, y: 1110 },
-  platforms: [
-    // pequeña isla de SPAWN: única zona "segura" en el suelo del pozo
-    { x: 260, y: 1140, w: 200, h: 40 },
-    // muros laterales
-    { x:   0, y:    0, w:  20, h: 1180 },
-    { x: 700, y:    0, w:  20, h: 1180 },
-
-    // ── Escalera "obvia" (zigzag a la derecha) ──
-    { x: 220, y: 1050, w: 110, h: 16 },                  // P1 (segura)
-    { x: 410, y:  960, w: 110, h: 16 },                  // P2 (segura)
-    // P3 va en TRAPS (es la FALSA)
-    { x: 410, y:  780, w: 110, h: 16 },                  // P4 — bajo un bloque
-    { x: 220, y:  690, w: 110, h: 16 },                  // P5 — bajo otro bloque
-    { x: 410, y:  580, w: 110, h: 16 },                  // P6 — final del señuelo
-
-    // ── Plataforma OCULTA (la salida real, por la izquierda) ──
-    { x:  40, y:  920, w: 220, h: 16 },                  // ancha: captura tras la caída de P3
-    { x:  40, y:  790, w:  90, h: 16 },                  // sube por la izquierda
-    { x: 160, y:  670, w:  90, h: 16 },
-    { x:  40, y:  560, w:  90, h: 16 },
-    { x: 160, y:  450, w:  90, h: 16 },
-    { x:  40, y:  340, w:  90, h: 16 },
-    { x:  40, y:  240, w: 140, h: 16 },                  // pedestal de la meta real
-  ],
-  spikes: [
-    // Pinchos del fondo del pozo: TODO lo que no sea la isla = muerte
-    { x:  20, y: 1196, w: 240, h: 24 },                  // pozo izquierdo
-    { x: 460, y: 1196, w: 240, h: 24 },                  // pozo derecho
-    // Pincho final sobre P6: si el jugador esquivó los bloques que caen,
-    // la "ruta obvia" remata con un pincho en su última plataforma.
-    { x: 420, y:  564, w:  90, h: 16 },
-  ],
-
-  traps: [
-    // P3 — la PLATAFORMA FALSA, idéntica a las demás
-    { type: TRAP.FAKE_PLATFORM, x: 220, y: 870, w: 110, h: 16, delay: 0.20 },
-    // Bloques de techo cayendo sobre cada plataforma del señuelo:
-    // se sueltan cuando el jugador está justo debajo, aplastándolo.
-    { type: TRAP.FALLING_BLOCK, x: 410, y: 670, w: 110, h: 30, fallReach: 220 },  // sobre P4
-    { type: TRAP.FALLING_BLOCK, x: 220, y: 580, w: 110, h: 30, fallReach: 220 },  // sobre P5
-    { type: TRAP.FALLING_BLOCK, x: 410, y: 490, w: 110, h: 30, fallReach: 220 },  // sobre P6
-  ],
-  goal: { x:  90, y: 184, w: 24, h: 56 },                // arriba a la izquierda
-},
-
-/* ─────────────────────────────────────────────────────────────
-   NIVEL 3 — EL CAOS MECÁNICO
-   Mezcla horizontal con secciones verticales. Introduce dos
-   trampas nuevas: la zona de GRAVEDAD INVERTIDA (justo antes
-   de un foso de pinchos amplio que es imposible saltar) y la
-   META FALSA al final, que se mueve 50 px revelando un foso
-   de pinchos en el sitio donde el jugador iba a aterrizar.
-───────────────────────────────────────────────────────────── */
-{
-  name: '3. El caos mecánico',
-  width: 2820, height: 600,
-  spawn: { x: 60, y: 460 },
-  platforms: [
-    // ── Sección 1: Calentamiento ──
-    { x:    0, y: 504, w: 320, h: 36 },                  // Floor 1
-    { x:  420, y: 504, w: 220, h: 36 },                  // Floor 2
-
-    // ── Sección 3: Suelos tras el puente falso ──
-    { x: 1060, y: 504, w: 280, h: 36 },                  // Floor 3
-    { x: 1420, y: 504, w: 320, h: 36 },                  // Floor 4
-
-    // ── Sección 4: Aterrizaje tras gravedad invertida ──
-    // Suelos partidos por el foso enorme: no se puede saltar.
-    { x: 2100, y: 504, w: 250, h: 36 },                  // Floor 5
-    { x: 2400, y: 504, w: 380, h: 36 },                  // Floor 6 (final, con la meta falsa)
-
-    // Techo bajo encima del foso enorme (donde la gravedad
-    // invertida pega al jugador). Esencial para que la trampa
-    // funcione: el jugador "vuela" y se pega al techo.
-    { x: 1680, y:  90, w: 620, h: 30 },
-  ],
-  spikes: [
-    // Pinchos visibles entre Floor 1 y Floor 2 (salto fácil)
-    { x:  320, y: 524, w: 100, h: 16 },
-    // Pinchos del foso bajo el puente falso (sección 2)
-    { x:  640, y: 524, w: 420, h: 16 },
-    // Pinchos pequeños entre Floor 3 y Floor 4
-    { x: 1340, y: 524, w:  80, h: 16 },
-    // Foso ENORME que la gravedad invertida obliga a sobrevolar
-    { x: 1740, y: 524, w: 360, h: 16 },
-  ],
-
-  traps: [
-    // ── Sección 2: Puente de plataformas falsas sobre foso ──
-    // 4 piezas. Cada una cae 0.18 s tras pisarla: el jugador
-    // tiene que cruzar SIN PARARSE.
-    { type: TRAP.FAKE_PLATFORM, x:  670, y: 504, w: 80, h: 16, delay: 0.18 },
-    { type: TRAP.FAKE_PLATFORM, x:  790, y: 504, w: 80, h: 16, delay: 0.18 },
-    { type: TRAP.FAKE_PLATFORM, x:  910, y: 504, w: 80, h: 16, delay: 0.18 },
-    { type: TRAP.FAKE_PLATFORM, x: 1030, y: 504, w: 30, h: 16, delay: 0.20 }, // pieza pequeña final
-
-    // Pincho troll cerca del centro de Floor 4 — refuerzo del nivel 1
-    { type: TRAP.TRIGGERED_SPIKE, x: 1620, y: 488, w: 28, h: 16, popHeight: 22, triggerDist: 100 },
-
-    // ── Sección 4: Zona INVISIBLE de gravedad invertida ──
-    // Cuando el jugador entra, su gravedad se invierte 2 s.
-    // Es la única forma de cruzar el foso enorme sin morir.
-    { type: TRAP.INVERTED_GRAV, x: 1700, y: 130, w: 60, h: 380, duration: 2.0 },
-
-    // ── Sección 5: META FALSA ──
-    // Se desliza 50 px a la derecha cuando el jugador está
-    // a 130 px. Al hacerlo, REVELA un foso de pinchos justo
-    // donde el jugador iba a aterrizar.
-    {
-      type: TRAP.FAKE_GOAL, x: 2660, y: 448, w: 24, h: 56, shift: 60, triggerDist: 140,
-      linkedSpikes: [
-        // Pinchos que aparecen sobre Floor 6 en la posición original de la meta:
-        { x: 2640, y: 478, w: 64, h: 26 },
-      ],
-    },
-  ],
-  // Sin meta real "fija": la fake_goal cuenta como meta válida.
-  goal: null,
-},
-
-];
-
-/* ============================================================
-   7. BUCLE PRINCIPAL — requestAnimationFrame con DELTA TIME
-   El delta se clampea a 1/30 s para evitar túneles si la
-   pestaña pierde foco. Las físicas se procesan en sub-steps
-   si el dt es alto, manteniendo determinismo a alta velocidad.
-============================================================ */
-let game = null;
+/* ==========================================================================
+   12. BUCLE PRINCIPAL
+   ========================================================================== */
 let lastT = 0;
-
-function frame(now){
-  if(!lastT) lastT = now;
-  let dt = (now - lastT) / 1000;
-  lastT = now;
-  if(dt > 1/30) dt = 1/30;          // clamp anti-tunneling
-
-
-  // Resolver edges de input ANTES de update
-  Input.pollEdges();
-  game.update(dt);
-  game.render();
-  requestAnimationFrame(frame);
+function loop(t){
+  if(!lastT) lastT = t;
+  let dt = (t - lastT) / 1000;
+  lastT = t;
+  if(dt > 0.05) dt = 0.05;
+  Game.update(dt);
+  Game.render();
+  requestAnimationFrame(loop);
 }
 
-/* ============================================================
-   AJUSTE DEL CANVAS — escala lógica fija (960×540), CSS lo
-   estira manteniendo aspect ratio. Esto da pixel-perfect
-   determinista en cualquier pantalla.
-============================================================ */
-function fitCanvas(){
-  const cv = document.getElementById('game');
-  const w = window.innerWidth, h = window.innerHeight;
-  const ratio = CFG.WIDTH / CFG.HEIGHT;
-  let cw, ch;
-  if(w / h > ratio){ ch = h; cw = h * ratio; }
-  else            { cw = w; ch = w / ratio; }
-  cv.style.width  = cw + 'px';
-  cv.style.height = ch + 'px';
-}
-
-/* ============================================================
-   INIT
-============================================================ */
-window.addEventListener('load', () => {
-  Input.init();
-  fitCanvas();
-  window.addEventListener('resize', fitCanvas);
-  const cv = document.getElementById('game');
-  game = new Game(cv);
-  requestAnimationFrame(frame);
-});
+Game.init();
+requestAnimationFrame(loop);
 
 </script>
 </body>

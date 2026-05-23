@@ -1,99 +1,117 @@
-# Mátame Otra Vez — Troll Platformer
+# La Confesión — Mateo y Rossy
 
-Un plataformas 2D estilo Cat Mario / Level Devil, contenido en
-**un único `index.html`** sin librerías ni assets externos. Vanilla
-JavaScript + HTML5 Canvas. Funciona en cualquier navegador moderno
-(PC y móvil) con un solo archivo: lo abres y juegas.
+Juego HTML pixel art (vanilla JS + canvas, sin librerías ni assets
+externos) sobre un chico llamado **Mateo** que decide hoy, por fin,
+confesarle sus sentimientos a **Rossy** en el colegio.
 
-> Regla nº 1: no confíes en nada que parezca seguro.<br>
-> Regla nº 2: cuando mueras, mira dónde lo hiciste. Luego repite.
+Pero el Colegio San Esteban no es lo que parece.
 
-## Cómo jugarlo
+A medida que las horas avanzan, los pasillos cambian, los compañeros
+empiezan a susurrar cosas extrañas, y la realidad se desmorona en
+sangre, distorsión y silencios demasiado largos.
 
-Doble clic en `index.html` y listo. También puedes servirlo desde
-cualquier sitio:
+> Todo en un único `index.html`. Lo abres en el navegador (PC o móvil)
+> y juegas.
 
-```bash
-python3 -m http.server 8000
-# abre http://localhost:8000
-```
+## Sinopsis
 
-## Controles
+Mateo lleva seis meses queriendo decírselo. Hoy es el día. Hoy va a
+encontrar a Rossy en el colegio y va a confesarle lo que siente.
+Pero algo no encaja en este sitio. Algo que no recuerda.
 
-| PC                                   | Móvil                  |
-| ------------------------------------ | ---------------------- |
-| `← →` o `A` `D` — moverse            | botones ◀ ▶ (abajo izq) |
-| `Espacio` / `↑` / `W` — saltar       | botón ▲ (abajo der)    |
-| `R` — reiniciar el nivel             | tap en pantalla = saltar (en menús) |
-| `M` — silenciar audio                |                        |
+Cuanto más se acerca a Rossy, más se rompe el mundo.
 
-El salto es de **altura variable** (mantén el botón para saltar
-más alto), con **coyote time** (100 ms tras dejar el borde) y
-**buffer de salto** (120 ms antes de tocar el suelo).
+## Cómo jugar
 
-## Las trampas (5 tipos + pinchos básicos)
+| PC                                                       | Móvil                              |
+| -------------------------------------------------------- | ---------------------------------- |
+| `↑ ↓ ← →` o `WASD` — moverse                              | D-pad táctil (esquina inferior izq) |
+| `Espacio`, `E` o `Enter` — interactuar / avanzar diálogo  | botón **A** (esquina inferior der)  |
+| `M` — silenciar audio                                     |                                    |
 
-| Trampa              | Cómo te jode |
-| ------------------- | -------------- |
-| **Plataforma falsa**  | Idéntica visualmente a una normal. Cae 0.18 s después de pisarla. |
-| **Pincho troll**      | Oculto bajo el suelo, sale disparado cuando estás a ~100 px. |
-| **Bloque caída libre**| Bloque de techo que se desploma cuando pasas por debajo. |
-| **Meta falsa**        | El portal se mueve 50 px a la derecha al acercarte y revela un foso de pinchos donde ibas a aterrizar. |
-| **Gravedad invertida**| Zona invisible: tu gravedad se invierte 2 s. Útil (y mortal) para sobrevolar fosos infranqueables. |
-| Pincho normal         | Lo de siempre. Tocas, mueres, instantáneo. |
+Acércate a un personaje y pulsa **acción** para hablar con él. Pisa
+una puerta y pulsa **acción** para cambiar de escenario.
 
-## Niveles
+## Los cuatro actos
 
-1. **La falsa seguridad** — Línea recta con tres saltos sobre fosos.
-   Parece un platformer normal hasta el último salto, donde un Pincho
-   Troll sale del suelo en el borde de aterrizaje exacto.
-2. **La decepción** — Vertical. Subes por una escalera de plataformas.
-   La 3ª es FALSA y cae. Tienes que reaccionar y aterrizar en una
-   plataforma oculta debajo que lleva por la izquierda a la meta real.
-   La "ruta obvia" hacia arriba está plagada de bloques de techo
-   que se desploman.
-3. **El caos mecánico** — Horizontal con vertical mezclado. Puente
-   de plataformas falsas sobre un foso, pincho troll de refuerzo,
-   y al final una zona de gravedad invertida que te obliga a
-   sobrevolar un foso enorme. Remate: meta falsa que se aparta
-   revelando pinchos justo donde habías saltado.
+1. **I — La carta**: 8:00 AM. Pasillo principal. Habla con Pablo y
+   Sofía, esquiva a Diego y entra al aula 3-B. Encuentra a Rossy.
+2. **II — El recreo**: 10:30. Algo se siente mal. Las luces parpadean,
+   sombras en las paredes. Encuentra a Rossy en el patio.
+3. **III — Lo que se rompió**: 13:00. El colegio se ha transformado.
+   Sangre en el suelo. El profesor ya no es humano. Pablo no parpadea.
+4. **IV — La confesión**: La verdad sobre por qué Rossy te esperó
+   tanto tiempo. Y por qué el colegio te ha dejado entrar otra vez.
+
+## Personajes
+
+- **Mateo** (jugador) — pelo castaño, camisa blanca, pantalón azul.
+- **Rossy** — pelo magenta, vestido rosa. La razón por la que Mateo está aquí.
+- **Pablo** — su mejor amigo. Camiseta verde.
+- **Sofía** — amiga de Rossy. Vestido amarillo.
+- **Diego** — el matón. El rival. Camiseta roja.
+- **Prof. Ramírez** — el profesor. En el acto 3 ya no es lo que parece.
+- **???** — la sombra que parpadea al fondo de los pasillos.
+
+## Características técnicas
+
+- Canvas lógico **480×270** escalado al viewport con
+  `image-rendering: pixelated`. Pixel art real, no texturas filtradas.
+- **Sprites 16×16** definidos como arrays de strings y pintados
+  píxel a píxel sobre canvas off-screen, cacheados por (sprite + paleta + flip).
+- **Tiles 16×16** procedurales (paredes, lockers, mesas, pizarra,
+  puerta, árboles, banca, ventana, charcos de sangre) con
+  redibujado completo cuando cambia la paleta del horror.
+- **Cuatro paletas de mundo** (`NORMAL → UNEASY → BROKEN → FINAL`)
+  que el motor invalida y regenera al avanzar de acto.
+- **Efectos visuales**: glitch (desplazamiento de scanlines + tinte
+  rojo), screen shake en sustos, vignette progresiva, "caras"
+  parpadeantes en las paredes desde el acto 3, manchas de sangre
+  procedurales sobre cada tile en horror alto.
+- **Audio sintetizado** (WebAudio API): pasos, blips de typewriter,
+  abrir puerta, susto grave, glitches.
+- **Sistema de diálogo** con efecto typewriter, soporte de eventos
+  embebidos en líneas (`!evento|texto`) y modo "glitch" para líneas
+  corruptas.
+- **Input** unificado teclado + táctil con detección de flanco
+  (`_actionEdge`) para que un mismo botón sirva como "interactuar"
+  y "avanzar diálogo" sin doble disparo.
+- **Colisiones** AABB tile-based contra el mapa y contra los NPCs.
 
 ## Arquitectura del código
 
-Todo está en `index.html` en el orden estricto que pide un proyecto
-limpio:
+`index.html` es un único archivo organizado en bloques numerados:
 
-1. **Constantes globales** (`CFG`, `COLORS`, `TRAP`, `STATE`)
-2. **Sistema de audio** — WebAudio API, sonidos sintetizados
-3. **Sistema de entrada** — teclado + touch con edge-detection
-4. **Clases de entidad** — `Vec2`, `GameObject`, `Platform`, `Goal`, `Trap`, `Player`
-5. **Motor de colisiones** — AABB clásico, resolución eje a eje
-6. **Cámara** — lerp y bounds del nivel
-7. **Gestor de estados** — `MENU` · `PLAYING` · `GAME_OVER` · `transition` · `WIN`
-8. **Sistema de niveles** — `LEVELS[]` en JSON puro
-9. **Bucle principal** — `requestAnimationFrame` con delta time clampeado a 1/30 s
-10. **Renderizado** — con culling de viewport ± 100 px (objetos fuera no se actualizan ni dibujan)
+1. Constantes y paletas (`W`, `H`, `TILE`, `COLS`, `ROWS`, `WORLD_PAL`, `HORROR`)
+2. Audio sintetizado (`Audio`)
+3. Input unificado (`Input`)
+4. Sprites pixel art (`SP_*`, `getSprite`)
+5. Tiles procedurales (`getTile`, `drawTile`)
+6. Mapas de escenas (`MAP_HALLWAY`, `MAP_CLASSROOM`, …)
+7. Definición de escenas (`SCENES`)
+8. Diálogos (`DIALOGS`) con eventos embebidos
+9. Entidades (`Entity`, `Player`, `NPC`)
+10. Sistema de diálogo (`DialogBox`)
+11. Estado de juego (`Game`) — máquina de estados
+    (`TITLE → INTRO → PLAY ↔ DIALOG → TRANS → … → END`)
+12. Render con efectos de horror (vignette, glitch, caras de pared)
+13. Bucle principal con `requestAnimationFrame` y delta clampeado a 50 ms
 
-### Optimización: culling
+## Añadir contenido
 
-Tanto el `update` como el `render` saltan los objetos que estén
-fuera del viewport más una franja de 100 px. Los objetos
-"dinámicos" (plataformas falsas cayendo, bloques desplomándose,
-meta falsa moviéndose) se marcan con `dynamic = true` para que
-sigan actualizándose incluso si están fuera de cámara, evitando
-estados inconsistentes.
+- **Un nuevo personaje**: añade su paleta (array de 6 colores) y su
+  bloque en `DIALOGS[id]`. Crea el NPC en `Game.spawnNPCs` para la
+  escena/acto que toque.
+- **Una nueva escena**: define el mapa como array de 14 strings de
+  30 chars usando los tiles documentados arriba. Añade una entrada
+  a `SCENES` con su `spawn` y sus `exits`.
+- **Un nuevo evento**: añade un `case` a `Game.fireEvent` y úsalo
+  desde un diálogo con `'!miEvento|texto opcional'`.
 
-## Estética
+## Aviso
 
-- Fondo `#222`, jugador `#0F0`, plataformas `#AAA`, peligros `#F00`,
-  meta `#00F`. Cuadrícula de fondo sutil para leer el movimiento.
-- Sin sprites: todo se dibuja con `fillRect` y `fill()`.
-
-## Añadir un nivel
-
-Edita `LEVELS` en `index.html`. Cada nivel es un objeto JSON con
-`name`, `width`, `height`, `spawn`, `platforms`, `spikes`, `traps`
-y `goal` (opcional si la meta es una `fake_goal`). Los IDs de
-trampa están en la constante `TRAP`. Las trampas pueden tener
-parámetros (`delay`, `triggerDist`, `popHeight`, `shift`,
-`fallReach`, `duration`, `linkedSpikes`).
+Contiene horror psicológico estilizado (pixel art): sangre dibujada
+con rectángulos rojos, distorsiones visuales, sustos suaves. Apto
+para fans de juegos como *Yume Nikki*, *Doki Doki Literature Club*
+o *Mad Father*. Si te incomodan los parpadeos rápidos en pantalla,
+considéralo antes de jugar.
