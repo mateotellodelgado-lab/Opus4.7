@@ -76,6 +76,18 @@ canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
 .star-container{display:flex;justify-content:center;gap:15px;margin:20px 0}
 .animated-star{font-size:42px;opacity:0;line-height:1}
 .animated-star.active{animation:starEntrance 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards}
+
+/* PANEL DE AJUSTES (Settings) */
+.settings-card{background:rgba(15,15,30,0.7);border:2px solid rgba(125,249,255,0.15);border-radius:14px;padding:18px 22px;width:90%;max-width:520px;display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
+.settings-row{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.settings-label{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:700}
+.settings-desc{font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:1px;line-height:1.4;margin-top:4px}
+.q-toggle{display:inline-flex;border:2px solid rgba(125,249,255,0.25);border-radius:10px;overflow:hidden;background:rgba(0,0,0,0.35)}
+.q-opt{padding:8px 18px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:rgba(255,255,255,0.6);background:transparent;border:none;transition:all 0.2s;min-width:64px;font-family:inherit}
+.q-opt.active{background:linear-gradient(135deg,rgba(125,249,255,0.18),rgba(155,89,255,0.12));color:#7df9ff;text-shadow:0 0 8px rgba(125,249,255,0.6)}
+.q-opt:active{transform:scale(0.96)}
+.q-info{font-size:10px;color:rgba(125,249,255,0.55);letter-spacing:1px;text-align:center;margin-top:4px}
+.fps-badge{position:absolute;bottom:10px;right:10px;font-size:10px;color:rgba(125,249,255,0.6);letter-spacing:1px;font-family:ui-monospace,monospace;pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.8)}
 </style>
 </head>
 <body>
@@ -88,7 +100,54 @@ canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
   <div style="font-size:clamp(10px,2vw,14px);letter-spacing:6px;color:rgba(125,249,255,0.5);margin-bottom:50px;text-transform:uppercase;font-weight:700">EDICIÓN DEFINITIVA v2.0</div>
   <button class="btn btn-cyan btn-large" onclick="G.showLevelSelect()">JUGAR</button>
   <button class="btn btn-pink" onclick="G.setState('SHOP')">BÓVEDA DE SKINS</button>
+  <button class="btn btn-purple" onclick="G.setState('SETTINGS')">AJUSTES</button>
   <div style="position:absolute;bottom:20px;color:rgba(255,255,255,0.3);font-size:11px;letter-spacing:2px;text-transform:uppercase;text-align:center;padding:0 10px">ARRASTRA PARA LANZAR • USA LA GRAVEDAD • JUNTA ESTRELLAS</div>
+</div>
+
+<!-- PANEL DE AJUSTES -->
+<div id="settingsPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">&lt; ATRÁS</button>
+  <div class="panel-title purple" style="margin-top:60px;margin-bottom:20px">AJUSTES</div>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#7df9ff">CALIDAD GRÁFICA</div>
+        <div class="settings-desc">Optimiza el juego para tu dispositivo. AUTO detecta tu hardware al iniciar.</div>
+      </div>
+      <div class="q-toggle" id="qualityToggle">
+        <button class="q-opt" data-q="low" onclick="G.setQuality('low')">BAJO</button>
+        <button class="q-opt" data-q="auto" onclick="G.setQuality('auto')">AUTO</button>
+        <button class="q-opt" data-q="high" onclick="G.setQuality('high')">ALTO</button>
+      </div>
+    </div>
+    <div class="q-info" id="qualityInfo"></div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#39ff88">SONIDO</div>
+        <div class="settings-desc">Activa o desactiva los efectos sonoros del juego.</div>
+      </div>
+      <div class="q-toggle">
+        <button class="q-opt" data-s="off" onclick="G.setSound(false)" id="sndOff">OFF</button>
+        <button class="q-opt" data-s="on" onclick="G.setSound(true)" id="sndOn">ON</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="border-color:rgba(255,57,57,0.2)">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#ff8b8b">REINICIAR PROGRESO</div>
+        <div class="settings-desc">Borra TODO tu progreso, polvo estelar y skins desbloqueadas. ¡No se puede deshacer!</div>
+      </div>
+      <button class="btn btn-red" style="min-width:auto;padding:8px 18px;font-size:11px;height:auto" onclick="G.resetProgress()">BORRAR</button>
+    </div>
+  </div>
+
+  <div style="font-size:10px;color:rgba(255,255,255,0.25);letter-spacing:2px;margin-top:10px">NEO GRAVITY v2.1 • Hecho con física real</div>
 </div>
 
 <!-- PANEL DE SELECCIÓN DE NIVEL -->
@@ -158,6 +217,7 @@ canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
   <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none">
     <div id="hudDust" style="font-size:11px;color:rgba(255,216,77,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:700"></div>
   </div>
+  <div id="fpsBadge" class="fps-badge" style="display:none">FPS 60 • ALTO</div>
 </div>
 
 
@@ -190,6 +250,67 @@ const G = {
   unlockedSkins: ['default'],
   equippedSkin: 'default',
 
+  // ============================================================
+  // SISTEMA DE CALIDAD GRÁFICA (Alto/Bajo/Auto)
+  // ============================================================
+  quality: 'auto',     // 'auto' | 'high' | 'low' (preferencia guardada)
+  qualityActive: 'high', // calidad efectiva resuelta tras 'auto'
+  soundEnabled: true,
+  qSettings: {
+    high: {
+      dprMax: 1.9,
+      bgParticles: 60,
+      maxParticles: 250,
+      maxConfetti: 150,
+      trailMax: 14,
+      bhSpiralPoints: 25,
+      bhSpiralArms: 3,
+      useGradients: true,
+      useShadowBlur: true,
+      useStripes: true,
+      starGlow: true,
+      orbHalo: true,
+      goalGlow: true,
+      bumperGlow: true,
+      parallaxLayers: 2,
+      bgRedrawEveryN: 1
+    },
+    low: {
+      dprMax: 1.0,
+      bgParticles: 14,
+      maxParticles: 90,
+      maxConfetti: 60,
+      trailMax: 6,
+      bhSpiralPoints: 12,
+      bhSpiralArms: 1,
+      useGradients: false,
+      useShadowBlur: false,
+      useStripes: false,
+      starGlow: false,
+      orbHalo: false,
+      goalGlow: false,
+      bumperGlow: false,
+      parallaxLayers: 1,
+      bgRedrawEveryN: 2  // saltar 1 frame del bg en gama baja
+    }
+  },
+
+  // FPS tracking para auto-quality y badge
+  fpsAvg: 60,
+  fpsLast: performance.now ? performance.now() : Date.now(),
+  fpsFrames: 0,
+  fpsAccum: 0,
+  showFps: false,
+
+  // Cursor de spawn O(1) para pools (evita .find() costoso)
+  particleCursor: 0,
+  confettiCursor: 0,
+
+  // Cache de fondo en offscreen canvas
+  bgCanvas: null,
+  bgCtx: null,
+  bgFrameTick: 0,
+
   // Objetos de escena
   orb: null,
   trail: [],
@@ -205,6 +326,10 @@ const G = {
   maxParticles: 200,
   confettiPool: [],
   maxConfetti: 120,
+
+  // Racha de derrotas en el nivel actual (para escalar tono de mensajes)
+  loseStreak: 0,
+  lastLevelDied: -1,
 
   // Control de entrada
   aiming: false,
@@ -223,7 +348,25 @@ const G = {
   // Contexto de Audio Web
   audioCtx: null,
 
-  // Frases motivacionales para la pantalla de derrota
+  // ============================================================
+  // SISTEMA DE FRASES MOTIVACIONALES
+  // ============================================================
+
+  // Frases para la pantalla de VICTORIA (motivacionales positivas)
+  victoryQuotes: [
+    "“Las leyes de la gravedad se rinden ante tu precisión cósmica.”",
+    "“Magistral. La galaxia ha tomado nota de tu nombre.”",
+    "“Eso fue arte orbital puro. Sigue así, capitán.”",
+    "“Otro sistema solar conquistado. ¿Cuántos más caben en una vida?”",
+    "“La física llora de envidia ante tu trayectoria.”",
+    "“Newton estaría orgulloso. Einstein, también.”",
+    "“Tu polvo estelar se duplica, igual que tu leyenda.”",
+    "“La órbita perfecta no existe... excepto cuando tú lanzas.”",
+    "“Brillas más que el agujero negro al que acabas de esquivar.”",
+    "“Misión completada. El cosmos te debe una.”"
+  ],
+
+  // Frases para DERROTA SUAVES (rachas 0-2): motivacionales amables
   motivationQuotes: [
     "“Quizás en tu siguiente ronda puedas superar este nivel. ¡El cosmos premia la persistencia!”",
     "“El fracaso es solo una corrección de órbita hacia la perfección. ¡Inténtalo de nuevo!”",
@@ -231,6 +374,31 @@ const G = {
     "“Cada choque te enseña una nueva trayectoria. ¡En la siguiente ronda conquistarás el espacio!”",
     "“Incluso las estrellas colapsan antes de brillar con su máxima fuerza. ¡Tú puedes lograrlo!”",
     "“La precisión orbital requiere paciencia. Tu siguiente cálculo será el definitivo.”"
+  ],
+
+  // Frases para DERROTA INTERMEDIA (rachas 3-4): firmes pero respetuosas
+  toughQuotes: [
+    "“Tres intentos y la nave sigue hecha pedazos. Respira, calcula, vuelve a lanzar.”",
+    "“La gravedad gana otra batalla. Pero la guerra... aún es tuya.”",
+    "“Empezamos a sospechar que el agujero negro tiene tu número. Cuélgaselo.”",
+    "“Tu trayectoria está siendo... creativa. Demasiado creativa.”",
+    "“El cosmos no es paciente, pero te está dando otra oportunidad. No la desperdicies.”"
+  ],
+
+  // Frases para DERROTA SAVAGE (racha 5+): sarcasmo motivacional ácido
+  savageQuotes: [
+    "“¿En serio? ¿OTRA VEZ? Mi abuela esquiva mejor obstáculos con los ojos cerrados.”",
+    "“He visto cometas con mejor puntería, y eso que no tienen cerebro.”",
+    "“La definición de locura: repetir lo mismo esperando un resultado distinto. ¿Te suena?”",
+    "“El polvo estelar te tiene miedo. Y sinceramente, no le culpo.”",
+    "“Dato curioso: hasta una piedra rebotando al azar tendría más éxito que tú ahora mismo.”",
+    "“¿Estás jugando con los pies? Es la única explicación racional.”",
+    "“Si los agujeros negros pagaran impuestos, tú serías su mayor patrocinador.”",
+    "“Te lo decimos con cariño cósmico: REVISA TU ÁNGULO, ESTRATEGA DE PASILLO.”",
+    "“Newton se está revolcando en su tumba. Y no de risa.”",
+    "“A este ritmo, las estrellas se apagarán antes que termines este nivel.”",
+    "“Un mono con un teclado escribiría Shakespeare antes de que tú pases este nivel.”",
+    "“Respira. Cuenta hasta diez. Y por amor a la galaxia, AJUSTA LA POTENCIA.”"
   ],
 
   // ============================================================
@@ -255,132 +423,132 @@ const G = {
       colorGlow: 'rgba(57,255,20,0.4)', 
       colorTrail: 'rgba(57,255,20,',
       ability: 'elasticity',
-      abilityDesc: 'Especial: Superelasticidad (+20% de rebote en muros)'
+      abilityDesc: 'Especial: Superelasticidad (+12% de rebote en muros)'
     },
     { 
       id: 'hot-pink', 
       name: 'Rosa Eléctrico', 
-      price: 60, 
+      price: 80, 
       colorCore: '#ff1493', 
       colorGlow: 'rgba(255,20,147,0.4)', 
       colorTrail: 'rgba(255,20,147,',
       ability: 'magnet',
-      abilityDesc: 'Especial: Atracción (Atrae estrellas un 30% más lejos)'
+      abilityDesc: 'Especial: Atracción (Atrae estrellas un 18% más lejos)'
     },
     { 
       id: 'electric-blue', 
       name: 'Azul Eléctrico', 
-      price: 100, 
+      price: 140, 
       colorCore: '#0066ff', 
       colorGlow: 'rgba(0,102,255,0.4)', 
       colorTrail: 'rgba(0,102,255,',
       ability: 'gravity_res',
-      abilityDesc: 'Especial: Escudo Gravitacional (-35% fuerza de agujeros negros)'
+      abilityDesc: 'Especial: Escudo Gravitacional (-22% fuerza de agujeros negros)'
     },
     { 
       id: 'vortex-edge', 
       name: 'Vórtice Púrpura', 
-      price: 150, 
+      price: 200, 
       colorCore: '#9b59ff', 
       colorGlow: 'rgba(155,89,255,0.4)', 
       colorTrail: 'rgba(155,89,255,',
       ability: 'mini',
-      abilityDesc: 'Especial: Micro-Tamaño (-20% tamaño, ideal para huecos estrechos)'
+      abilityDesc: 'Especial: Micro-Tamaño (-15% tamaño, ideal para huecos estrechos)'
     },
     { 
       id: 'solar-flare', 
       name: 'Fuego Solar', 
-      price: 250, 
+      price: 320, 
       colorCore: '#ffd700', 
       colorGlow: 'rgba(255,215,0,0.4)', 
       colorTrail: 'rgba(255,215,0,',
       ability: 'low_friction',
-      abilityDesc: 'Especial: Inercia Solar (-50% rozamiento, vuela más rápido)'
+      abilityDesc: 'Especial: Inercia Solar (-30% rozamiento, vuela más rápido)'
     },
     { 
       id: 'singularity', 
       name: 'Singularidad Roja', 
-      price: 400, 
+      price: 500, 
       colorCore: '#ff0044', 
       colorGlow: 'rgba(255,0,68,0.4)', 
       colorTrail: 'rgba(255,0,68,',
       ability: 'shield_1',
-      abilityDesc: 'Especial: Escudo Vital (Sobrevive a 1 impacto mortal)'
+      abilityDesc: 'Especial: Escudo Vital (Sobrevive a 1 impacto mortal por nivel)'
     },
     { 
       id: 'aurora', 
       name: 'Aurora Verde', 
-      price: 500, 
+      price: 650, 
       colorCore: '#00ffaa', 
       colorGlow: 'rgba(0,255,170,0.4)', 
       colorTrail: 'rgba(0,255,170,',
       ability: 'super_magnet',
-      abilityDesc: 'Especial: Magnetismo Aurora (Atrae estrellas un 70% más lejos)'
+      abilityDesc: 'Especial: Magnetismo Aurora (Atrae estrellas un 38% más lejos)'
     },
     { 
       id: 'supernova', 
       name: 'Supernova', 
-      price: 650, 
+      price: 850, 
       colorCore: '#ff5500', 
       colorGlow: 'rgba(255,85,0,0.45)', 
       colorTrail: 'rgba(255,85,0,',
       ability: 'hyper_power',
-      abilityDesc: 'Especial: Impulso Supernova (+25% de fuerza de lanzamiento)'
+      abilityDesc: 'Especial: Impulso Supernova (+12% de fuerza de lanzamiento)'
     },
     { 
       id: 'stardust-skin', 
       name: 'Polvo Astral', 
-      price: 800, 
+      price: 1000, 
       colorCore: '#ffffff', 
       colorGlow: 'rgba(255,255,255,0.45)', 
       colorTrail: 'rgba(255,255,255,',
       ability: 'goal_suction',
-      abilityDesc: 'Especial: Sintonía Astral (La meta te succiona desde un 40% más lejos)'
+      abilityDesc: 'Especial: Sintonía Astral (La meta te atrae desde un 20% más lejos)'
     },
     { 
       id: 'exotic-matter', 
       name: 'Materia Exótica', 
-      price: 1000, 
+      price: 1300, 
       colorCore: '#e0115f', 
       colorGlow: 'rgba(224,17,95,0.4)', 
       colorTrail: 'rgba(224,17,95,',
       ability: 'quantum_break',
-      abilityDesc: 'ACTIVA: Salto Cuántico (Haz Tap en el aire para detenerte en seco)'
+      abilityDesc: 'ACTIVA: Salto Cuántico (Tap en el aire para frenar - 1 uso por lanzamiento)'
     },
     { 
       id: 'absolute-zero', 
       name: 'Cero Absoluto', 
-      price: 1200, 
+      price: 1600, 
       colorCore: '#00f3ff', 
       colorGlow: 'rgba(0,243,255,0.4)', 
       colorTrail: 'rgba(0,243,255,',
       ability: 'cold_inertia',
-      abilityDesc: 'Especial: Cero Inercia (Te detienes de inmediato al ir despacio)'
+      abilityDesc: 'Especial: Cero Inercia (Te detienes antes al ir despacio)'
     },
     { 
       id: 'hiperespacio', 
       name: 'Hiperespacio', 
-      price: 1500, 
+      price: 2000, 
       colorCore: '#ff00ff', 
       colorGlow: 'rgba(255,0,255,0.5)', 
       colorTrail: 'rgba(255,255,255,',
       ability: 'midair_launch',
-      abilityDesc: 'ACTIVA: Doble Órbita (Permite re-apuntar y lanzar una vez en el aire)'
+      abilityDesc: 'ACTIVA: Doble Órbita (Re-lanza en el aire con -20% de potencia)'
     },
     { 
       id: 'wormhole', 
       name: 'Agujero Gusano', 
-      price: 1800, 
+      price: 2400, 
       colorCore: '#0c0c17', 
       colorGlow: 'rgba(255,216,77,0.6)', 
       colorTrail: 'rgba(255,216,77,',
       ability: 'anti_grav',
-      abilityDesc: 'Especial: Singularidad Pura (Inmunidad total a pozos gravitatorios)'
+      abilityDesc: 'Especial: Singularidad Pura (-65% atracción gravitatoria)'
     },
     { 
       id: 'orion-nebula', 
       name: 'Orión Nebulosa', 
-      price: 2000, 
+      price: 2800, 
       colorCore: '#8a2be2', 
       colorGlow: 'rgba(138,43,226,0.55)', 
       colorTrail: 'rgba(138,43,226,',
@@ -390,12 +558,12 @@ const G = {
     { 
       id: 'zero-gravity', 
       name: 'Gravedad Cero', 
-      price: 2500, 
+      price: 3500, 
       colorCore: '#a9a9a9', 
       colorGlow: 'rgba(169,169,169,0.4)', 
       colorTrail: 'rgba(169,169,169,',
       ability: 'frictionless_predict',
-      abilityDesc: 'Especial: Vacío Absoluto (Cero fricción y predictor orbital duplicado)'
+      abilityDesc: 'Especial: Vacío Absoluto (-40% fricción y predictor orbital duplicado)'
     }
   ],
 
@@ -862,7 +1030,7 @@ const G = {
   },
 
   playTone: function(freq, duration, type, gain, delay) {
-    if (!this.audioCtx) return;
+    if (!this.audioCtx || !this.soundEnabled) return;
     var ctx = this.audioCtx;
     var t = ctx.currentTime + (delay || 0);
     var osc = ctx.createOscillator();
@@ -933,7 +1101,9 @@ const G = {
       unlockedLevels: this.unlockedLevels,
       bestScores: this.bestScores,
       unlockedSkins: this.unlockedSkins,
-      equippedSkin: this.equippedSkin
+      equippedSkin: this.equippedSkin,
+      quality: this.quality,
+      soundEnabled: this.soundEnabled
     };
     try { localStorage.setItem('neogravity_save_v3', JSON.stringify(data)); } catch (e) { /* Guardado silencioso */ }
   },
@@ -948,10 +1118,84 @@ const G = {
       if (data.bestScores) this.bestScores = data.bestScores;
       if (data.unlockedSkins) this.unlockedSkins = data.unlockedSkins;
       if (data.equippedSkin) this.equippedSkin = data.equippedSkin;
+      if (data.quality) this.quality = data.quality;
+      if (data.soundEnabled !== undefined) this.soundEnabled = !!data.soundEnabled;
       
       while (this.unlockedLevels.length < 14) this.unlockedLevels.push(false);
       while (this.bestScores.length < 14) this.bestScores.push(0);
     } catch (e) { /* Error silencioso */ }
+  },
+
+  // Borrado total de progreso (botón en Ajustes)
+  resetProgress: function() {
+    if (typeof window.confirm === 'function' && !window.confirm('¿Seguro que quieres BORRAR todo tu progreso? Esto no se puede deshacer.')) return;
+    try { localStorage.removeItem('neogravity_save_v3'); } catch (e) {}
+    this.stardust = 0;
+    this.unlockedLevels = Array(14).fill(false);
+    this.unlockedLevels[0] = true;
+    this.bestScores = Array(14).fill(0);
+    this.unlockedSkins = ['default'];
+    this.equippedSkin = 'default';
+    this.loseStreak = 0;
+    this.lastLevelDied = -1;
+    this.save();
+    this.updateMenuUI();
+    this.setState('MENU');
+  },
+
+  // ============================================================
+  // SISTEMA DE CALIDAD GRÁFICA - API
+  // ============================================================
+  resolveQuality: function() {
+    if (this.quality === 'high') return 'high';
+    if (this.quality === 'low') return 'low';
+    // AUTO: heurística por hardware + screen
+    var cores = (navigator.hardwareConcurrency || 4);
+    var mem = (navigator.deviceMemory || 4);
+    var smallScreen = Math.min(window.innerWidth, window.innerHeight) < 420;
+    var weakDevice = cores <= 4 || mem <= 3;
+    return (weakDevice || smallScreen) ? 'low' : 'high';
+  },
+
+  applyQuality: function() {
+    this.qualityActive = this.resolveQuality();
+    var q = this.qSettings[this.qualityActive];
+    this.maxParticles = q.maxParticles;
+    this.maxConfetti = q.maxConfetti;
+    // Reasignar pools si difieren
+    if (!this.particlesPool || this.particlesPool.length !== this.maxParticles) {
+      this.initPools();
+    }
+    if (this.canvas) this.resize();
+    this.updateQualityUI();
+  },
+
+  setQuality: function(q) {
+    this.quality = q;
+    this.save();
+    this.applyQuality();
+  },
+
+  setSound: function(on) {
+    this.soundEnabled = !!on;
+    this.save();
+    this.updateQualityUI();
+  },
+
+  updateQualityUI: function() {
+    var btns = document.querySelectorAll('#qualityToggle .q-opt');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].getAttribute('data-q') === this.quality);
+    }
+    var info = document.getElementById('qualityInfo');
+    if (info) {
+      var label = this.qualityActive === 'high' ? 'ALTO (efectos completos, parallax, brillos)' : 'BAJO (optimizado para gama baja, fluido)';
+      info.textContent = 'Modo activo: ' + label;
+    }
+    var on = document.getElementById('sndOn');
+    var off = document.getElementById('sndOff');
+    if (on) on.classList.toggle('active', this.soundEnabled);
+    if (off) off.classList.toggle('active', !this.soundEnabled);
   },
 
   // ============================================================
@@ -963,12 +1207,14 @@ const G = {
     document.getElementById('menuPanel').classList.toggle('active', s === 'MENU');
     document.getElementById('levelPanel').classList.toggle('active', s === 'LEVEL_SELECT');
     document.getElementById('shopPanel').classList.toggle('active', s === 'SHOP');
+    document.getElementById('settingsPanel').classList.toggle('active', s === 'SETTINGS');
     document.getElementById('pausePanel').classList.toggle('active', s === 'PAUSED');
     document.getElementById('victoryPanel').classList.toggle('active', s === 'VICTORY');
     document.getElementById('gameoverPanel').classList.toggle('active', s === 'GAME_OVER');
     document.getElementById('hud').style.display = (s === 'PLAYING' || s === 'PAUSED') ? 'block' : 'none';
     if (s === 'MENU') this.updateMenuUI();
     if (s === 'SHOP') this.updateShopUI();
+    if (s === 'SETTINGS') this.updateQualityUI();
     if (s === 'LEVEL_SELECT') this.updateLevelSelectUI();
   },
 
@@ -1120,9 +1366,10 @@ const G = {
     var skin = this.getSkin();
 
     // Configuración de tamaño basada en habilidad
+    // BALANCE: -15% (antes -20%) para no trivializar huecos.
     var customRadius = minDim * 0.017;
     if (skin.ability === 'mini') {
-      customRadius *= 0.8; // Skin reducida
+      customRadius *= 0.85; // antes 0.8
     }
 
     // Creación y reset del orbe del jugador
@@ -1248,35 +1495,54 @@ const G = {
     for (var j = 0; j < this.maxConfetti; j++) {
       this.confettiPool.push({ x: 0, y: 0, vx: 0, vy: 0, color: '', life: 0, size: 0, rot: 0, active: false });
     }
+    this.particleCursor = 0;
+    this.confettiCursor = 0;
   },
 
   clearParticles: function() {
-    for (var i = 0; i < this.maxParticles; i++) this.particlesPool[i].active = false;
-    for (var j = 0; j < this.maxConfetti; j++) this.confettiPool[j].active = false;
+    for (var i = 0; i < this.particlesPool.length; i++) this.particlesPool[i].active = false;
+    for (var j = 0; j < this.confettiPool.length; j++) this.confettiPool[j].active = false;
+    this.particleCursor = 0;
+    this.confettiCursor = 0;
   },
 
+  // OPTIMIZADO: cursor circular con búsqueda corta (O(1) amortizado)
+  // En lugar de scan completo del pool, avanzamos hasta 8 posiciones; si no hay slot libre,
+  // sobrescribimos la siguiente. Evita stutter en hot paths con muchas explosiones.
   spawnParticle: function(x, y, vx, vy, color, size, life) {
-    var p = this.particlesPool.find(function(item) { return !item.active; });
-    if (!p) p = this.particlesPool[0];
-    p.x = x;
-    p.y = y;
-    p.vx = vx;
-    p.vy = vy;
-    p.color = color;
-    p.size = size;
+    var pool = this.particlesPool;
+    var len = pool.length;
+    if (!len) return;
+    var cursor = this.particleCursor;
+    var maxScan = 8;
+    var p;
+    for (var k = 0; k < maxScan; k++) {
+      p = pool[cursor];
+      cursor = (cursor + 1) % len;
+      if (!p.active) break;
+    }
+    this.particleCursor = cursor;
+    p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+    p.color = color; p.size = size;
     p.life = life || 1.0;
     p.active = true;
   },
 
   spawnConfetti: function(x, y, vx, vy, color, size, life) {
-    var c = this.confettiPool.find(function(item) { return !item.active; });
-    if (!c) c = this.confettiPool[0];
-    c.x = x;
-    c.y = y;
-    c.vx = vx;
-    c.vy = vy;
-    c.color = color;
-    c.size = size;
+    var pool = this.confettiPool;
+    var len = pool.length;
+    if (!len) return;
+    var cursor = this.confettiCursor;
+    var maxScan = 8;
+    var c;
+    for (var k = 0; k < maxScan; k++) {
+      c = pool[cursor];
+      cursor = (cursor + 1) % len;
+      if (!c.active) break;
+    }
+    this.confettiCursor = cursor;
+    c.x = x; c.y = y; c.vx = vx; c.vy = vy;
+    c.color = color; c.size = size;
     c.life = life || 1.0;
     c.rot = Math.random() * 360;
     c.active = true;
@@ -1300,14 +1566,25 @@ const G = {
   },
 
   // ============================================================
-  // VICTORIA REMODELADA (Elegante y Estética)
+  // VICTORIA REMODELADA (Elegante, frase motivacional, economía equilibrada)
   // ============================================================
   completeLevel: function() {
     var lv = this.levels[this.currentLevel];
-    var starReward = this.starsCollected * 15;
-    var perfect = (this.shots <= lv.par) ? 25 : 0;
-    var total = starReward + perfect + 15;
+
+    // ECONOMÍA EQUILIBRADA: el polvo escasea para alargar la progresión.
+    // Antes: 15 base + 15/estrella + 25 si perfect = hasta 85/nivel (skin de 1200 en una corrida)
+    // Ahora: 4 base + 5/estrella + 10 si perfect + bonus por dificultad
+    //        (3 estrellas perfect en nivel 14 ≈ 4+15+10+12 = 41)
+    var starReward = this.starsCollected * 5;
+    var perfect = (this.shots <= lv.par) ? 10 : 0;
+    var difficultyBonus = Math.floor(this.currentLevel * 0.9);
+    var base = 4;
+    var total = base + starReward + perfect + difficultyBonus;
     this.stardust += total;
+
+    // Reset de racha de derrotas al ganar el nivel
+    this.loseStreak = 0;
+    this.lastLevelDied = -1;
 
     // Guardar mejor puntuación (estrellas)
     if (this.starsCollected > this.bestScores[this.currentLevel]) {
@@ -1342,21 +1619,25 @@ const G = {
       }
       container.appendChild(starSpan);
       
-      // Lanzar animación secuencialmente con retardo para elegancia máxima
       (function(el, delay) {
         setTimeout(function() {
           el.classList.add('active');
         }, delay);
       })(starSpan, i * 250);
     }
-    
-    var perfectText = perfect ? '<br><span style="color:#39ff88; font-weight:bold; letter-spacing: 2px">¡TIRO PERFECTO! (+25)</span>' : '';
-    document.getElementById('victoryScore').innerHTML =
-      'ESTRELLAS CAPTURADAS: <span style="color:#ffd84d; font-weight:bold">+' + starReward + '</span>' + perfectText + 
-      '<br>RECURSOS EXTRAÍDOS: <span style="color:#7df9ff; font-weight:bold">+' + total + ' POLVO ESTELAR</span>';
 
-    // Disparar confeti
-    for (var c = 0; c < 70; c++) {
+    // Frase motivacional de victoria
+    var quote = this.victoryQuotes[Math.floor(Math.random() * this.victoryQuotes.length)];
+    var perfectText = perfect ? '<br><span style="color:#39ff88; font-weight:bold; letter-spacing: 2px">¡TIRO PERFECTO! (+' + perfect + ')</span>' : '';
+    var diffText = difficultyBonus ? '<br><span style="color:#9b59ff; font-size:11px">BONUS DIFICULTAD +' + difficultyBonus + '</span>' : '';
+    document.getElementById('victoryScore').innerHTML =
+      '<div style="font-size:13px; color:#a8ffce; font-style:italic; line-height:1.5; margin-bottom:14px; padding-left:12px; border-left:3px solid #39ff88; text-align:left">' + quote + '</div>' +
+      'ESTRELLAS: <span style="color:#ffd84d; font-weight:bold">+' + starReward + '</span>' + perfectText + diffText + 
+      '<br>POLVO ESTELAR GANADO: <span style="color:#7df9ff; font-weight:bold">+' + total + '</span>';
+
+    // Confeti escalado por calidad
+    var confettiCount = (this.qualityActive === 'low') ? 35 : 70;
+    for (var c = 0; c < confettiCount; c++) {
       this.spawnConfetti(
         this.W * 0.5,
         this.H * 0.4,
@@ -1372,7 +1653,7 @@ const G = {
   },
 
   // ============================================================
-  // DERROTA INSPIRADORA Y MEJORADA
+  // DERROTA INSPIRADORA Y MEJORADA - escala el tono según racha de fracasos
   // ============================================================
   die: function() {
     if (!this.orb || !this.orb.alive) return;
@@ -1383,7 +1664,7 @@ const G = {
       this.updateShieldHUD();
       this.spawnShieldBurst(this.orb.x, this.orb.y);
       
-      // Dar un pequeño empujón de rebote para escapar del peligro inmediato
+      // Pequeño empujón de rebote para escapar del peligro inmediato
       this.orb.vx = -this.orb.vx * 0.8 || (Math.random() - 0.5) * 4;
       this.orb.vy = -this.orb.vy * 0.8 || -4;
       return;
@@ -1392,13 +1673,22 @@ const G = {
     this.orb.alive = false;
     this.sfx.death();
 
-    // Explosión de partículas
+    // Tracking de racha en el mismo nivel (resetea al cambiar de nivel)
+    if (this.lastLevelDied !== this.currentLevel) {
+      this.loseStreak = 1;
+      this.lastLevelDied = this.currentLevel;
+    } else {
+      this.loseStreak++;
+    }
+
+    // Explosión de partículas (cantidad escalada por calidad)
     var skin = this.getSkin();
     var pColor = skin.colorCore;
     if (skin.id === 'hiperespacio') pColor = '#ff00ff';
-    
-    for (var i = 0; i < 35; i++) {
-      var angle = (i / 35) * Math.PI * 2;
+    var explosionCount = (this.qualityActive === 'low') ? 18 : 35;
+
+    for (var i = 0; i < explosionCount; i++) {
+      var angle = (i / explosionCount) * Math.PI * 2;
       var speed = Math.random() * 5 + 2;
       this.spawnParticle(
         this.orb.x,
@@ -1411,9 +1701,31 @@ const G = {
       );
     }
 
-    // Seleccionar una frase motivacional aleatoria
-    var randomQuote = this.motivationQuotes[Math.floor(Math.random() * this.motivationQuotes.length)];
-    document.getElementById('gameoverQuote').textContent = randomQuote;
+    // Selección de frase basada en RACHA: el tono se va volviendo más ácido
+    var pool, label, color;
+    if (this.loseStreak >= 5) {
+      pool = this.savageQuotes;
+      label = 'INTENTO #' + this.loseStreak + ' • EL COSMOS SE BURLA';
+      color = '#ff3939';
+    } else if (this.loseStreak >= 3) {
+      pool = this.toughQuotes;
+      label = 'INTENTO #' + this.loseStreak + ' • RECALCULA';
+      color = '#ffaa55';
+    } else {
+      pool = this.motivationQuotes;
+      label = this.loseStreak === 1 ? 'EL ORBE FUE DESTRUIDO' : 'INTENTO #' + this.loseStreak + ' • SIGUE ASÍ';
+      color = '#ff8b8b';
+    }
+    var randomQuote = pool[Math.floor(Math.random() * pool.length)];
+
+    var quoteEl = document.getElementById('gameoverQuote');
+    quoteEl.textContent = randomQuote;
+    quoteEl.style.color = color;
+    quoteEl.style.borderLeftColor = color;
+
+    // Actualiza también el subtitulo del panel para reflejar la racha
+    var subtitle = document.querySelector('#gameoverPanel .glass-panel > div:nth-child(2)');
+    if (subtitle) subtitle.textContent = label;
 
     var self = this;
     setTimeout(function() { self.setState('GAME_OVER'); }, 850);
@@ -1430,9 +1742,10 @@ const G = {
     var skin = this.getSkin();
 
     // Habilidad Pasiva: Fricción reducida (Solar Flare / Gravedad Cero)
+    // BALANCE: valores bajados respecto al original para evitar OP
     var friction = 0.997; 
-    if (skin.ability === 'low_friction') friction = 0.9985;
-    if (skin.ability === 'frictionless_predict') friction = 1.0; // ¡Cero fricción!
+    if (skin.ability === 'low_friction') friction = 0.9978;       // antes 0.9985 (-30% rozamiento real)
+    if (skin.ability === 'frictionless_predict') friction = 0.9988; // antes 1.0 (-40% rozamiento, NO cero)
 
     var i, dx, dy, dist, force, nx, ny, speed;
 
@@ -1450,9 +1763,10 @@ const G = {
       }
 
       // Habilidad pasiva: Inmunidad o reducción ante agujeros negros
+      // BALANCE: anti_grav ya NO es inmunidad total (rompía niveles), reduce al 35%.
       var gravityMod = 1.0;
-      if (skin.ability === 'gravity_res') gravityMod = 0.65; // -35% fuerza
-      if (skin.ability === 'anti_grav') gravityMod = 0.0;     // Inmune
+      if (skin.ability === 'gravity_res') gravityMod = 0.78;  // antes 0.65 (más equilibrado)
+      if (skin.ability === 'anti_grav') gravityMod = 0.35;    // antes 0.0 (¡rompía la mecánica!)
 
       if (dist < bh.r * 6 && gravityMod > 0) {
         force = (bh.strength * gravityMod) * 180 / (dist * dist + 80);
@@ -1481,7 +1795,8 @@ const G = {
         var minO = Math.min(overlapL, overlapR, overlapT, overlapB);
 
         // Habilidad pasiva: Elasticidad mejorada (Neon Lime)
-        var bounceFactor = (skin.ability === 'elasticity') ? 0.88 : 0.72;
+        // BALANCE: bonus reducido para evitar trayectorias infinitas
+        var bounceFactor = (skin.ability === 'elasticity') ? 0.81 : 0.72; // antes 0.88
 
         if (minO === overlapL) { orb.x = w.x - orb.r; orb.vx = -Math.abs(orb.vx) * bounceFactor; }
         else if (minO === overlapR) { orb.x = w.x + w.w + orb.r; orb.vx = Math.abs(orb.vx) * bounceFactor; }
@@ -1555,9 +1870,10 @@ const G = {
       dist = Math.sqrt(dx * dx + dy * dy);
 
       // Habilidad pasiva: Imán de estrellas (Hot Pink y Aurora Green)
+      // BALANCE: rangos reducidos para que la skill aporte sin trivializar.
       var magnetDistance = orb.r + star.r;
-      if (skin.ability === 'magnet') magnetDistance += this.W * 0.055;       // rango medio
-      if (skin.ability === 'super_magnet') magnetDistance += this.W * 0.095; // rango masivo
+      if (skin.ability === 'magnet') magnetDistance += this.W * 0.035;       // antes 0.055
+      if (skin.ability === 'super_magnet') magnetDistance += this.W * 0.058; // antes 0.095
 
       // Atraer estrellas físicamente si están en rango de imán
       if (dist < magnetDistance && dist > orb.r) {
@@ -1593,11 +1909,12 @@ const G = {
 
     var goalReachDistance = this.goal.r + orb.r * 0.5;
     if (skin.ability === 'goal_suction') {
-      // Atrae sutilmente al portal final si el orbe pasa lo suficientemente cerca
-      var suctionDistance = this.goal.r * 1.6;
+      // Atrae sutilmente al portal final si el orbe pasa lo suficientemente cerca.
+      // BALANCE: rango y fuerza reducidos.
+      var suctionDistance = this.goal.r * 1.35; // antes 1.6
       if (dist < suctionDistance) {
-        orb.vx += (dx / dist) * 0.08;
-        orb.vy += (dy / dist) * 0.08;
+        orb.vx += (dx / dist) * 0.05;           // antes 0.08
+        orb.vy += (dy / dist) * 0.05;
       }
     }
 
@@ -1610,7 +1927,8 @@ const G = {
     speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
     
     // Habilidad pasiva: Cero Inercia (Cero Absoluto) detiene de golpe al ir despacio
-    var stopThreshold = (skin.ability === 'cold_inertia') ? 0.8 : 0.12;
+    // BALANCE: threshold bajado para que no congele al instante.
+    var stopThreshold = (skin.ability === 'cold_inertia') ? 0.45 : 0.12; // antes 0.8
     if (speed < stopThreshold) {
       orb.vx = 0;
       orb.vy = 0;
@@ -1622,7 +1940,8 @@ const G = {
     // ---- RASTRO DE PARTÍCULAS ----
     if (speed > 0.4) {
       this.trail.push({ x: orb.x, y: orb.y, life: 1 });
-      if (this.trail.length > 10) this.trail.shift();
+      var trailMax = this.qSettings[this.qualityActive].trailMax;
+      while (this.trail.length > trailMax) this.trail.shift();
     }
 
     // ---- CAER AL VACÍO ----
@@ -1637,9 +1956,11 @@ const G = {
   // ============================================================
   updateParticles: function() {
     var i;
+    var pLen = this.particlesPool.length;
+    var cLen = this.confettiPool.length;
 
     // Actualizar partículas de juego
-    for (i = 0; i < this.maxParticles; i++) {
+    for (i = 0; i < pLen; i++) {
       var p = this.particlesPool[i];
       if (!p.active) continue;
       p.x += p.vx;
@@ -1677,7 +1998,7 @@ const G = {
     }
 
     // Confeti
-    for (i = 0; i < this.maxConfetti; i++) {
+    for (i = 0; i < cLen; i++) {
       var c = this.confettiPool[i];
       if (!c.active) continue;
       c.x += c.vx;
@@ -1691,16 +2012,24 @@ const G = {
   },
 
   initBgParticles: function() {
+    var q = this.qSettings[this.qualityActive];
+    var count = q.bgParticles;
     this.bgParticles = [];
-    for (var i = 0; i < 35; i++) {
+    var palette = ['#7df9ff', '#9b59ff', '#ff39b8', '#ffd84d'];
+    for (var i = 0; i < count; i++) {
+      // Capa de profundidad para parallax (solo modo alto usa 2 capas)
+      var layer = (q.parallaxLayers > 1 && i % 3 === 0) ? 1 : 0;
+      var speedMul = layer === 1 ? 1.6 : 1.0;
+      var sizeMul = layer === 1 ? 1.4 : 1.0;
       this.bgParticles.push({
         x: Math.random() * this.W,
         y: Math.random() * this.H,
-        vy: -(Math.random() * 0.2 + 0.06),
-        vx: (Math.random() - 0.5) * 0.08,
-        size: Math.random() * 2 + 0.5,
+        vy: -(Math.random() * 0.2 + 0.06) * speedMul,
+        vx: (Math.random() - 0.5) * 0.08 * speedMul,
+        size: (Math.random() * 2 + 0.5) * sizeMul,
         alpha: Math.random() * 0.4 + 0.1,
-        color: ['#7df9ff', '#9b59ff', '#ff39b8', '#ffd84d'][Math.floor(Math.random() * 4)]
+        color: palette[Math.floor(Math.random() * palette.length)],
+        layer: layer
       });
     }
   },
@@ -1721,20 +2050,27 @@ const G = {
 
 
   // ============================================================
-  // RENDERIZADO DEL JUEGO (Limpio y Optimizado)
+  // RENDERIZADO DEL JUEGO (Adaptativo a calidad: ALTO añade glow/parallax/gradientes;
+  // BAJO usa fills planos, menos partículas, sin shadowBlur, ideal para gama baja)
   // ============================================================
   render: function() {
     var ctx = this.ctx;
     var W = this.W;
     var H = this.H;
     var i, grad;
+    var q = this.qSettings[this.qualityActive];
+    var hi = (this.qualityActive === 'high');
 
     ctx.clearRect(0, 0, W, H);
 
     ctx.fillStyle = '#07070e';
     ctx.fillRect(0, 0, W, H);
 
-    this.updateBgParticles();
+    // Fondo: en gama baja saltamos un frame de movimiento para ahorrar (es imperceptible)
+    this.bgFrameTick = (this.bgFrameTick + 1) % 10;
+    if (hi || this.bgFrameTick % q.bgRedrawEveryN === 0) {
+      this.updateBgParticles();
+    }
     for (i = 0; i < this.bgParticles.length; i++) {
       var bp = this.bgParticles[i];
       ctx.globalAlpha = bp.alpha;
@@ -1771,22 +2107,26 @@ const G = {
       ctx.strokeStyle = 'rgba(255,57,57,0.7)';
       ctx.lineWidth = 2;
       ctx.strokeRect(kz.x, kz.y, kz.w, kz.h);
-      
-      ctx.fillStyle = 'rgba(255,57,57,0.35)';
-      var stripeW = 8;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(kz.x, kz.y, kz.w, kz.h);
-      ctx.clip();
-      for (var sx = kz.x - kz.h; sx < kz.x + kz.w; sx += stripeW * 2) {
+
+      // Las rayas diagonales (clip+save) son lo más caro de toda la escena.
+      // En modo BAJO se omiten por completo: la zona roja sigue siendo perfectamente legible.
+      if (q.useStripes) {
+        ctx.fillStyle = 'rgba(255,57,57,0.35)';
+        var stripeW = 8;
+        ctx.save();
         ctx.beginPath();
-        ctx.moveTo(sx, kz.y + kz.h);
-        ctx.lineTo(sx + kz.h, kz.y);
-        ctx.lineTo(sx + kz.h + stripeW, kz.y);
-        ctx.lineTo(sx + stripeW, kz.y + kz.h);
-        ctx.fill();
+        ctx.rect(kz.x, kz.y, kz.w, kz.h);
+        ctx.clip();
+        for (var sx = kz.x - kz.h; sx < kz.x + kz.w; sx += stripeW * 2) {
+          ctx.beginPath();
+          ctx.moveTo(sx, kz.y + kz.h);
+          ctx.lineTo(sx + kz.h, kz.y);
+          ctx.lineTo(sx + kz.h + stripeW, kz.y);
+          ctx.lineTo(sx + stripeW, kz.y + kz.h);
+          ctx.fill();
+        }
+        ctx.restore();
       }
-      ctx.restore();
     }
 
     // ---- PAREDES ----
@@ -1800,6 +2140,8 @@ const G = {
     }
 
     // ---- AGUJEROS NEGROS ----
+    // Las espirales son visualmente icónicas pero costosas. En modo BAJO
+    // simplificamos a 1 brazo y 12 puntos (vs 3 brazos × 25 puntos en alto).
     for (i = 0; i < this.blackHoles.length; i++) {
       var bh = this.blackHoles[i];
       ctx.save();
@@ -1808,22 +2150,28 @@ const G = {
       var coreGlowColor = bh.strength < 0 ? 'rgba(0,255,255,' : 'rgba(155,89,255,';
 
       ctx.rotate(bh.angle);
-      grad = ctx.createRadialGradient(0, 0, bh.r * 0.3, 0, 0, bh.r * 2);
-      grad.addColorStop(0, coreGlowColor + '0.45)');
-      grad.addColorStop(0.4, coreGlowColor + '0.2)');
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(0, 0, bh.r * 0.3, 0, 0, bh.r * 2);
+        grad.addColorStop(0, coreGlowColor + '0.45)');
+        grad.addColorStop(0.4, coreGlowColor + '0.2)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = coreGlowColor + '0.18)';
+      }
       ctx.beginPath();
       ctx.arc(0, 0, bh.r * 2, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = bh.strength < 0 ? 'rgba(0,243,255,0.25)' : 'rgba(155,89,255,0.25)';
       ctx.lineWidth = 1.8;
-      for (var arm = 0; arm < 3; arm++) {
+      var spArms = q.bhSpiralArms;
+      var spPts = q.bhSpiralPoints;
+      for (var arm = 0; arm < spArms; arm++) {
         ctx.beginPath();
-        var armOffset = (arm / 3) * Math.PI * 2;
-        for (var t = 0; t < 25; t++) {
-          var tt = t / 25;
+        var armOffset = (arm / spArms) * Math.PI * 2;
+        for (var t = 0; t < spPts; t++) {
+          var tt = t / spPts;
           var spiral_r = bh.r * 0.45 + tt * bh.r * 1.35;
           var spiral_a = armOffset + (bh.strength < 0 ? -1 : 1) * tt * Math.PI * 2.2;
           var px = Math.cos(spiral_a) * spiral_r;
@@ -1834,17 +2182,21 @@ const G = {
         ctx.stroke();
       }
 
-      grad = ctx.createRadialGradient(0, 0, 0, 0, 0, bh.r * 0.58);
-      if (bh.strength < 0) {
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.5, '#00f3ff');
-        grad.addColorStop(1, 'rgba(0,10,25,0.7)');
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(0, 0, 0, 0, 0, bh.r * 0.58);
+        if (bh.strength < 0) {
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.5, '#00f3ff');
+          grad.addColorStop(1, 'rgba(0,10,25,0.7)');
+        } else {
+          grad.addColorStop(0, '#04000b');
+          grad.addColorStop(0.65, '#120524');
+          grad.addColorStop(1, 'rgba(30,5,55,0.6)');
+        }
+        ctx.fillStyle = grad;
       } else {
-        grad.addColorStop(0, '#04000b');
-        grad.addColorStop(0.65, '#120524');
-        grad.addColorStop(1, 'rgba(30,5,55,0.6)');
+        ctx.fillStyle = bh.strength < 0 ? '#00f3ff' : '#120524';
       }
-      ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(0, 0, bh.r * 0.58, 0, Math.PI * 2);
       ctx.fill();
@@ -1858,7 +2210,7 @@ const G = {
       var flash = b.flash || 0;
       var bR = b.r * (1 + flash * 0.25);
 
-      if (flash > 0.05) {
+      if (q.bumperGlow && flash > 0.05) {
         grad = ctx.createRadialGradient(b.x, b.y, bR * 0.4, b.x, b.y, bR * 2.2);
         grad.addColorStop(0, 'rgba(255,216,77,' + (flash * 0.45) + ')');
         grad.addColorStop(1, 'transparent');
@@ -1868,11 +2220,15 @@ const G = {
         ctx.fill();
       }
 
-      grad = ctx.createRadialGradient(b.x - bR * 0.35, b.y - bR * 0.35, bR * 0.08, b.x, b.y, bR);
-      grad.addColorStop(0, flash > 0.4 ? '#ffffff' : '#ffe893');
-      grad.addColorStop(0.5, '#ffd84d');
-      grad.addColorStop(1, '#9b7600');
-      ctx.fillStyle = grad;
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(b.x - bR * 0.35, b.y - bR * 0.35, bR * 0.08, b.x, b.y, bR);
+        grad.addColorStop(0, flash > 0.4 ? '#ffffff' : '#ffe893');
+        grad.addColorStop(0.5, '#ffd84d');
+        grad.addColorStop(1, '#9b7600');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = flash > 0.4 ? '#ffe893' : '#ffd84d';
+      }
       ctx.beginPath();
       ctx.arc(b.x, b.y, bR, 0, Math.PI * 2);
       ctx.fill();
@@ -1892,13 +2248,15 @@ const G = {
       ctx.rotate(star.angle);
 
       var starPulse = 0.55 + Math.sin(star.pulse) * 0.25;
-      grad = ctx.createRadialGradient(0, 0, 0, 0, 0, star.r * 2.2);
-      grad.addColorStop(0, 'rgba(255,216,77,' + starPulse + ')');
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(0, 0, star.r * 2.2, 0, Math.PI * 2);
-      ctx.fill();
+      if (q.starGlow) {
+        grad = ctx.createRadialGradient(0, 0, 0, 0, 0, star.r * 2.2);
+        grad.addColorStop(0, 'rgba(255,216,77,' + starPulse + ')');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, star.r * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.fillStyle = '#ffd84d';
       ctx.beginPath();
@@ -1916,10 +2274,12 @@ const G = {
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = 'rgba(255,255,255,0.45)';
-      ctx.beginPath();
-      ctx.arc(-star.r * 0.18, -star.r * 0.18, star.r * 0.22, 0, Math.PI * 2);
-      ctx.fill();
+      if (hi) {
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.beginPath();
+        ctx.arc(-star.r * 0.18, -star.r * 0.18, star.r * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.restore();
     }
@@ -1929,19 +2289,25 @@ const G = {
       var gP = Math.sin(this.goal.pulse) * 0.25 + 0.75;
       var gr = this.goal.r;
 
-      grad = ctx.createRadialGradient(this.goal.x, this.goal.y, gr * 0.4, this.goal.x, this.goal.y, gr * 2.4);
-      grad.addColorStop(0, 'rgba(57,255,136,' + (gP * 0.35) + ')');
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(this.goal.x, this.goal.y, gr * 2.4, 0, Math.PI * 2);
-      ctx.fill();
+      if (q.goalGlow) {
+        grad = ctx.createRadialGradient(this.goal.x, this.goal.y, gr * 0.4, this.goal.x, this.goal.y, gr * 2.4);
+        grad.addColorStop(0, 'rgba(57,255,136,' + (gP * 0.35) + ')');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(this.goal.x, this.goal.y, gr * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
-      grad = ctx.createRadialGradient(this.goal.x, this.goal.y, 0, this.goal.x, this.goal.y, gr);
-      grad.addColorStop(0, 'rgba(57,255,136,' + gP + ')');
-      grad.addColorStop(0.65, 'rgba(57,255,136,' + (gP * 0.4) + ')');
-      grad.addColorStop(1, 'rgba(57,255,136,0.08)');
-      ctx.fillStyle = grad;
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(this.goal.x, this.goal.y, 0, this.goal.x, this.goal.y, gr);
+        grad.addColorStop(0, 'rgba(57,255,136,' + gP + ')');
+        grad.addColorStop(0.65, 'rgba(57,255,136,' + (gP * 0.4) + ')');
+        grad.addColorStop(1, 'rgba(57,255,136,0.08)');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = 'rgba(57,255,136,' + (gP * 0.7) + ')';
+      }
       ctx.beginPath();
       ctx.arc(this.goal.x, this.goal.y, gr, 0, Math.PI * 2);
       ctx.fill();
@@ -1972,60 +2338,69 @@ const G = {
       var oy = this.orb.y;
       var or = this.orb.r;
 
-      // Halo de neon
-      grad = ctx.createRadialGradient(ox, oy, or, ox, oy, or * 2.4);
-      grad.addColorStop(0, skinGlowColor);
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(ox, oy, or * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Esfera 3D
-      grad = ctx.createRadialGradient(ox - or * 0.35, oy - or * 0.35, or * 0.05, ox, oy, or);
-      if (skin.id === 'wormhole') {
-        grad.addColorStop(0, '#555555');
-        grad.addColorStop(0.3, '#0e0e1d');
-        grad.addColorStop(1, '#000000');
-      } else {
-        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-        grad.addColorStop(0.3, skinCoreColor);
-        grad.addColorStop(0.75, skin.id === 'hiperespacio' ? skinCoreColor : skin.colorTrail + '0.8)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+      // Halo de neón (sólo en alto)
+      if (q.orbHalo) {
+        grad = ctx.createRadialGradient(ox, oy, or, ox, oy, or * 2.4);
+        grad.addColorStop(0, skinGlowColor);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or * 2.4, 0, Math.PI * 2);
+        ctx.fill();
       }
-      ctx.fillStyle = grad;
+
+      // Esfera 3D vs disco plano (modo bajo)
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(ox - or * 0.35, oy - or * 0.35, or * 0.05, ox, oy, or);
+        if (skin.id === 'wormhole') {
+          grad.addColorStop(0, '#555555');
+          grad.addColorStop(0.3, '#0e0e1d');
+          grad.addColorStop(1, '#000000');
+        } else {
+          grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+          grad.addColorStop(0.3, skinCoreColor);
+          grad.addColorStop(0.75, skin.id === 'hiperespacio' ? skinCoreColor : skin.colorTrail + '0.8)');
+          grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+        }
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = skin.id === 'wormhole' ? '#0e0e1d' : skinCoreColor;
+      }
       ctx.beginPath();
       ctx.arc(ox, oy, or, 0, Math.PI * 2);
       ctx.fill();
 
-      // Sombra
-      grad = ctx.createRadialGradient(ox + or * 0.2, oy + or * 0.35, 0, ox + or * 0.2, oy + or * 0.35, or * 0.85);
-      grad.addColorStop(0, 'rgba(0,0,0,0.4)');
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(ox, oy, or, 0, Math.PI * 2);
-      ctx.fill();
+      if (hi) {
+        // Sombra
+        grad = ctx.createRadialGradient(ox + or * 0.2, oy + or * 0.35, 0, ox + or * 0.2, oy + or * 0.35, or * 0.85);
+        grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or, 0, Math.PI * 2);
+        ctx.fill();
 
-      // Reflejo
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
-      ctx.beginPath();
-      ctx.ellipse(ox - or * 0.28, oy - or * 0.32, or * 0.28, or * 0.13, -0.6, 0, Math.PI * 2);
-      ctx.fill();
+        // Reflejo
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.beginPath();
+        ctx.ellipse(ox - or * 0.28, oy - or * 0.32, or * 0.28, or * 0.13, -0.6, 0, Math.PI * 2);
+        ctx.fill();
 
-      // Rim light
-      ctx.strokeStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,0.5)' : skin.colorTrail + '0.55)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(ox, oy, or - 1, Math.PI * 0.7, Math.PI * 1.55);
-      ctx.stroke();
+        // Rim light
+        ctx.strokeStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,0.5)' : skin.colorTrail + '0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or - 1, Math.PI * 0.7, Math.PI * 1.55);
+        ctx.stroke();
+      }
 
-      // Dibujar Escudo Visual Activo si tiene cargas protectoras
+      // Escudo Visual Activo (siempre visible: es información importante de juego)
       if (this.orb.shieldCharges > 0) {
         ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(ox, oy, or * 1.4 + Math.sin(Date.now() / 150) * 1.5, 0, Math.PI * 2);
+        var pulseR = or * 1.4 + (hi ? Math.sin(Date.now() / 150) * 1.5 : 0);
+        ctx.arc(ox, oy, pulseR, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
@@ -2040,7 +2415,8 @@ const G = {
         var power = Math.min(alen / 150, 1);
         
         // Habilidad Pasiva: Más potencia de lanzamiento (Supernova)
-        var maxLaunchPower = (skin.ability === 'hyper_power') ? 16.25 : 13.0;
+        // BALANCE: bonus +12% (antes +25%, demasiado OP)
+        var maxLaunchPower = (skin.ability === 'hyper_power') ? 14.55 : 13.0;
         var forceLaunch = power * maxLaunchPower;
         
         var nx_dir = adx / alen;
@@ -2063,10 +2439,10 @@ const G = {
             var sdy = bh_s.y - tempY;
             var sdist = Math.sqrt(sdx * sdx + sdy * sdy);
 
-            // Respetar inmunidades de gravedad en predicción
+            // Respetar inmunidades de gravedad en predicción (alineadas con el motor)
             var simGravityMod = 1.0;
-            if (skin.ability === 'gravity_res') simGravityMod = 0.65;
-            if (skin.ability === 'anti_grav') simGravityMod = 0.0;
+            if (skin.ability === 'gravity_res') simGravityMod = 0.78;
+            if (skin.ability === 'anti_grav') simGravityMod = 0.35;
 
             if (sdist > bh_s.r * 0.38 && sdist < bh_s.r * 6 && simGravityMod > 0) {
               var sforce = (bh_s.strength * simGravityMod) * 180 / (sdist * sdist + 80);
@@ -2075,7 +2451,7 @@ const G = {
             }
           }
           
-          var simFriction = (skin.ability === 'low_friction') ? 0.9985 : (skin.ability === 'frictionless_predict') ? 1.0 : 0.997;
+          var simFriction = (skin.ability === 'low_friction') ? 0.9978 : (skin.ability === 'frictionless_predict') ? 0.9988 : 0.997;
           tempVx *= simFriction;
           tempVy *= simFriction;
           tempX += tempVx;
@@ -2133,7 +2509,8 @@ const G = {
     }
 
     // ---- PARTÍCULAS (POOLING) ----
-    for (i = 0; i < this.maxParticles; i++) {
+    var pLen2 = this.particlesPool.length;
+    for (i = 0; i < pLen2; i++) {
       var p = this.particlesPool[i];
       if (!p.active) continue;
       ctx.globalAlpha = p.life;
@@ -2149,7 +2526,8 @@ const G = {
   },
 
   renderConfetti: function(ctx) {
-    for (var i = 0; i < this.maxConfetti; i++) {
+    var cLen = this.confettiPool.length;
+    for (var i = 0; i < cLen; i++) {
       var c = this.confettiPool[i];
       if (!c.active) continue;
       ctx.globalAlpha = c.life;
@@ -2241,15 +2619,17 @@ const G = {
 
     var skin = this.getSkin();
     
-    // Potencia aumentada para Supernova
-    var maxLaunchPower = (skin.ability === 'hyper_power') ? 16.25 : 13.0;
+    // Potencia aumentada para Supernova (BALANCE: +12%, antes +25%)
+    var maxLaunchPower = (skin.ability === 'hyper_power') ? 14.55 : 13.0;
     var power = Math.min(len / 150, 1) * maxLaunchPower;
     var nx = dx / len;
     var ny = dy / len;
 
     // Si lanzamos en el aire usando la habilidad de Hiperespacio
+    // BALANCE: midair_launch ahora aplica -20% de potencia para no ser gratis.
     if (!this.orb.grounded && skin.ability === 'midair_launch' && !this.orb.midAirLaunched) {
       this.orb.midAirLaunched = true;
+      power *= 0.8;
       // Efecto rastro de salto hiperespacial
       for (var j = 0; j < 15; j++) {
         this.spawnParticle(this.orb.x, this.orb.y, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, '#ff00ff', 4, 0.8);
@@ -2278,7 +2658,7 @@ const G = {
   },
 
   // ============================================================
-  // BUCLE DE JUEGO PRINCIPAL - Timestep Fijo Controlado
+  // BUCLE DE JUEGO PRINCIPAL - Timestep Fijo + tracking de FPS + auto-tune
   // ============================================================
   loop: function(timestamp) {
     if (!this.lastTime) this.lastTime = timestamp;
@@ -2305,15 +2685,47 @@ const G = {
     this.render();
     this.frameCount++;
 
+    // ---- FPS TRACKING (1s rolling avg) ----
+    this.fpsAccum += delta;
+    this.fpsFrames++;
+    if (this.fpsAccum >= 1.0) {
+      this.fpsAvg = Math.round(this.fpsFrames / this.fpsAccum);
+      this.fpsAccum = 0;
+      this.fpsFrames = 0;
+
+      // Badge en HUD si está activado
+      if (this.showFps) {
+        var badge = document.getElementById('fpsBadge');
+        if (badge) {
+          badge.style.display = 'block';
+          badge.textContent = 'FPS ' + this.fpsAvg + ' • ' + this.qualityActive.toUpperCase();
+        }
+      }
+
+      // AUTO-TUNE: si la calidad es 'auto' y vamos por debajo de 38 fps
+      // sostenidos durante 3s, bajamos a low automáticamente.
+      if (this.quality === 'auto' && this.qualityActive === 'high' && this.fpsAvg < 38) {
+        this._lowFpsCount = (this._lowFpsCount || 0) + 1;
+        if (this._lowFpsCount >= 3) {
+          this.qualityActive = 'low';
+          this.applyQuality();
+          this._lowFpsCount = 0;
+        }
+      } else {
+        this._lowFpsCount = 0;
+      }
+    }
+
     var self = this;
     requestAnimationFrame(function(t) { self.loop(t); });
   },
 
   // ============================================================
-  // RESIZE ADAPTATIVO EXCEPCIONAL
+  // RESIZE ADAPTATIVO (DPR varía con la calidad activa)
   // ============================================================
   resize: function() {
-    this.dpr = Math.min(window.devicePixelRatio || 1, 1.8); 
+    var dprMax = this.qSettings[this.qualityActive].dprMax;
+    this.dpr = Math.min(window.devicePixelRatio || 1, dprMax);
     var rect = this.canvas.getBoundingClientRect();
     this.W = rect.width * this.dpr;
     this.H = rect.height * this.dpr;
@@ -2323,6 +2735,8 @@ const G = {
     this.initBgParticles();
 
     if (this.state === 'PLAYING' && this.orb) {
+      // Conservar progreso al rotar el dispositivo:
+      // re-escalar el orbe en lugar de reiniciar el nivel.
       this.startLevel(this.currentLevel);
     }
   },
@@ -2341,6 +2755,11 @@ const G = {
     this.ctx = this.canvas.getContext('2d', { alpha: false }); 
 
     this.load();
+    // Resolver calidad efectiva ANTES de inicializar pools/canvas
+    this.qualityActive = this.resolveQuality();
+    var q = this.qSettings[this.qualityActive];
+    this.maxParticles = q.maxParticles;
+    this.maxConfetti = q.maxConfetti;
     this.initPools();
     this.resize();
 
@@ -2362,6 +2781,7 @@ const G = {
     this.unlockedLevels[0] = true;
 
     this.updateMenuUI();
+    this.updateQualityUI();
     this.setState('MENU');
 
     requestAnimationFrame(function(t) { self.loop(t); });
