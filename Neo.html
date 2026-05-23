@@ -1,0 +1,2378 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>NEO GRAVITY - Edición Definitiva</title>
+<style>
+/* Estilos globales y reset */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05050b;font-family:system-ui,-apple-system,sans-serif;color:#fff;touch-action:none;user-select:none}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+/* Paneles del juego con estética Glassmorphism Premium */
+.panel{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,7,15,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);opacity:0;pointer-events:none;transition:opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);z-index:100;border:1px solid rgba(255,255,255,0.03)}
+.panel.active{opacity:1;pointer-events:all}
+
+/* Títulos con efectos de neón estilizados */
+.panel-title{font-size:clamp(30px,6vw,54px);font-weight:900;text-transform:uppercase;letter-spacing:5px;margin-bottom:15px;text-align:center}
+.panel-title.cyan{color:#7df9ff;text-shadow:0 0 30px rgba(125,249,255,0.6), 0 0 10px rgba(125,249,255,0.3)}
+.panel-title.green{color:#39ff88;text-shadow:0 0 30px rgba(57,255,136,0.6), 0 0 10px rgba(57,255,136,0.3)}
+.panel-title.red{color:#ff3939;text-shadow:0 0 30px rgba(255,57,57,0.6), 0 0 10px rgba(255,57,57,0.3)}
+.panel-title.pink{color:#ff39b8;text-shadow:0 0 30px rgba(255,57,184,0.6), 0 0 10px rgba(255,57,184,0.3)}
+.panel-title.gold{color:#ffd84d;text-shadow:0 0 30px rgba(255,216,77,0.6), 0 0 10px rgba(255,216,77,0.3)}
+.panel-title.purple{color:#9b59ff;text-shadow:0 0 30px rgba(155,89,255,0.6), 0 0 10px rgba(155,89,255,0.3)}
+
+/* Botonera Futurista */
+.btn{display:inline-flex;align-items:center;justify-content:center;min-width:190px;min-height:50px;padding:12px 30px;border:2px solid;background:transparent;color:inherit;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;transition:all 0.25s cubic-bezier(0.25, 1, 0.5, 1);border-radius:8px;text-decoration:none;margin:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.btn:active{transform:scale(0.96)}
+.btn-cyan{border-color:#7df9ff;color:#7df9ff}
+.btn-cyan:hover{background:rgba(125,249,255,0.12);box-shadow:0 0 25px rgba(125,249,255,0.4)}
+.btn-pink{border-color:#ff39b8;color:#ff39b8}
+.btn-pink:hover{background:rgba(255,57,184,0.12);box-shadow:0 0 25px rgba(255,57,184,0.4)}
+.btn-gold{border-color:#ffd84d;color:#ffd84d}
+.btn-gold:hover{background:rgba(255,216,77,0.12);box-shadow:0 0 25px rgba(255,216,77,0.4)}
+.btn-green{border-color:#39ff88;color:#39ff88}
+.btn-green:hover{background:rgba(57,255,136,0.12);box-shadow:0 0 25px rgba(57,255,136,0.4)}
+.btn-red{border-color:#ff3939;color:#ff3939}
+.btn-red:hover{background:rgba(255,57,57,0.12);box-shadow:0 0 25px rgba(255,57,57,0.4)}
+.btn-purple{border-color:#9b59ff;color:#9b59ff}
+.btn-purple:hover{background:rgba(155,89,255,0.12);box-shadow:0 0 25px rgba(155,89,255,0.4)}
+.btn-large{min-width:240px;min-height:58px;font-size:17px;padding:16px 40px}
+.back-btn{position:absolute;top:20px;left:20px;min-width:auto;padding:10px 18px;font-size:12px;z-index:110}
+
+@keyframes floatTitle{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 12px var(--glow-color)}50%{box-shadow:0 0 30px var(--glow-color),0 0 50px var(--glow-color)}}
+@keyframes starEntrance{0%{transform:scale(0) rotate(-180deg);opacity:0}80%{transform:scale(1.2) rotate(15deg);opacity:0.9}100%{transform:scale(1) rotate(0deg);opacity:1}}
+
+/* Scrollbars estilizados estéticos */
+::-webkit-scrollbar {width:6px}
+::-webkit-scrollbar-track {background:rgba(255,255,255,0.01);border-radius:3px}
+::-webkit-scrollbar-thumb {background:rgba(125,249,255,0.25);border-radius:3px}
+::-webkit-scrollbar-thumb:hover {background:rgba(125,249,255,0.55)}
+
+/* Tarjetas de Skins Premium */
+.skin-card{background:rgba(16,16,32,0.65);border:2px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px;transition:all 0.3s cubic-bezier(0.25, 1, 0.5, 1)}
+.skin-card.owned{border-color:rgba(125,249,255,0.25)}
+.skin-card.equipped{border-color:#39ff88;box-shadow:0 0 20px rgba(57,255,136,0.2);background:rgba(12,28,24,0.75)}
+.skin-card.locked{opacity:0.7}
+.skin-preview{width:56px;height:56px;border-radius:50%;--glow-color:#7df9ff;animation:pulseGlow 2.5s ease-in-out infinite}
+.skin-name{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.95);text-align:center;font-weight:700}
+.skin-ability{font-size:10px;color:#7df9ff;letter-spacing:0.5px;text-align:center;line-height:1.3;margin-top:2px;background:rgba(125,249,255,0.07);padding:4px 8px;border-radius:4px;border:1px solid rgba(125,249,255,0.15);font-style:italic}
+.skin-price{font-size:11px;color:#ffd84d;letter-spacing:1px;font-weight:800}
+.skin-status{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:800}
+
+/* Tarjetas de Niveles */
+.level-card{background:rgba(15,15,30,0.7);border:2px solid rgba(125,249,255,0.12);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:all 0.25s cubic-bezier(0.25, 1, 0.5, 1);display:flex;flex-direction:column;justify-content:center;align-items:center}
+.level-card:hover{border-color:#7df9ff;box-shadow:0 0 18px rgba(125,249,255,0.22);transform:translateY(-4px)}
+.level-card.locked{opacity:0.3;pointer-events:none;border-color:rgba(255,255,255,0.03)}
+.level-card .lname{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7df9ff;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+.level-card .lstars{font-size:12px;color:#ffd84d;letter-spacing:2px;margin-top:3px}
+.level-card .lnum{font-size:28px;font-weight:900;color:rgba(125,249,255,0.3);line-height:1}
+
+/* Contenedores de estética Premium para Victoria/Derrota */
+.glass-panel{background:rgba(10,10,25,0.75);border:2px solid rgba(255,255,255,0.06);border-radius:20px;padding:35px;max-width:550px;width:90%;display:flex;flex-direction:column;align-items:center;box-shadow:0 25px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.star-container{display:flex;justify-content:center;gap:15px;margin:20px 0}
+.animated-star{font-size:42px;opacity:0;line-height:1}
+.animated-star.active{animation:starEntrance 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+
+<!-- PANEL DE MENÚ PRINCIPAL -->
+<div id="menuPanel" class="panel active">
+  <div id="menuStardust" style="position:absolute;top:20px;right:20px;color:#ffd84d;font-size:14px;letter-spacing:2px;text-transform:uppercase;font-weight:700">POLVO ESTELAR: <span id="menuStardustVal">0</span></div>
+  <div class="panel-title cyan" style="font-size:clamp(36px,8vw,72px);animation:floatTitle 3.5s ease-in-out infinite;margin-bottom:8px">NEO GRAVITY</div>
+  <div style="font-size:clamp(10px,2vw,14px);letter-spacing:6px;color:rgba(125,249,255,0.5);margin-bottom:50px;text-transform:uppercase;font-weight:700">EDICIÓN DEFINITIVA v2.0</div>
+  <button class="btn btn-cyan btn-large" onclick="G.showLevelSelect()">JUGAR</button>
+  <button class="btn btn-pink" onclick="G.setState('SHOP')">BÓVEDA DE SKINS</button>
+  <div style="position:absolute;bottom:20px;color:rgba(255,255,255,0.3);font-size:11px;letter-spacing:2px;text-transform:uppercase;text-align:center;padding:0 10px">ARRASTRA PARA LANZAR • USA LA GRAVEDAD • JUNTA ESTRELLAS</div>
+</div>
+
+<!-- PANEL DE SELECCIÓN DE NIVEL -->
+<div id="levelPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">&lt; ATRÁS</button>
+  <div class="panel-title cyan" style="margin-top:60px;margin-bottom:10px">MISIONES COSMOS</div>
+  <div id="levelGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;max-width:760px;width:92%;margin-top:10px;max-height:65vh;overflow-y:auto;padding:12px"></div>
+</div>
+
+<!-- PANEL DE TIENDA (BÓVEDA DE SKINS CON ABILIDADES) -->
+<div id="shopPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">&lt; ATRÁS</button>
+  <div style="position:absolute;top:20px;right:20px;color:#ffd84d;font-size:15px;letter-spacing:2px;text-transform:uppercase;font-weight:700">POLVO: <span id="shopStardustVal">0</span></div>
+  <div class="panel-title pink" style="margin-top:60px;margin-bottom:10px">BÓVEDA COSMÉTICA</div>
+  <div id="skinGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;max-width:760px;width:92%;margin-top:10px;max-height:65vh;overflow-y:auto;padding:12px"></div>
+</div>
+
+<!-- PANEL DE PAUSA -->
+<div id="pausePanel" class="panel">
+  <div class="panel-title cyan">TRANSMISIÓN PAUSADA</div>
+  <button class="btn btn-cyan btn-large" onclick="G.resume()">REANUDAR</button>
+  <button class="btn btn-gold" onclick="G.restartLevel()">REINICIAR</button>
+  <button class="btn btn-red" onclick="G.setState('MENU')">MENÚ PRINCIPAL</button>
+</div>
+
+<!-- PANEL DE VICTORIA REMODELADO (ESTÉTICO Y ELEGANTE) -->
+<div id="victoryPanel" class="panel">
+  <div class="glass-panel" style="border-color: rgba(57,255,136,0.25); box-shadow: 0 0 30px rgba(57,255,136,0.1)">
+    <div class="panel-title green" style="margin-bottom:5px; font-size: 28px">ÓRBITA ESTABLECIDA</div>
+    <div style="font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.4); text-transform: uppercase">Misión Cosmos Completada</div>
+    
+    <!-- Contenedor de estrellas animadas secuencialmente -->
+    <div class="star-container" id="victoryStarsContainer"></div>
+    
+    <div id="victoryScore" style="font-size:14px; color:rgba(255,255,255,0.85); letter-spacing:1px; margin-bottom:24px; text-align:center; line-height:1.8"></div>
+    
+    <button class="btn btn-green btn-large" id="nextLevelBtn" onclick="G.nextLevel()">SIGUIENTE MISIÓN</button>
+    <button class="btn btn-cyan" onclick="G.setState('MENU')" style="min-width: 240px">VOLVER AL MENÚ</button>
+  </div>
+</div>
+
+<!-- PANEL DE DERROTA REMODELADO (INSPIRADOR) -->
+<div id="gameoverPanel" class="panel">
+  <div class="glass-panel" style="border-color: rgba(255,57,57,0.25); box-shadow: 0 0 30px rgba(255,57,57,0.1)">
+    <div class="panel-title red" style="margin-bottom:5px; font-size: 28px">SINALIZACIÓN PERDIDA</div>
+    <div style="font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 20px">El Orbe fue Destruido</div>
+    
+    <!-- Frase inspiradora para volver a intentar -->
+    <div id="gameoverQuote" style="font-size:14px; color: #ff8b8b; line-height:1.6; text-align:center; margin-bottom:30px; padding: 0 15px; font-style: italic; border-left: 3px solid #ff3939"></div>
+    
+    <button class="btn btn-red btn-large" onclick="G.restartLevel()">REINTENTAR MISIÓN</button>
+    <button class="btn btn-cyan" onclick="G.setState('MENU')" style="min-width: 240px">VOLVER AL MENÚ</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" style="position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:50;display:none">
+  <div style="position:absolute;top:12px;left:12px;pointer-events:none">
+    <div id="hudLevel" style="font-size:14px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(125,249,255,0.9)">NIVEL 1</div>
+    <div id="hudShots" style="font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:1px;margin-top:3px">LANZAMIENTOS: 0</div>
+    <div id="hudShield" style="font-size:11px;color:#39ff88;letter-spacing:1px;margin-top:2px;display:none;font-weight:bold">ESCUDO ACTIVO</div>
+  </div>
+  <div style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:12px;pointer-events:all">
+    <div id="hudStars" style="font-size:16px;letter-spacing:4px;color:#ffd84d"></div>
+    <button id="pauseBtn" onclick="G.pause()" style="width:40px;height:40px;border:2px solid rgba(125,249,255,0.5);background:rgba(10,10,18,0.85);color:#7df9ff;font-size:16px;font-weight:900;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all 0.2s">||</button>
+  </div>
+  <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none">
+    <div id="hudDust" style="font-size:11px;color:rgba(255,216,77,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:700"></div>
+  </div>
+</div>
+
+
+<script>
+'use strict';
+
+// ============================================================
+// MOTOR DE JUEGO - NEO GRAVITY (Edición Definitiva v2.0)
+// ============================================================
+
+const G = {
+  // Referencias centrales
+  canvas: null,
+  ctx: null,
+  W: 0,
+  H: 0,
+  dpr: 1,
+
+  // Máquina de estados
+  state: 'MENU',
+  prevState: 'MENU',
+
+  // Datos guardados e inventario
+  currentLevel: 0,
+  shots: 0,
+  starsCollected: 0,
+  stardust: 0,
+  unlockedLevels: Array(14).fill(false),
+  bestScores: Array(14).fill(0),
+  unlockedSkins: ['default'],
+  equippedSkin: 'default',
+
+  // Objetos de escena
+  orb: null,
+  trail: [],
+  walls: [],
+  bumpers: [],
+  blackHoles: [],
+  killZones: [],
+  stars: [],
+  goal: null,
+
+  // Sistema de partículas optimizado (POOLING - Evita Lag/GC)
+  particlesPool: [],
+  maxParticles: 200,
+  confettiPool: [],
+  maxConfetti: 120,
+
+  // Control de entrada
+  aiming: false,
+  aimStart: { x: 0, y: 0 },
+  aimEnd: { x: 0, y: 0 },
+
+  // Temporizadores físicos
+  lastTime: 0,
+  accumulator: 0,
+  dt: 1 / 60,
+  frameCount: 0,
+
+  // Fondo estrellado dinámico
+  bgParticles: [],
+
+  // Contexto de Audio Web
+  audioCtx: null,
+
+  // Frases motivacionales para la pantalla de derrota
+  motivationQuotes: [
+    "“Quizás en tu siguiente ronda puedas superar este nivel. ¡El cosmos premia la persistencia!”",
+    "“El fracaso es solo una corrección de órbita hacia la perfección. ¡Inténtalo de nuevo!”",
+    "“La gravedad es implacable, pero tu determinación lo es aún más. ¡Lanza de nuevo!”",
+    "“Cada choque te enseña una nueva trayectoria. ¡En la siguiente ronda conquistarás el espacio!”",
+    "“Incluso las estrellas colapsan antes de brillar con su máxima fuerza. ¡Tú puedes lograrlo!”",
+    "“La precisión orbital requiere paciencia. Tu siguiente cálculo será el definitivo.”"
+  ],
+
+  // ============================================================
+  // SKINS CON HABILIDADES ESPECIALES REALES E IMPLEMENTADAS
+  // ============================================================
+  skins: [
+    { 
+      id: 'default', 
+      name: 'Cian Estándar', 
+      price: 0, 
+      colorCore: '#7df9ff', 
+      colorGlow: 'rgba(125,249,255,0.4)', 
+      colorTrail: 'rgba(125,249,255,',
+      ability: 'none',
+      abilityDesc: 'Estabilizador Básico (Sin habilidades especiales)'
+    },
+    { 
+      id: 'neon-lime', 
+      name: 'Lima Neón', 
+      price: 30, 
+      colorCore: '#39ff14', 
+      colorGlow: 'rgba(57,255,20,0.4)', 
+      colorTrail: 'rgba(57,255,20,',
+      ability: 'elasticity',
+      abilityDesc: 'Especial: Superelasticidad (+20% de rebote en muros)'
+    },
+    { 
+      id: 'hot-pink', 
+      name: 'Rosa Eléctrico', 
+      price: 60, 
+      colorCore: '#ff1493', 
+      colorGlow: 'rgba(255,20,147,0.4)', 
+      colorTrail: 'rgba(255,20,147,',
+      ability: 'magnet',
+      abilityDesc: 'Especial: Atracción (Atrae estrellas un 30% más lejos)'
+    },
+    { 
+      id: 'electric-blue', 
+      name: 'Azul Eléctrico', 
+      price: 100, 
+      colorCore: '#0066ff', 
+      colorGlow: 'rgba(0,102,255,0.4)', 
+      colorTrail: 'rgba(0,102,255,',
+      ability: 'gravity_res',
+      abilityDesc: 'Especial: Escudo Gravitacional (-35% fuerza de agujeros negros)'
+    },
+    { 
+      id: 'vortex-edge', 
+      name: 'Vórtice Púrpura', 
+      price: 150, 
+      colorCore: '#9b59ff', 
+      colorGlow: 'rgba(155,89,255,0.4)', 
+      colorTrail: 'rgba(155,89,255,',
+      ability: 'mini',
+      abilityDesc: 'Especial: Micro-Tamaño (-20% tamaño, ideal para huecos estrechos)'
+    },
+    { 
+      id: 'solar-flare', 
+      name: 'Fuego Solar', 
+      price: 250, 
+      colorCore: '#ffd700', 
+      colorGlow: 'rgba(255,215,0,0.4)', 
+      colorTrail: 'rgba(255,215,0,',
+      ability: 'low_friction',
+      abilityDesc: 'Especial: Inercia Solar (-50% rozamiento, vuela más rápido)'
+    },
+    { 
+      id: 'singularity', 
+      name: 'Singularidad Roja', 
+      price: 400, 
+      colorCore: '#ff0044', 
+      colorGlow: 'rgba(255,0,68,0.4)', 
+      colorTrail: 'rgba(255,0,68,',
+      ability: 'shield_1',
+      abilityDesc: 'Especial: Escudo Vital (Sobrevive a 1 impacto mortal)'
+    },
+    { 
+      id: 'aurora', 
+      name: 'Aurora Verde', 
+      price: 500, 
+      colorCore: '#00ffaa', 
+      colorGlow: 'rgba(0,255,170,0.4)', 
+      colorTrail: 'rgba(0,255,170,',
+      ability: 'super_magnet',
+      abilityDesc: 'Especial: Magnetismo Aurora (Atrae estrellas un 70% más lejos)'
+    },
+    { 
+      id: 'supernova', 
+      name: 'Supernova', 
+      price: 650, 
+      colorCore: '#ff5500', 
+      colorGlow: 'rgba(255,85,0,0.45)', 
+      colorTrail: 'rgba(255,85,0,',
+      ability: 'hyper_power',
+      abilityDesc: 'Especial: Impulso Supernova (+25% de fuerza de lanzamiento)'
+    },
+    { 
+      id: 'stardust-skin', 
+      name: 'Polvo Astral', 
+      price: 800, 
+      colorCore: '#ffffff', 
+      colorGlow: 'rgba(255,255,255,0.45)', 
+      colorTrail: 'rgba(255,255,255,',
+      ability: 'goal_suction',
+      abilityDesc: 'Especial: Sintonía Astral (La meta te succiona desde un 40% más lejos)'
+    },
+    { 
+      id: 'exotic-matter', 
+      name: 'Materia Exótica', 
+      price: 1000, 
+      colorCore: '#e0115f', 
+      colorGlow: 'rgba(224,17,95,0.4)', 
+      colorTrail: 'rgba(224,17,95,',
+      ability: 'quantum_break',
+      abilityDesc: 'ACTIVA: Salto Cuántico (Haz Tap en el aire para detenerte en seco)'
+    },
+    { 
+      id: 'absolute-zero', 
+      name: 'Cero Absoluto', 
+      price: 1200, 
+      colorCore: '#00f3ff', 
+      colorGlow: 'rgba(0,243,255,0.4)', 
+      colorTrail: 'rgba(0,243,255,',
+      ability: 'cold_inertia',
+      abilityDesc: 'Especial: Cero Inercia (Te detienes de inmediato al ir despacio)'
+    },
+    { 
+      id: 'hiperespacio', 
+      name: 'Hiperespacio', 
+      price: 1500, 
+      colorCore: '#ff00ff', 
+      colorGlow: 'rgba(255,0,255,0.5)', 
+      colorTrail: 'rgba(255,255,255,',
+      ability: 'midair_launch',
+      abilityDesc: 'ACTIVA: Doble Órbita (Permite re-apuntar y lanzar una vez en el aire)'
+    },
+    { 
+      id: 'wormhole', 
+      name: 'Agujero Gusano', 
+      price: 1800, 
+      colorCore: '#0c0c17', 
+      colorGlow: 'rgba(255,216,77,0.6)', 
+      colorTrail: 'rgba(255,216,77,',
+      ability: 'anti_grav',
+      abilityDesc: 'Especial: Singularidad Pura (Inmunidad total a pozos gravitatorios)'
+    },
+    { 
+      id: 'orion-nebula', 
+      name: 'Orión Nebulosa', 
+      price: 2000, 
+      colorCore: '#8a2be2', 
+      colorGlow: 'rgba(138,43,226,0.55)', 
+      colorTrail: 'rgba(138,43,226,',
+      ability: 'shield_2',
+      abilityDesc: 'Especial: Hiper-Escudo (Sobrevive a 2 impactos mortales)'
+    },
+    { 
+      id: 'zero-gravity', 
+      name: 'Gravedad Cero', 
+      price: 2500, 
+      colorCore: '#a9a9a9', 
+      colorGlow: 'rgba(169,169,169,0.4)', 
+      colorTrail: 'rgba(169,169,169,',
+      ability: 'frictionless_predict',
+      abilityDesc: 'Especial: Vacío Absoluto (Cero fricción y predictor orbital duplicado)'
+    }
+  ],
+
+  getSkin: function() {
+    return this.skins.find(function(s) { return s.id === G.equippedSkin; }) || this.skins[0];
+  },
+
+  // ============================================================
+  // DEFINICIÓN DE LOS 14 NIVELES
+  // ============================================================
+  levels: [
+    {
+      name: 'Primer Destello',
+      par: 2,
+      spawn: { x: 0.15, y: 0.75 },
+      goal: { x: 0.85, y: 0.25, r: 0.035 },
+      stars: [
+        { x: 0.4, y: 0.55 },
+        { x: 0.6, y: 0.65 },
+        { x: 0.75, y: 0.4 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.35, w: 0.03, h: 0.3 }
+      ],
+      bumpers: [
+        { x: 0.55, y: 0.45, r: 0.03 }
+      ],
+      blackHoles: [],
+      killZones: []
+    },
+    {
+      name: 'Bulevar Rebotes',
+      par: 3,
+      spawn: { x: 0.1, y: 0.85 },
+      goal: { x: 0.9, y: 0.15, r: 0.033 },
+      stars: [
+        { x: 0.3, y: 0.7 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.72, y: 0.3 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.22, y: 0.55, w: 0.2, h: 0.025 },
+        { x: 0.58, y: 0.4, w: 0.2, h: 0.025 }
+      ],
+      bumpers: [
+        { x: 0.35, y: 0.75, r: 0.035 },
+        { x: 0.5, y: 0.32, r: 0.03 },
+        { x: 0.78, y: 0.55, r: 0.03 }
+      ],
+      blackHoles: [],
+      killZones: []
+    },
+    {
+      name: 'El Desafío',
+      par: 3,
+      spawn: { x: 0.1, y: 0.5 },
+      goal: { x: 0.9, y: 0.5, r: 0.03 },
+      stars: [
+        { x: 0.35, y: 0.28 },
+        { x: 0.55, y: 0.72 },
+        { x: 0.78, y: 0.35 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.25, y: 0.18, w: 0.025, h: 0.35 },
+        { x: 0.45, y: 0.48, w: 0.025, h: 0.38 },
+        { x: 0.65, y: 0.12, w: 0.025, h: 0.42 }
+      ],
+      bumpers: [
+        { x: 0.35, y: 0.62, r: 0.025 },
+        { x: 0.55, y: 0.32, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.045, strength: 0.35 }
+      ],
+      killZones: [
+        { x: 0.42, y: 0.87, w: 0.14, h: 0.025 }
+      ]
+    },
+    {
+      name: 'Pozo Gravitatorio',
+      par: 4,
+      spawn: { x: 0.1, y: 0.9 },
+      goal: { x: 0.9, y: 0.1, r: 0.03 },
+      stars: [
+        { x: 0.5, y: 0.58 },
+        { x: 0.28, y: 0.3 },
+        { x: 0.82, y: 0.52 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.62, w: 0.4, h: 0.022 }
+      ],
+      bumpers: [
+        { x: 0.2, y: 0.45, r: 0.03 },
+        { x: 0.82, y: 0.72, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.4, r: 0.06, strength: 0.52 },
+        { x: 0.72, y: 0.25, r: 0.045, strength: 0.3 }
+      ],
+      killZones: [
+        { x: 0.0, y: 0.44, w: 0.12, h: 0.022 }
+      ]
+    },
+    {
+      name: 'Laberinto de Neón',
+      par: 5,
+      spawn: { x: 0.08, y: 0.92 },
+      goal: { x: 0.92, y: 0.08, r: 0.028 },
+      stars: [
+        { x: 0.22, y: 0.72 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.78, y: 0.28 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.16, y: 0.28, w: 0.02, h: 0.5 },
+        { x: 0.32, y: 0.22, w: 0.02, h: 0.5 },
+        { x: 0.48, y: 0.32, w: 0.02, h: 0.5 },
+        { x: 0.64, y: 0.18, w: 0.02, h: 0.5 },
+        { x: 0.8, y: 0.28, w: 0.02, h: 0.5 }
+      ],
+      bumpers: [
+        { x: 0.24, y: 0.22, r: 0.02 },
+        { x: 0.4, y: 0.78, r: 0.02 },
+        { x: 0.56, y: 0.28, r: 0.02 },
+        { x: 0.72, y: 0.72, r: 0.02 }
+      ],
+      blackHoles: [
+        { x: 0.4, y: 0.45, r: 0.035, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.56, y: 0.88, w: 0.14, h: 0.022 },
+        { x: 0.22, y: 0.14, w: 0.1, h: 0.022 }
+      ]
+    },
+    {
+      name: 'Materia Oscura',
+      par: 4,
+      spawn: { x: 0.5, y: 0.92 },
+      goal: { x: 0.5, y: 0.08, r: 0.028 },
+      stars: [
+        { x: 0.22, y: 0.5 },
+        { x: 0.78, y: 0.5 },
+        { x: 0.5, y: 0.3 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.2, y: 0.65, w: 0.25, h: 0.02 },
+        { x: 0.55, y: 0.65, w: 0.25, h: 0.02 },
+        { x: 0.35, y: 0.38, w: 0.3, h: 0.02 },
+        { x: 0.1, y: 0.2, w: 0.2, h: 0.02 },
+        { x: 0.7, y: 0.2, w: 0.2, h: 0.02 }
+      ],
+      bumpers: [
+        { x: 0.5, y: 0.78, r: 0.03 },
+        { x: 0.15, y: 0.45, r: 0.025 },
+        { x: 0.85, y: 0.45, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.32, y: 0.52, r: 0.045, strength: 0.4 },
+        { x: 0.68, y: 0.52, r: 0.045, strength: 0.4 }
+      ],
+      killZones: [
+        { x: 0.42, y: 0.52, w: 0.16, h: 0.02 },
+        { x: 0.0, y: 0.78, w: 0.08, h: 0.02 },
+        { x: 0.92, y: 0.78, w: 0.08, h: 0.02 }
+      ]
+    },
+    {
+      name: 'Singularidad',
+      par: 5,
+      spawn: { x: 0.08, y: 0.08 },
+      goal: { x: 0.92, y: 0.92, r: 0.025 },
+      stars: [
+        { x: 0.5, y: 0.18 },
+        { x: 0.18, y: 0.72 },
+        { x: 0.82, y: 0.5 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.2, y: 0.2, w: 0.15, h: 0.02 },
+        { x: 0.65, y: 0.2, w: 0.15, h: 0.02 },
+        { x: 0.2, y: 0.8, w: 0.15, h: 0.02 },
+        { x: 0.65, y: 0.8, w: 0.15, h: 0.02 },
+        { x: 0.38, y: 0.38, w: 0.24, h: 0.02 },
+        { x: 0.38, y: 0.6, w: 0.24, h: 0.02 },
+        { x: 0.38, y: 0.38, w: 0.02, h: 0.24 },
+        { x: 0.6, y: 0.38, w: 0.02, h: 0.24 }
+      ],
+      bumpers: [
+        { x: 0.15, y: 0.5, r: 0.025 },
+        { x: 0.85, y: 0.5, r: 0.025 },
+        { x: 0.5, y: 0.88, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.055, strength: 0.6 },
+        { x: 0.28, y: 0.35, r: 0.03, strength: 0.25 },
+        { x: 0.72, y: 0.65, r: 0.03, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.35, y: 0.26, w: 0.3, h: 0.02 },
+        { x: 0.35, y: 0.74, w: 0.3, h: 0.02 }
+      ]
+    },
+    {
+      name: 'Cinturón de Asteroides',
+      par: 4,
+      spawn: { x: 0.15, y: 0.5 },
+      goal: { x: 0.85, y: 0.5, r: 0.03 },
+      stars: [
+        { x: 0.5, y: 0.2 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.5, y: 0.8 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.45, y: 0.25, w: 0.1, h: 0.02 },
+        { x: 0.45, y: 0.73, w: 0.1, h: 0.02 }
+      ],
+      bumpers: [
+        { x: 0.38, y: 0.35, r: 0.032 },
+        { x: 0.38, y: 0.65, r: 0.032 },
+        { x: 0.62, y: 0.35, r: 0.032 },
+        { x: 0.62, y: 0.65, r: 0.032 },
+        { x: 0.5, y: 0.35, r: 0.025 },
+        { x: 0.5, y: 0.65, r: 0.025 }
+      ],
+      blackHoles: [],
+      killZones: [
+        { x: 0.48, y: 0.02, w: 0.04, h: 0.15 },
+        { x: 0.48, y: 0.83, w: 0.04, h: 0.15 }
+      ]
+    },
+    {
+      name: 'Órbitas Binarias',
+      par: 3,
+      spawn: { x: 0.1, y: 0.5 },
+      goal: { x: 0.9, y: 0.5, r: 0.03 },
+      stars: [
+        { x: 0.4, y: 0.72 },
+        { x: 0.6, y: 0.28 },
+        { x: 0.5, y: 0.5 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 }
+      ],
+      bumpers: [
+        { x: 0.25, y: 0.25, r: 0.03 },
+        { x: 0.25, y: 0.75, r: 0.03 },
+        { x: 0.75, y: 0.25, r: 0.03 },
+        { x: 0.75, y: 0.75, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.4, y: 0.32, r: 0.045, strength: 0.35 },
+        { x: 0.6, y: 0.68, r: 0.045, strength: 0.35 }
+      ],
+      killZones: [
+        { x: 0.48, y: 0.35, w: 0.04, h: 0.3 }
+      ]
+    },
+    {
+      name: 'Frenesí de Rebote',
+      par: 4,
+      spawn: { x: 0.5, y: 0.15 },
+      goal: { x: 0.5, y: 0.85, r: 0.028 },
+      stars: [
+        { x: 0.2, y: 0.5 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.8, y: 0.5 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.45, w: 0.4, h: 0.022 }
+      ],
+      bumpers: [
+        { x: 0.15, y: 0.35, r: 0.035 },
+        { x: 0.35, y: 0.25, r: 0.03 },
+        { x: 0.65, y: 0.25, r: 0.03 },
+        { x: 0.85, y: 0.35, r: 0.035 },
+        { x: 0.3, y: 0.65, r: 0.028 },
+        { x: 0.7, y: 0.65, r: 0.028 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.35, r: 0.04, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.02, y: 0.48, w: 0.12, h: 0.04 },
+        { x: 0.86, y: 0.48, w: 0.12, h: 0.04 }
+      ]
+    },
+    {
+      name: 'Vórtice Inverso',
+      par: 5,
+      spawn: { x: 0.1, y: 0.1 },
+      goal: { x: 0.9, y: 0.9, r: 0.026 },
+      stars: [
+        { x: 0.4, y: 0.2 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.6, y: 0.8 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.35, w: 0.03, h: 0.4 },
+        { x: 0.67, y: 0.25, w: 0.03, h: 0.4 }
+      ],
+      bumpers: [
+        { x: 0.5, y: 0.25, r: 0.025 },
+        { x: 0.5, y: 0.75, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.2, y: 0.6, r: 0.05, strength: -0.4 }, // Agujero repulsivo
+        { x: 0.8, y: 0.4, r: 0.05, strength: 0.45 }
+      ],
+      killZones: [
+        { x: 0.33, y: 0.02, w: 0.34, h: 0.022 }
+      ]
+    },
+    {
+      name: 'Laberinto de Gravedad',
+      par: 6,
+      spawn: { x: 0.1, y: 0.9 },
+      goal: { x: 0.9, y: 0.1, r: 0.025 },
+      stars: [
+        { x: 0.15, y: 0.3 },
+        { x: 0.5, y: 0.55 },
+        { x: 0.85, y: 0.7 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.28, y: 0.3, w: 0.02, h: 0.7 },
+        { x: 0.7, y: 0.0, w: 0.02, h: 0.7 }
+      ],
+      bumpers: [
+        { x: 0.15, y: 0.5, r: 0.03 },
+        { x: 0.5, y: 0.2, r: 0.028 },
+        { x: 0.5, y: 0.8, r: 0.028 },
+        { x: 0.85, y: 0.5, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.04, strength: 0.3 },
+        { x: 0.85, y: 0.3, r: 0.035, strength: -0.2 }
+      ],
+      killZones: [
+        { x: 0.42, y: 0.48, w: 0.16, h: 0.025 }
+      ]
+    },
+    {
+      name: 'La Tempestad Cósmica',
+      par: 5,
+      spawn: { x: 0.5, y: 0.9 },
+      goal: { x: 0.5, y: 0.1, r: 0.024 },
+      stars: [
+        { x: 0.32, y: 0.42 },
+        { x: 0.68, y: 0.42 },
+        { x: 0.5, y: 0.65 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.4, y: 0.28, w: 0.2, h: 0.022 }
+      ],
+      bumpers: [
+        { x: 0.22, y: 0.25, r: 0.032 },
+        { x: 0.78, y: 0.25, r: 0.032 },
+        { x: 0.25, y: 0.7, r: 0.025 },
+        { x: 0.75, y: 0.7, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.2, y: 0.45, r: 0.045, strength: 0.32 },
+        { x: 0.5, y: 0.45, r: 0.05, strength: -0.35 },
+        { x: 0.8, y: 0.45, r: 0.045, strength: 0.32 }
+      ],
+      killZones: [
+        { x: 0.12, y: 0.55, w: 0.1, h: 0.025 },
+        { x: 0.78, y: 0.55, w: 0.1, h: 0.025 }
+      ]
+    },
+    {
+      name: 'Singularidad Suprema',
+      par: 6,
+      spawn: { x: 0.1, y: 0.5 },
+      goal: { x: 0.9, y: 0.5, r: 0.022 },
+      stars: [
+        { x: 0.3, y: 0.55 },
+        { x: 0.5, y: 0.25 },
+        { x: 0.7, y: 0.55 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.4, y: 0.15, w: 0.2, h: 0.02 },
+        { x: 0.4, y: 0.83, w: 0.2, h: 0.02 }
+      ],
+      bumpers: [
+        { x: 0.35, y: 0.3, r: 0.026 },
+        { x: 0.35, y: 0.7, r: 0.026 },
+        { x: 0.65, y: 0.3, r: 0.026 },
+        { x: 0.65, y: 0.7, r: 0.026 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.062, strength: 0.6 },
+        { x: 0.25, y: 0.22, r: 0.03, strength: 0.25 },
+        { x: 0.75, y: 0.78, r: 0.03, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.45, y: 0.35, w: 0.1, h: 0.022 },
+        { x: 0.45, y: 0.62, w: 0.1, h: 0.022 }
+      ]
+    }
+  ],
+
+  // ============================================================
+  // SINTETIZADOR DE AUDIO - WEB AUDIO API (Ultra Limpio)
+  // ============================================================
+  initAudio: function() {
+    if (this.audioCtx) return;
+    try {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { /* Fallback silencioso */ }
+  },
+
+  playTone: function(freq, duration, type, gain, delay) {
+    if (!this.audioCtx) return;
+    var ctx = this.audioCtx;
+    var t = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var gn = ctx.createGain();
+    var master = ctx.createGain();
+    master.gain.value = 0.5; 
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gn.gain.setValueAtTime(gain || 0.4, t);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.connect(gn);
+    gn.connect(master);
+    master.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + duration);
+  },
+
+  sfx: {
+    launch: function() {
+      G.playTone(90, 0.14, 'square', 0.45);
+      G.playTone(140, 0.1, 'sawtooth', 0.35, 0.02);
+    },
+    bounce: function() {
+      G.playTone(800, 0.04, 'square', 0.4);
+      G.playTone(1200, 0.03, 'sine', 0.3, 0.01);
+    },
+    star: function() {
+      G.playTone(523, 0.1, 'sine', 0.4);       
+      G.playTone(659, 0.1, 'sine', 0.4, 0.06);  
+      G.playTone(784, 0.1, 'sine', 0.4, 0.12);  
+      G.playTone(1047, 0.18, 'sine', 0.45, 0.18); 
+    },
+    victory: function() {
+      G.playTone(523, 0.1, 'sine', 0.45);
+      G.playTone(659, 0.1, 'sine', 0.45, 0.08);
+      G.playTone(784, 0.1, 'sine', 0.45, 0.16);
+      G.playTone(1047, 0.2, 'sine', 0.5, 0.24);
+      G.playTone(1319, 0.25, 'sine', 0.4, 0.32);
+    },
+    death: function() {
+      G.playTone(350, 0.15, 'sawtooth', 0.5);
+      G.playTone(250, 0.15, 'sawtooth', 0.45, 0.06);
+      G.playTone(150, 0.2, 'sawtooth', 0.45, 0.14);
+      G.playTone(80, 0.3, 'square', 0.5, 0.25);
+    },
+    shieldBreak: function() {
+      G.playTone(300, 0.08, 'sawtooth', 0.5);
+      G.playTone(600, 0.12, 'square', 0.5, 0.04);
+      G.playTone(900, 0.15, 'sine', 0.4, 0.08);
+    },
+    bumper: function() {
+      G.playTone(420, 0.08, 'square', 0.45);
+      G.playTone(650, 0.05, 'sawtooth', 0.35, 0.01);
+    },
+    buy: function() {
+      G.playTone(600, 0.08, 'sine', 0.4);
+      G.playTone(800, 0.1, 'sine', 0.4, 0.05);
+      G.playTone(1100, 0.12, 'sine', 0.35, 0.1);
+    }
+  },
+
+  // ============================================================
+  // SISTEMA DE GUARDADO / LOCAL STORAGE
+  // ============================================================
+  save: function() {
+    var data = {
+      stardust: this.stardust,
+      unlockedLevels: this.unlockedLevels,
+      bestScores: this.bestScores,
+      unlockedSkins: this.unlockedSkins,
+      equippedSkin: this.equippedSkin
+    };
+    try { localStorage.setItem('neogravity_save_v3', JSON.stringify(data)); } catch (e) { /* Guardado silencioso */ }
+  },
+
+  load: function() {
+    try {
+      var raw = localStorage.getItem('neogravity_save_v3');
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.stardust !== undefined) this.stardust = data.stardust;
+      if (data.unlockedLevels) this.unlockedLevels = data.unlockedLevels;
+      if (data.bestScores) this.bestScores = data.bestScores;
+      if (data.unlockedSkins) this.unlockedSkins = data.unlockedSkins;
+      if (data.equippedSkin) this.equippedSkin = data.equippedSkin;
+      
+      while (this.unlockedLevels.length < 14) this.unlockedLevels.push(false);
+      while (this.bestScores.length < 14) this.bestScores.push(0);
+    } catch (e) { /* Error silencioso */ }
+  },
+
+  // ============================================================
+  // MÁQUINA DE ESTADOS Y CONTROL DE PANELES
+  // ============================================================
+  setState: function(s) {
+    this.prevState = this.state;
+    this.state = s;
+    document.getElementById('menuPanel').classList.toggle('active', s === 'MENU');
+    document.getElementById('levelPanel').classList.toggle('active', s === 'LEVEL_SELECT');
+    document.getElementById('shopPanel').classList.toggle('active', s === 'SHOP');
+    document.getElementById('pausePanel').classList.toggle('active', s === 'PAUSED');
+    document.getElementById('victoryPanel').classList.toggle('active', s === 'VICTORY');
+    document.getElementById('gameoverPanel').classList.toggle('active', s === 'GAME_OVER');
+    document.getElementById('hud').style.display = (s === 'PLAYING' || s === 'PAUSED') ? 'block' : 'none';
+    if (s === 'MENU') this.updateMenuUI();
+    if (s === 'SHOP') this.updateShopUI();
+    if (s === 'LEVEL_SELECT') this.updateLevelSelectUI();
+  },
+
+  showLevelSelect: function() {
+    this.setState('LEVEL_SELECT');
+  },
+
+  updateMenuUI: function() {
+    document.getElementById('menuStardustVal').textContent = this.stardust;
+  },
+
+  // ============================================================
+  // INTERFAZ DE SELECCIÓN DE NIVELES (Estilo Grid Cyberpunk)
+  // ============================================================
+  updateLevelSelectUI: function() {
+    var grid = document.getElementById('levelGrid');
+    grid.innerHTML = '';
+    for (var i = 0; i < this.levels.length; i++) {
+      var lv = this.levels[i];
+      var unlocked = this.unlockedLevels[i];
+      var card = document.createElement('div');
+      card.className = 'level-card' + (unlocked ? '' : ' locked');
+      var best = this.bestScores[i];
+      var starHtml = '';
+      
+      for (var j = 0; j < 3; j++) {
+        if (unlocked && j < best) {
+          starHtml += '<span style="color:#ffd84d">★</span>';
+        } else {
+          starHtml += '<span style="color:rgba(255,255,255,0.12)">☆</span>';
+        }
+      }
+      card.innerHTML = '<div class="lnum">' + (i + 1) + '</div><div class="lname">' + lv.name + '</div><div class="lstars">' + starHtml + '</div>';
+      
+      if (unlocked) {
+        (function(idx) {
+          card.onclick = function() { G.startLevel(idx); };
+        })(i);
+      }
+      grid.appendChild(card);
+    }
+  },
+
+  // ============================================================
+  // TIENDA DE SKINS (BÓVEDA DE COSMÉTICOS CON DETALLE DE HABILIDAD)
+  // ============================================================
+  updateShopUI: function() {
+    document.getElementById('shopStardustVal').textContent = this.stardust;
+    var grid = document.getElementById('skinGrid');
+    grid.innerHTML = '';
+    for (var si = 0; si < this.skins.length; si++) {
+      var skin = this.skins[si];
+      var owned = this.unlockedSkins.indexOf(skin.id) >= 0;
+      var equipped = this.equippedSkin === skin.id;
+      var card = document.createElement('div');
+      card.className = 'skin-card' + (equipped ? ' equipped' : owned ? ' owned' : ' locked');
+
+      // Previsualización del orbe
+      var preview = document.createElement('div');
+      preview.className = 'skin-preview';
+      if (skin.id === 'hiperespacio') {
+        preview.style.background = 'linear-gradient(135deg, #ff00ff, #00ffff, #ffff00)';
+      } else if (skin.id === 'wormhole') {
+        preview.style.background = 'radial-gradient(circle, #000 35%, #ffd84d 75%)';
+      } else {
+        preview.style.background = 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.95), ' + skin.colorCore + ' 55%, rgba(0,0,0,0.6))';
+      }
+      preview.style.setProperty('--glow-color', skin.id === 'wormhole' ? '#ffd84d' : skin.colorCore);
+      card.appendChild(preview);
+
+      // Nombre del cosmético
+      var name = document.createElement('div');
+      name.className = 'skin-name';
+      name.textContent = skin.name;
+      card.appendChild(name);
+
+      // Etiqueta de habilidad especial
+      var abilityEl = document.createElement('div');
+      abilityEl.className = 'skin-ability';
+      abilityEl.textContent = skin.abilityDesc;
+      card.appendChild(abilityEl);
+
+      if (equipped) {
+        var st = document.createElement('div');
+        st.className = 'skin-status';
+        st.style.color = '#39ff88';
+        st.textContent = 'ACTIVO';
+        card.appendChild(st);
+      } else if (owned) {
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-cyan';
+        btn.style.cssText = 'min-width:auto;padding:6px 14px;font-size:11px;margin-top:4px;height:32px';
+        btn.textContent = 'EQUIPAR';
+        (function(id) {
+          btn.onclick = function() {
+            G.equippedSkin = id;
+            G.save();
+            G.updateShopUI();
+          };
+        })(skin.id);
+        card.appendChild(btn);
+      } else {
+        var price = document.createElement('div');
+        price.className = 'skin-price';
+        price.textContent = skin.price + ' POLVO';
+        card.appendChild(price);
+
+        var buyBtn = document.createElement('button');
+        buyBtn.className = 'btn btn-gold';
+        buyBtn.style.cssText = 'min-width:auto;padding:6px 14px;font-size:11px;margin-top:4px;height:32px';
+        buyBtn.textContent = 'COMPRAR';
+        if (this.stardust < skin.price) {
+          buyBtn.style.opacity = '0.35';
+          buyBtn.style.pointerEvents = 'none';
+        }
+        (function(s) {
+          buyBtn.onclick = function() {
+            if (G.stardust >= s.price) {
+              G.stardust -= s.price;
+              G.unlockedSkins.push(s.id);
+              G.equippedSkin = s.id;
+              G.save();
+              G.sfx.buy();
+              G.updateShopUI();
+            }
+          };
+        })(skin);
+        card.appendChild(buyBtn);
+      }
+      grid.appendChild(card);
+    }
+  },
+
+  // ============================================================
+  // GESTIÓN DE NIVELES Y PARTIDA
+  // ============================================================
+  startLevel: function(idx) {
+    this.initAudio();
+    this.currentLevel = idx;
+    this.shots = 0;
+    this.starsCollected = 0;
+    this.trail = [];
+    
+    // Limpieza de pools de partículas
+    this.clearParticles();
+
+    var lv = this.levels[idx];
+    var minDim = Math.min(this.W, this.H);
+    var skin = this.getSkin();
+
+    // Configuración de tamaño basada en habilidad
+    var customRadius = minDim * 0.017;
+    if (skin.ability === 'mini') {
+      customRadius *= 0.8; // Skin reducida
+    }
+
+    // Creación y reset del orbe del jugador
+    this.orb = {
+      x: lv.spawn.x * this.W,
+      y: lv.spawn.y * this.H,
+      vx: 0,
+      vy: 0,
+      r: customRadius,
+      alive: true,
+      launched: false,
+      grounded: true,
+      midAirLaunched: false, // Control para habilidad de doble lanzamiento
+      shieldCharges: 0       // Escudos vitales cargados
+    };
+
+    // Asignar escudos basados en habilidad
+    if (skin.ability === 'shield_1') this.orb.shieldCharges = 1;
+    if (skin.ability === 'shield_2') this.orb.shieldCharges = 2;
+
+    this.updateShieldHUD();
+
+    // Creación escalada de los elementos de la escena
+    this.walls = lv.walls.map(function(w) {
+      return { x: w.x * G.W, y: w.y * G.H, w: w.w * G.W, h: w.h * G.H };
+    });
+    this.bumpers = lv.bumpers.map(function(b) {
+      return { x: b.x * G.W, y: b.y * G.H, r: b.r * minDim, flash: 0 };
+    });
+
+    // DIFICULTAD PROGRESIVA: Escalar ligeramente la atracción de agujeros negros según el nivel
+    var difficultyGravScale = 1 + (idx * 0.03); // +3% de fuerza por nivel adicional
+    this.blackHoles = lv.blackHoles.map(function(b) {
+      return { 
+        x: b.x * G.W, 
+        y: b.y * G.H, 
+        r: b.r * minDim, 
+        strength: b.strength * difficultyGravScale, 
+        angle: 0 
+      };
+    });
+
+    this.killZones = lv.killZones.map(function(k) {
+      return { x: k.x * G.W, y: k.y * G.H, w: k.w * G.W, h: k.h * G.H };
+    });
+    this.stars = lv.stars.map(function(s) {
+      return { x: s.x * G.W, y: s.y * G.H, r: minDim * 0.015, collected: false, angle: 0, pulse: 0 };
+    });
+    this.goal = {
+      x: lv.goal.x * this.W,
+      y: lv.goal.y * this.H,
+      r: lv.goal.r * minDim,
+      pulse: 0
+    };
+
+    this.aiming = false;
+    this.updateHUD();
+    this.setState('PLAYING');
+  },
+
+  restartLevel: function() {
+    this.startLevel(this.currentLevel);
+  },
+
+  nextLevel: function() {
+    if (this.currentLevel < this.levels.length - 1) {
+      this.startLevel(this.currentLevel + 1);
+    } else {
+      this.setState('MENU');
+    }
+  },
+
+  pause: function() {
+    if (this.state === 'PLAYING') this.setState('PAUSED');
+  },
+
+  resume: function() {
+    if (this.state === 'PAUSED') {
+      this.setState('PLAYING');
+      this.lastTime = 0;
+    }
+  },
+
+  // Mostrar u ocultar indicador de escudo activo en el HUD
+  updateShieldHUD: function() {
+    var indicator = document.getElementById('hudShield');
+    if (this.orb && this.orb.shieldCharges > 0) {
+      indicator.style.display = 'block';
+      indicator.textContent = 'ESCUDO ACTIVO (' + this.orb.shieldCharges + ')';
+    } else {
+      indicator.style.display = 'none';
+    }
+  },
+
+  // ============================================================
+  // ACTUALIZACIÓN DEL PANEL HUD
+  // ============================================================
+  updateHUD: function() {
+    var lv = this.levels[this.currentLevel];
+    document.getElementById('hudLevel').textContent = (this.currentLevel + 1) + '. ' + lv.name;
+    document.getElementById('hudShots').textContent = 'LANZAMIENTOS: ' + this.shots + ' / PAR: ' + lv.par;
+    var starHtml = '';
+    for (var i = 0; i < 3; i++) {
+      if (i < this.starsCollected) {
+        starHtml += '<span style="color:#ffd84d">★</span>';
+      } else {
+        starHtml += '<span style="color:rgba(255,255,255,0.22)">☆</span>';
+      }
+    }
+    document.getElementById('hudStars').innerHTML = starHtml;
+    document.getElementById('hudDust').textContent = 'POLVO: ' + this.stardust;
+  },
+
+  // ============================================================
+  // GESTIÓN DE POOL DE PARTÍCULAS (Mantiene el lag en cero)
+  // ============================================================
+  initPools: function() {
+    this.particlesPool = [];
+    for (var i = 0; i < this.maxParticles; i++) {
+      this.particlesPool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '', size: 0, active: false });
+    }
+    this.confettiPool = [];
+    for (var j = 0; j < this.maxConfetti; j++) {
+      this.confettiPool.push({ x: 0, y: 0, vx: 0, vy: 0, color: '', life: 0, size: 0, rot: 0, active: false });
+    }
+  },
+
+  clearParticles: function() {
+    for (var i = 0; i < this.maxParticles; i++) this.particlesPool[i].active = false;
+    for (var j = 0; j < this.maxConfetti; j++) this.confettiPool[j].active = false;
+  },
+
+  spawnParticle: function(x, y, vx, vy, color, size, life) {
+    var p = this.particlesPool.find(function(item) { return !item.active; });
+    if (!p) p = this.particlesPool[0];
+    p.x = x;
+    p.y = y;
+    p.vx = vx;
+    p.vy = vy;
+    p.color = color;
+    p.size = size;
+    p.life = life || 1.0;
+    p.active = true;
+  },
+
+  spawnConfetti: function(x, y, vx, vy, color, size, life) {
+    var c = this.confettiPool.find(function(item) { return !item.active; });
+    if (!c) c = this.confettiPool[0];
+    c.x = x;
+    c.y = y;
+    c.vx = vx;
+    c.vy = vy;
+    c.color = color;
+    c.size = size;
+    c.life = life || 1.0;
+    c.rot = Math.random() * 360;
+    c.active = true;
+  },
+
+  // Explota un escudo al salvarnos del peligro
+  spawnShieldBurst: function(x, y) {
+    this.sfx.shieldBreak();
+    for (var i = 0; i < 30; i++) {
+      var angle = (i / 30) * Math.PI * 2;
+      var speed = Math.random() * 4 + 3;
+      this.spawnParticle(
+        x, y,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+        '#00ffff',
+        Math.random() * 4 + 3,
+        1.0
+      );
+    }
+  },
+
+  // ============================================================
+  // VICTORIA REMODELADA (Elegante y Estética)
+  // ============================================================
+  completeLevel: function() {
+    var lv = this.levels[this.currentLevel];
+    var starReward = this.starsCollected * 15;
+    var perfect = (this.shots <= lv.par) ? 25 : 0;
+    var total = starReward + perfect + 15;
+    this.stardust += total;
+
+    // Guardar mejor puntuación (estrellas)
+    if (this.starsCollected > this.bestScores[this.currentLevel]) {
+      this.bestScores[this.currentLevel] = this.starsCollected;
+    }
+
+    // Desbloquear el siguiente nivel
+    if (this.currentLevel < this.levels.length - 1) {
+      this.unlockedLevels[this.currentLevel + 1] = true;
+      document.getElementById('nextLevelBtn').style.display = 'inline-flex';
+    } else {
+      document.getElementById('nextLevelBtn').style.display = 'none';
+    }
+
+    this.save();
+    this.sfx.victory();
+
+    // Transición de visual de estrellas animadas estéticamente
+    var container = document.getElementById('victoryStarsContainer');
+    container.innerHTML = '';
+    
+    for (var i = 0; i < 3; i++) {
+      var starSpan = document.createElement('span');
+      starSpan.className = 'animated-star';
+      if (i < this.starsCollected) {
+        starSpan.style.color = '#ffd84d';
+        starSpan.style.textShadow = '0 0 20px rgba(255,216,77,0.7)';
+        starSpan.textContent = '★';
+      } else {
+        starSpan.style.color = 'rgba(255,255,255,0.1)';
+        starSpan.textContent = '☆';
+      }
+      container.appendChild(starSpan);
+      
+      // Lanzar animación secuencialmente con retardo para elegancia máxima
+      (function(el, delay) {
+        setTimeout(function() {
+          el.classList.add('active');
+        }, delay);
+      })(starSpan, i * 250);
+    }
+    
+    var perfectText = perfect ? '<br><span style="color:#39ff88; font-weight:bold; letter-spacing: 2px">¡TIRO PERFECTO! (+25)</span>' : '';
+    document.getElementById('victoryScore').innerHTML =
+      'ESTRELLAS CAPTURADAS: <span style="color:#ffd84d; font-weight:bold">+' + starReward + '</span>' + perfectText + 
+      '<br>RECURSOS EXTRAÍDOS: <span style="color:#7df9ff; font-weight:bold">+' + total + ' POLVO ESTELAR</span>';
+
+    // Disparar confeti
+    for (var c = 0; c < 70; c++) {
+      this.spawnConfetti(
+        this.W * 0.5,
+        this.H * 0.4,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10 - 4,
+        ['#7df9ff', '#ff39b8', '#ffd84d', '#39ff88', '#9b59ff', '#ff3939'][Math.floor(Math.random() * 6)],
+        Math.random() * 5 + 3,
+        1.0
+      );
+    }
+
+    this.setState('VICTORY');
+  },
+
+  // ============================================================
+  // DERROTA INSPIRADORA Y MEJORADA
+  // ============================================================
+  die: function() {
+    if (!this.orb || !this.orb.alive) return;
+
+    // Verificar si la habilidad de escudo está activa
+    if (this.orb.shieldCharges > 0) {
+      this.orb.shieldCharges--;
+      this.updateShieldHUD();
+      this.spawnShieldBurst(this.orb.x, this.orb.y);
+      
+      // Dar un pequeño empujón de rebote para escapar del peligro inmediato
+      this.orb.vx = -this.orb.vx * 0.8 || (Math.random() - 0.5) * 4;
+      this.orb.vy = -this.orb.vy * 0.8 || -4;
+      return;
+    }
+
+    this.orb.alive = false;
+    this.sfx.death();
+
+    // Explosión de partículas
+    var skin = this.getSkin();
+    var pColor = skin.colorCore;
+    if (skin.id === 'hiperespacio') pColor = '#ff00ff';
+    
+    for (var i = 0; i < 35; i++) {
+      var angle = (i / 35) * Math.PI * 2;
+      var speed = Math.random() * 5 + 2;
+      this.spawnParticle(
+        this.orb.x,
+        this.orb.y,
+        Math.cos(angle) * speed + (Math.random() - 0.5),
+        Math.sin(angle) * speed + (Math.random() - 0.5),
+        pColor,
+        Math.random() * 4 + 2,
+        1.0
+      );
+    }
+
+    // Seleccionar una frase motivacional aleatoria
+    var randomQuote = this.motivationQuotes[Math.floor(Math.random() * this.motivationQuotes.length)];
+    document.getElementById('gameoverQuote').textContent = randomQuote;
+
+    var self = this;
+    setTimeout(function() { self.setState('GAME_OVER'); }, 850);
+  },
+
+
+  // ============================================================
+  // MOTOR DE FÍSICAS - Timestep Fijo (Skins con Habilidades Pasivas)
+  // ============================================================
+  physicsStep: function() {
+    if (!this.orb || !this.orb.alive || !this.orb.launched) return;
+
+    var orb = this.orb;
+    var skin = this.getSkin();
+
+    // Habilidad Pasiva: Fricción reducida (Solar Flare / Gravedad Cero)
+    var friction = 0.997; 
+    if (skin.ability === 'low_friction') friction = 0.9985;
+    if (skin.ability === 'frictionless_predict') friction = 1.0; // ¡Cero fricción!
+
+    var i, dx, dy, dist, force, nx, ny, speed;
+
+    // ---- ATRACTORES GRAVITATORIOS (AGUJEROS NEGROS) ----
+    for (i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      dx = bh.x - orb.x;
+      dy = bh.y - orb.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Colisión central fatal
+      if (dist < bh.r * 0.38) {
+        this.die();
+        return;
+      }
+
+      // Habilidad pasiva: Inmunidad o reducción ante agujeros negros
+      var gravityMod = 1.0;
+      if (skin.ability === 'gravity_res') gravityMod = 0.65; // -35% fuerza
+      if (skin.ability === 'anti_grav') gravityMod = 0.0;     // Inmune
+
+      if (dist < bh.r * 6 && gravityMod > 0) {
+        force = (bh.strength * gravityMod) * 180 / (dist * dist + 80);
+        orb.vx += (dx / dist) * force;
+        orb.vy += (dy / dist) * force;
+      }
+      bh.angle += 0.025; 
+    }
+
+    // ---- APLICAR VELOCIDADES ----
+    orb.vx *= friction;
+    orb.vy *= friction;
+    orb.x += orb.vx;
+    orb.y += orb.vy;
+
+    // ---- COLISIÓN CON PAREDES ----
+    for (i = 0; i < this.walls.length; i++) {
+      var w = this.walls[i];
+      if (orb.x + orb.r > w.x && orb.x - orb.r < w.x + w.w &&
+          orb.y + orb.r > w.y && orb.y - orb.r < w.y + w.h) {
+
+        var overlapL = (orb.x + orb.r) - w.x;
+        var overlapR = (w.x + w.w) - (orb.x - orb.r);
+        var overlapT = (orb.y + orb.r) - w.y;
+        var overlapB = (w.y + w.h) - (orb.y - orb.r);
+        var minO = Math.min(overlapL, overlapR, overlapT, overlapB);
+
+        // Habilidad pasiva: Elasticidad mejorada (Neon Lime)
+        var bounceFactor = (skin.ability === 'elasticity') ? 0.88 : 0.72;
+
+        if (minO === overlapL) { orb.x = w.x - orb.r; orb.vx = -Math.abs(orb.vx) * bounceFactor; }
+        else if (minO === overlapR) { orb.x = w.x + w.w + orb.r; orb.vx = Math.abs(orb.vx) * bounceFactor; }
+        else if (minO === overlapT) { orb.y = w.y - orb.r; orb.vy = -Math.abs(orb.vy) * bounceFactor; }
+        else { orb.y = w.y + w.h + orb.r; orb.vy = Math.abs(orb.vy) * bounceFactor; }
+
+        this.sfx.bounce();
+
+        for (var wp = 0; wp < 3; wp++) {
+          this.spawnParticle(
+            orb.x, orb.y,
+            (Math.random() - 0.5) * 3,
+            (Math.random() - 0.5) * 3,
+            'rgba(125,249,255,0.7)',
+            Math.random() * 2 + 1,
+            0.6
+          );
+        }
+      }
+    }
+
+    // ---- COLISIÓN CON BUMPERS ----
+    for (i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      dx = orb.x - b.x;
+      dy = orb.y - b.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < orb.r + b.r) {
+        nx = dx / dist;
+        ny = dy / dist;
+        speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
+        
+        var bounceSpeed = Math.max(speed * 1.25, 5.5);
+        orb.vx = nx * bounceSpeed;
+        orb.vy = ny * bounceSpeed;
+        orb.x = b.x + nx * (orb.r + b.r + 1);
+        orb.y = b.y + ny * (orb.r + b.r + 1);
+        b.flash = 1.0;
+        this.sfx.bumper();
+
+        for (var bp = 0; bp < 6; bp++) {
+          this.spawnParticle(
+            orb.x, orb.y,
+            nx * Math.random() * 3 + (Math.random() - 0.5) * 2,
+            ny * Math.random() * 3 + (Math.random() - 0.5) * 2,
+            '#ffd84d',
+            Math.random() * 3 + 1,
+            0.8
+          );
+        }
+      }
+    }
+
+    // ---- ZONAS DE DAÑO ADVERSO ----
+    for (i = 0; i < this.killZones.length; i++) {
+      var kz = this.killZones[i];
+      if (orb.x + orb.r > kz.x && orb.x - orb.r < kz.x + kz.w &&
+          orb.y + orb.r > kz.y && orb.y - orb.r < kz.y + kz.h) {
+        this.die();
+        return;
+      }
+    }
+
+    // ---- CAPTURA DE ESTRELLAS CON MAGNETISMO ACTIVO ----
+    for (i = 0; i < this.stars.length; i++) {
+      var star = this.stars[i];
+      if (star.collected) continue;
+      dx = orb.x - star.x;
+      dy = orb.y - star.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Habilidad pasiva: Imán de estrellas (Hot Pink y Aurora Green)
+      var magnetDistance = orb.r + star.r;
+      if (skin.ability === 'magnet') magnetDistance += this.W * 0.055;       // rango medio
+      if (skin.ability === 'super_magnet') magnetDistance += this.W * 0.095; // rango masivo
+
+      // Atraer estrellas físicamente si están en rango de imán
+      if (dist < magnetDistance && dist > orb.r) {
+        var pullForce = 0.25;
+        star.x += (dx / dist) * pullForce;
+        star.y += (dy / dist) * pullForce;
+      }
+
+      if (dist < orb.r + star.r) {
+        star.collected = true;
+        this.starsCollected++;
+        this.sfx.star();
+
+        for (var sp = 0; sp < 12; sp++) {
+          var a = (sp / 12) * Math.PI * 2;
+          this.spawnParticle(
+            star.x, star.y,
+            Math.cos(a) * (Math.random() * 4 + 2),
+            Math.sin(a) * (Math.random() * 4 + 2),
+            '#ffd84d',
+            Math.random() * 3 + 2,
+            0.9
+          );
+        }
+        this.updateHUD();
+      }
+    }
+
+    // ---- META DE META CON SUCCIÓN OPCIONAL (Polvo Astral) ----
+    dx = orb.x - this.goal.x;
+    dy = orb.y - this.goal.y;
+    dist = Math.sqrt(dx * dx + dy * dy);
+
+    var goalReachDistance = this.goal.r + orb.r * 0.5;
+    if (skin.ability === 'goal_suction') {
+      // Atrae sutilmente al portal final si el orbe pasa lo suficientemente cerca
+      var suctionDistance = this.goal.r * 1.6;
+      if (dist < suctionDistance) {
+        orb.vx += (dx / dist) * 0.08;
+        orb.vy += (dy / dist) * 0.08;
+      }
+    }
+
+    if (dist < goalReachDistance) {
+      this.completeLevel();
+      return;
+    }
+
+    // ---- COMPROBACIÓN DE DETENCIÓN ----
+    speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
+    
+    // Habilidad pasiva: Cero Inercia (Cero Absoluto) detiene de golpe al ir despacio
+    var stopThreshold = (skin.ability === 'cold_inertia') ? 0.8 : 0.12;
+    if (speed < stopThreshold) {
+      orb.vx = 0;
+      orb.vy = 0;
+      orb.grounded = true;
+      orb.launched = false;
+      orb.midAirLaunched = false; // Reset de re-lanzamiento al tocar tierra
+    }
+
+    // ---- RASTRO DE PARTÍCULAS ----
+    if (speed > 0.4) {
+      this.trail.push({ x: orb.x, y: orb.y, life: 1 });
+      if (this.trail.length > 10) this.trail.shift();
+    }
+
+    // ---- CAER AL VACÍO ----
+    if (orb.x < -60 || orb.x > this.W + 60 || orb.y < -60 || orb.y > this.H + 60) {
+      this.die();
+    }
+  },
+
+
+  // ============================================================
+  // ACTUALIZACIÓN DE PARTÍCULAS DE POOL
+  // ============================================================
+  updateParticles: function() {
+    var i;
+
+    // Actualizar partículas de juego
+    for (i = 0; i < this.maxParticles; i++) {
+      var p = this.particlesPool[i];
+      if (!p.active) continue;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.07; 
+      p.vx *= 0.98;
+      p.life -= 0.025;
+      if (p.life <= 0) p.active = false;
+    }
+
+    // Rastro
+    for (i = this.trail.length - 1; i >= 0; i--) {
+      this.trail[i].life -= 0.085;
+      if (this.trail[i].life <= 0) this.trail.splice(i, 1);
+    }
+
+    // Enfriamiento de bumpers
+    for (i = 0; i < this.bumpers.length; i++) {
+      if (this.bumpers[i].flash > 0) {
+        this.bumpers[i].flash -= 0.045;
+        if (this.bumpers[i].flash < 0) this.bumpers[i].flash = 0;
+      }
+    }
+
+    // Estrellas
+    for (i = 0; i < this.stars.length; i++) {
+      this.stars[i].angle += 0.035;
+      this.stars[i].pulse += 0.055;
+    }
+
+    // Portal
+    if (this.goal) {
+      this.goal.pulse += 0.045;
+      if (this.goal.pulse > Math.PI * 2) this.goal.pulse -= Math.PI * 2;
+    }
+
+    // Confeti
+    for (i = 0; i < this.maxConfetti; i++) {
+      var c = this.confettiPool[i];
+      if (!c.active) continue;
+      c.x += c.vx;
+      c.y += c.vy;
+      c.vy += 0.11;
+      c.vx *= 0.98;
+      c.rot += c.vx * 1.8;
+      c.life -= 0.012;
+      if (c.life <= 0) c.active = false;
+    }
+  },
+
+  initBgParticles: function() {
+    this.bgParticles = [];
+    for (var i = 0; i < 35; i++) {
+      this.bgParticles.push({
+        x: Math.random() * this.W,
+        y: Math.random() * this.H,
+        vy: -(Math.random() * 0.2 + 0.06),
+        vx: (Math.random() - 0.5) * 0.08,
+        size: Math.random() * 2 + 0.5,
+        alpha: Math.random() * 0.4 + 0.1,
+        color: ['#7df9ff', '#9b59ff', '#ff39b8', '#ffd84d'][Math.floor(Math.random() * 4)]
+      });
+    }
+  },
+
+  updateBgParticles: function() {
+    for (var i = 0; i < this.bgParticles.length; i++) {
+      var p = this.bgParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y < -10) {
+        p.y = this.H + 10;
+        p.x = Math.random() * this.W;
+      }
+      if (p.x < -10) p.x = this.W + 10;
+      if (p.x > this.W + 10) p.x = -10;
+    }
+  },
+
+
+  // ============================================================
+  // RENDERIZADO DEL JUEGO (Limpio y Optimizado)
+  // ============================================================
+  render: function() {
+    var ctx = this.ctx;
+    var W = this.W;
+    var H = this.H;
+    var i, grad;
+
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = '#07070e';
+    ctx.fillRect(0, 0, W, H);
+
+    this.updateBgParticles();
+    for (i = 0; i < this.bgParticles.length; i++) {
+      var bp = this.bgParticles[i];
+      ctx.globalAlpha = bp.alpha;
+      ctx.fillStyle = bp.color;
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    if (this.state !== 'PLAYING' && this.state !== 'PAUSED') {
+      if (this.state === 'VICTORY') {
+        this.renderConfetti(ctx);
+      }
+      return;
+    }
+
+    var skin = this.getSkin();
+
+    // Dinamismo de color para Skin Arcoíris Hiperespacio
+    var skinCoreColor = skin.colorCore;
+    var skinGlowColor = skin.colorGlow;
+    if (skin.id === 'hiperespacio') {
+      var hue = (Date.now() / 15) % 360;
+      skinCoreColor = 'hsl(' + hue + ', 100%, 65%)';
+      skinGlowColor = 'hsla(' + hue + ', 100%, 65%, 0.4)';
+    }
+
+    // ---- ZONAS ROJAS DE MUERTE ----
+    for (i = 0; i < this.killZones.length; i++) {
+      var kz = this.killZones[i];
+      ctx.fillStyle = 'rgba(255,57,57,0.18)';
+      ctx.fillRect(kz.x, kz.y, kz.w, kz.h);
+      ctx.strokeStyle = 'rgba(255,57,57,0.7)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(kz.x, kz.y, kz.w, kz.h);
+      
+      ctx.fillStyle = 'rgba(255,57,57,0.35)';
+      var stripeW = 8;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(kz.x, kz.y, kz.w, kz.h);
+      ctx.clip();
+      for (var sx = kz.x - kz.h; sx < kz.x + kz.w; sx += stripeW * 2) {
+        ctx.beginPath();
+        ctx.moveTo(sx, kz.y + kz.h);
+        ctx.lineTo(sx + kz.h, kz.y);
+        ctx.lineTo(sx + kz.h + stripeW, kz.y);
+        ctx.lineTo(sx + stripeW, kz.y + kz.h);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // ---- PAREDES ----
+    for (i = 0; i < this.walls.length; i++) {
+      var w = this.walls[i];
+      ctx.fillStyle = 'rgba(125,249,255,0.06)';
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      ctx.strokeStyle = 'rgba(125,249,255,0.38)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    }
+
+    // ---- AGUJEROS NEGROS ----
+    for (i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      ctx.save();
+      ctx.translate(bh.x, bh.y);
+
+      var coreGlowColor = bh.strength < 0 ? 'rgba(0,255,255,' : 'rgba(155,89,255,';
+
+      ctx.rotate(bh.angle);
+      grad = ctx.createRadialGradient(0, 0, bh.r * 0.3, 0, 0, bh.r * 2);
+      grad.addColorStop(0, coreGlowColor + '0.45)');
+      grad.addColorStop(0.4, coreGlowColor + '0.2)');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, bh.r * 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = bh.strength < 0 ? 'rgba(0,243,255,0.25)' : 'rgba(155,89,255,0.25)';
+      ctx.lineWidth = 1.8;
+      for (var arm = 0; arm < 3; arm++) {
+        ctx.beginPath();
+        var armOffset = (arm / 3) * Math.PI * 2;
+        for (var t = 0; t < 25; t++) {
+          var tt = t / 25;
+          var spiral_r = bh.r * 0.45 + tt * bh.r * 1.35;
+          var spiral_a = armOffset + (bh.strength < 0 ? -1 : 1) * tt * Math.PI * 2.2;
+          var px = Math.cos(spiral_a) * spiral_r;
+          var py = Math.sin(spiral_a) * spiral_r;
+          if (t === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      grad = ctx.createRadialGradient(0, 0, 0, 0, 0, bh.r * 0.58);
+      if (bh.strength < 0) {
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.5, '#00f3ff');
+        grad.addColorStop(1, 'rgba(0,10,25,0.7)');
+      } else {
+        grad.addColorStop(0, '#04000b');
+        grad.addColorStop(0.65, '#120524');
+        grad.addColorStop(1, 'rgba(30,5,55,0.6)');
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, bh.r * 0.58, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // ---- BUMPERS ----
+    for (i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      var flash = b.flash || 0;
+      var bR = b.r * (1 + flash * 0.25);
+
+      if (flash > 0.05) {
+        grad = ctx.createRadialGradient(b.x, b.y, bR * 0.4, b.x, b.y, bR * 2.2);
+        grad.addColorStop(0, 'rgba(255,216,77,' + (flash * 0.45) + ')');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, bR * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      grad = ctx.createRadialGradient(b.x - bR * 0.35, b.y - bR * 0.35, bR * 0.08, b.x, b.y, bR);
+      grad.addColorStop(0, flash > 0.4 ? '#ffffff' : '#ffe893');
+      grad.addColorStop(0.5, '#ffd84d');
+      grad.addColorStop(1, '#9b7600');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, bR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,216,77,' + (0.5 + flash * 0.5) + ')';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+
+    // ---- ESTRELLAS ----
+    for (i = 0; i < this.stars.length; i++) {
+      var star = this.stars[i];
+      if (star.collected) continue;
+
+      ctx.save();
+      ctx.translate(star.x, star.y);
+      ctx.rotate(star.angle);
+
+      var starPulse = 0.55 + Math.sin(star.pulse) * 0.25;
+      grad = ctx.createRadialGradient(0, 0, 0, 0, 0, star.r * 2.2);
+      grad.addColorStop(0, 'rgba(255,216,77,' + starPulse + ')');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, star.r * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffd84d';
+      ctx.beginPath();
+      for (var si = 0; si < 5; si++) {
+        var outerAngle = (si * 72 - 90) * Math.PI / 180;
+        var innerAngle = ((si * 72) + 36 - 90) * Math.PI / 180;
+        var ox = Math.cos(outerAngle) * star.r;
+        var oy = Math.sin(outerAngle) * star.r;
+        var ix = Math.cos(innerAngle) * star.r * 0.42;
+        var iy = Math.sin(innerAngle) * star.r * 0.42;
+        if (si === 0) ctx.moveTo(ox, oy);
+        else ctx.lineTo(ox, oy);
+        ctx.lineTo(ix, iy);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.beginPath();
+      ctx.arc(-star.r * 0.18, -star.r * 0.18, star.r * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // ---- PORTAL DE LLEGADA ----
+    if (this.goal) {
+      var gP = Math.sin(this.goal.pulse) * 0.25 + 0.75;
+      var gr = this.goal.r;
+
+      grad = ctx.createRadialGradient(this.goal.x, this.goal.y, gr * 0.4, this.goal.x, this.goal.y, gr * 2.4);
+      grad.addColorStop(0, 'rgba(57,255,136,' + (gP * 0.35) + ')');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(this.goal.x, this.goal.y, gr * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      grad = ctx.createRadialGradient(this.goal.x, this.goal.y, 0, this.goal.x, this.goal.y, gr);
+      grad.addColorStop(0, 'rgba(57,255,136,' + gP + ')');
+      grad.addColorStop(0.65, 'rgba(57,255,136,' + (gP * 0.4) + ')');
+      grad.addColorStop(1, 'rgba(57,255,136,0.08)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(this.goal.x, this.goal.y, gr, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(57,255,136,' + gP + ')';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(this.goal.x, this.goal.y, gr * (1 + Math.sin(this.goal.pulse * 1.8) * 0.08), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+
+    // ---- RASTRO CÓSMICO ----
+    for (i = 0; i < this.trail.length; i++) {
+      var t = this.trail[i];
+      var tAlpha = t.life * 0.65;
+      var tSize = this.orb.r * t.life * 0.65;
+      
+      ctx.fillStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,' + tAlpha + ')' : skin.colorTrail + tAlpha + ')';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, tSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ---- ORBE DEL JUGADOR ----
+    if (this.orb && this.orb.alive) {
+      var ox = this.orb.x;
+      var oy = this.orb.y;
+      var or = this.orb.r;
+
+      // Halo de neon
+      grad = ctx.createRadialGradient(ox, oy, or, ox, oy, or * 2.4);
+      grad.addColorStop(0, skinGlowColor);
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ox, oy, or * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Esfera 3D
+      grad = ctx.createRadialGradient(ox - or * 0.35, oy - or * 0.35, or * 0.05, ox, oy, or);
+      if (skin.id === 'wormhole') {
+        grad.addColorStop(0, '#555555');
+        grad.addColorStop(0.3, '#0e0e1d');
+        grad.addColorStop(1, '#000000');
+      } else {
+        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.3, skinCoreColor);
+        grad.addColorStop(0.75, skin.id === 'hiperespacio' ? skinCoreColor : skin.colorTrail + '0.8)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ox, oy, or, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sombra
+      grad = ctx.createRadialGradient(ox + or * 0.2, oy + or * 0.35, 0, ox + or * 0.2, oy + or * 0.35, or * 0.85);
+      grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ox, oy, or, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Reflejo
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.beginPath();
+      ctx.ellipse(ox - or * 0.28, oy - or * 0.32, or * 0.28, or * 0.13, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rim light
+      ctx.strokeStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,0.5)' : skin.colorTrail + '0.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(ox, oy, or - 1, Math.PI * 0.7, Math.PI * 1.55);
+      ctx.stroke();
+
+      // Dibujar Escudo Visual Activo si tiene cargas protectoras
+      if (this.orb.shieldCharges > 0) {
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or * 1.4 + Math.sin(Date.now() / 150) * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // ---- PREDICCIÓN DE TRAYECTORIA REALISTA ----
+    if (this.aiming && this.orb && (this.orb.grounded || (skin.ability === 'midair_launch' && !this.orb.midAirLaunched))) {
+      var adx = this.aimStart.x - this.aimEnd.x;
+      var ady = this.aimStart.y - this.aimEnd.y;
+      var alen = Math.sqrt(adx * adx + ady * ady);
+
+      if (alen > 12) {
+        var power = Math.min(alen / 150, 1);
+        
+        // Habilidad Pasiva: Más potencia de lanzamiento (Supernova)
+        var maxLaunchPower = (skin.ability === 'hyper_power') ? 16.25 : 13.0;
+        var forceLaunch = power * maxLaunchPower;
+        
+        var nx_dir = adx / alen;
+        var ny_dir = ady / alen;
+
+        var tempX = this.orb.x;
+        var tempY = this.orb.y;
+        var tempVx = nx_dir * forceLaunch;
+        var tempVy = ny_dir * forceLaunch;
+        
+        ctx.fillStyle = 'rgba(125,249,255,0.5)';
+        
+        // Habilidad Pasiva: Duplicar predicción (Gravedad Cero)
+        var maxSimSteps = (skin.ability === 'frictionless_predict') ? 50 : 25;
+        
+        for (var step = 0; step < maxSimSteps; step++) {
+          for (var bh_idx = 0; bh_idx < this.blackHoles.length; bh_idx++) {
+            var bh_s = this.blackHoles[bh_idx];
+            var sdx = bh_s.x - tempX;
+            var sdy = bh_s.y - tempY;
+            var sdist = Math.sqrt(sdx * sdx + sdy * sdy);
+
+            // Respetar inmunidades de gravedad en predicción
+            var simGravityMod = 1.0;
+            if (skin.ability === 'gravity_res') simGravityMod = 0.65;
+            if (skin.ability === 'anti_grav') simGravityMod = 0.0;
+
+            if (sdist > bh_s.r * 0.38 && sdist < bh_s.r * 6 && simGravityMod > 0) {
+              var sforce = (bh_s.strength * simGravityMod) * 180 / (sdist * sdist + 80);
+              tempVx += (sdx / sdist) * sforce;
+              tempVy += (sdy / sdist) * sforce;
+            }
+          }
+          
+          var simFriction = (skin.ability === 'low_friction') ? 0.9985 : (skin.ability === 'frictionless_predict') ? 1.0 : 0.997;
+          tempVx *= simFriction;
+          tempVy *= simFriction;
+          tempX += tempVx;
+          tempY += tempVy;
+
+          if (tempX < 0 || tempX > W || tempY < 0 || tempY > H) break;
+
+          if (step % 2 === 0) {
+            ctx.beginPath();
+            ctx.arc(tempX, tempY, 2.5 - (step * (0.05 / (maxSimSteps/25))), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.2 + power * 0.4) + ')';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([5, 8]);
+        ctx.beginPath();
+        ctx.moveTo(this.orb.x, this.orb.y);
+        ctx.lineTo(this.orb.x + adx * 0.32, this.orb.y + ady * 0.32);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        var arrowX = this.orb.x + adx * 0.32;
+        var arrowY = this.orb.y + ady * 0.32;
+        var arrowAngle = Math.atan2(ady, adx);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + power * 0.4) + ')';
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(arrowX - 8 * Math.cos(arrowAngle - 0.42), arrowY - 8 * Math.sin(arrowAngle - 0.42));
+        ctx.lineTo(arrowX - 8 * Math.cos(arrowAngle + 0.42), arrowY - 8 * Math.sin(arrowAngle + 0.42));
+        ctx.closePath();
+        ctx.fill();
+
+        // Barra de potencia
+        var barW = 48;
+        var barH = 5;
+        var barX = this.orb.x - barW / 2;
+        var barY = this.orb.y + this.orb.r + 14;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(barX, barY, barW, barH);
+
+        grad = ctx.createLinearGradient(barX, 0, barX + barW * power, 0);
+        grad.addColorStop(0, '#39ff88');
+        grad.addColorStop(0.5, '#ffd84d');
+        grad.addColorStop(1, '#ff3939');
+        ctx.fillStyle = grad;
+        ctx.fillRect(barX, barY, barW * power, barH);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barW, barH);
+      }
+    }
+
+    // ---- PARTÍCULAS (POOLING) ----
+    for (i = 0; i < this.maxParticles; i++) {
+      var p = this.particlesPool[i];
+      if (!p.active) continue;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- CONFETI ----
+    this.renderConfetti(ctx);
+  },
+
+  renderConfetti: function(ctx) {
+    for (var i = 0; i < this.maxConfetti; i++) {
+      var c = this.confettiPool[i];
+      if (!c.active) continue;
+      ctx.globalAlpha = c.life;
+      ctx.fillStyle = c.color;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot * Math.PI / 180);
+      ctx.fillRect(-c.size / 2, -c.size / 4, c.size, c.size * 0.5);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  },
+
+
+  // ============================================================
+  // GESTIÓN DE ENTRADAS (Táctil y Ratón con Habilidades Activas)
+  // ============================================================
+  getPos: function(e) {
+    var rect = this.canvas.getBoundingClientRect();
+    var clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    return {
+      x: (clientX - rect.left) * this.dpr,
+      y: (clientY - rect.top) * this.dpr
+    };
+  },
+
+  onDown: function(e) {
+    if (this.state !== 'PLAYING') return;
+    if (!this.orb || !this.orb.alive) return;
+    
+    var skin = this.getSkin();
+
+    // Habilidad Activa: Salto Cuántico (Materia Exótica) en pleno vuelo
+    if (skin.ability === 'quantum_break' && !this.orb.grounded) {
+      e.preventDefault();
+      this.orb.vx = 0;
+      this.orb.vy = 0;
+      this.orb.grounded = true;
+      this.orb.launched = false;
+      this.sfx.shieldBreak(); // Sonido warp futurista
+      
+      // Efecto visual cuántico
+      for (var i = 0; i < 20; i++) {
+        var a = (i / 20) * Math.PI * 2;
+        this.spawnParticle(this.orb.x, this.orb.y, Math.cos(a) * 4, Math.sin(a) * 4, '#e0115f', 3, 0.8);
+      }
+      return;
+    }
+
+    // Permitir apuntar desde el suelo, o en el aire si tiene habilidad de relanzamiento y no la ha usado
+    var canAim = this.orb.grounded || (skin.ability === 'midair_launch' && !this.orb.midAirLaunched);
+    if (!canAim) return;
+
+    e.preventDefault();
+    this.initAudio();
+    var pos = this.getPos(e);
+    this.aiming = true;
+    this.aimStart = { x: pos.x, y: pos.y };
+    this.aimEnd = { x: pos.x, y: pos.y };
+  },
+
+  onMove: function(e) {
+    if (!this.aiming) return;
+    e.preventDefault();
+    var pos = this.getPos(e);
+    this.aimEnd = { x: pos.x, y: pos.y };
+  },
+
+  onUp: function(e) {
+    if (!this.aiming) return;
+    e.preventDefault();
+    this.aiming = false;
+
+    var dx = this.aimStart.x - this.aimEnd.x;
+    var dy = this.aimStart.y - this.aimEnd.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len < 16) return; 
+
+    var skin = this.getSkin();
+    
+    // Potencia aumentada para Supernova
+    var maxLaunchPower = (skin.ability === 'hyper_power') ? 16.25 : 13.0;
+    var power = Math.min(len / 150, 1) * maxLaunchPower;
+    var nx = dx / len;
+    var ny = dy / len;
+
+    // Si lanzamos en el aire usando la habilidad de Hiperespacio
+    if (!this.orb.grounded && skin.ability === 'midair_launch' && !this.orb.midAirLaunched) {
+      this.orb.midAirLaunched = true;
+      // Efecto rastro de salto hiperespacial
+      for (var j = 0; j < 15; j++) {
+        this.spawnParticle(this.orb.x, this.orb.y, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, '#ff00ff', 4, 0.8);
+      }
+    }
+
+    this.orb.vx = nx * power;
+    this.orb.vy = ny * power;
+    this.orb.launched = true;
+    this.orb.grounded = false;
+    this.shots++;
+    this.updateHUD();
+    this.sfx.launch();
+  },
+
+  onKey: function(e) {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      if (this.state === 'PLAYING') this.pause();
+      else if (this.state === 'PAUSED') this.resume();
+    }
+    if (e.key === 'r' || e.key === 'R') {
+      if (this.state === 'PLAYING' || this.state === 'PAUSED' || this.state === 'GAME_OVER') {
+        this.restartLevel();
+      }
+    }
+  },
+
+  // ============================================================
+  // BUCLE DE JUEGO PRINCIPAL - Timestep Fijo Controlado
+  // ============================================================
+  loop: function(timestamp) {
+    if (!this.lastTime) this.lastTime = timestamp;
+    var delta = (timestamp - this.lastTime) / 1000;
+    this.lastTime = timestamp;
+
+    if (delta > 0.1) delta = 0.1;
+
+    if (this.state === 'PLAYING') {
+      this.accumulator += delta;
+      var maxSteps = 4;
+      var steps = 0;
+      while (this.accumulator >= this.dt && steps < maxSteps) {
+        this.physicsStep();
+        this.accumulator -= this.dt;
+        steps++;
+      }
+      if (this.accumulator > this.dt * maxSteps) {
+        this.accumulator = 0;
+      }
+    }
+
+    this.updateParticles();
+    this.render();
+    this.frameCount++;
+
+    var self = this;
+    requestAnimationFrame(function(t) { self.loop(t); });
+  },
+
+  // ============================================================
+  // RESIZE ADAPTATIVO EXCEPCIONAL
+  // ============================================================
+  resize: function() {
+    this.dpr = Math.min(window.devicePixelRatio || 1, 1.8); 
+    var rect = this.canvas.getBoundingClientRect();
+    this.W = rect.width * this.dpr;
+    this.H = rect.height * this.dpr;
+    this.canvas.width = this.W;
+    this.canvas.height = this.H;
+    
+    this.initBgParticles();
+
+    if (this.state === 'PLAYING' && this.orb) {
+      this.startLevel(this.currentLevel);
+    }
+  },
+
+  onVisChange: function() {
+    if (document.hidden && this.state === 'PLAYING') {
+      this.pause();
+    }
+  },
+
+  // ============================================================
+  // INICIALIZACIÓN GENERAL DEL MOTOR DE JUEGO
+  // ============================================================
+  init: function() {
+    this.canvas = document.getElementById('gc');
+    this.ctx = this.canvas.getContext('2d', { alpha: false }); 
+
+    this.load();
+    this.initPools();
+    this.resize();
+
+    var self = this;
+    this.canvas.addEventListener('mousedown', function(e) { self.onDown(e); });
+    this.canvas.addEventListener('mousemove', function(e) { self.onMove(e); });
+    this.canvas.addEventListener('mouseup', function(e) { self.onUp(e); });
+    this.canvas.addEventListener('mouseleave', function() { if (self.aiming) { self.aiming = false; } });
+    
+    this.canvas.addEventListener('touchstart', function(e) { self.onDown(e); }, { passive: false });
+    this.canvas.addEventListener('touchmove', function(e) { self.onMove(e); }, { passive: false });
+    this.canvas.addEventListener('touchend', function(e) { self.onUp(e); }, { passive: false });
+    this.canvas.addEventListener('touchcancel', function() { self.aiming = false; }, { passive: false });
+    
+    window.addEventListener('keydown', function(e) { self.onKey(e); });
+    window.addEventListener('resize', function() { self.resize(); });
+    document.addEventListener('visibilitychange', function() { self.onVisChange(); });
+
+    this.unlockedLevels[0] = true;
+
+    this.updateMenuUI();
+    this.setState('MENU');
+
+    requestAnimationFrame(function(t) { self.loop(t); });
+  }
+};
+
+window.addEventListener('DOMContentLoaded', function() {
+  G.init();
+});
+</script>
+</body>
+</html>
+
+```
