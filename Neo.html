@@ -1,0 +1,3809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>NEO GRAVITY - Edición Definitiva</title>
+<style>
+/* Estilos globales y reset */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05050b;font-family:system-ui,-apple-system,sans-serif;color:#fff;touch-action:none;user-select:none}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+/* Paneles del juego con estética Glassmorphism Premium */
+.panel{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,7,15,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);opacity:0;pointer-events:none;transition:opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);z-index:100;border:1px solid rgba(255,255,255,0.03)}
+.panel.active{opacity:1;pointer-events:all}
+
+/* Títulos con efectos de neón estilizados */
+.panel-title{font-size:clamp(30px,6vw,54px);font-weight:900;text-transform:uppercase;letter-spacing:5px;margin-bottom:15px;text-align:center}
+.panel-title.cyan{color:#7df9ff;text-shadow:0 0 30px rgba(125,249,255,0.6), 0 0 10px rgba(125,249,255,0.3)}
+.panel-title.green{color:#39ff88;text-shadow:0 0 30px rgba(57,255,136,0.6), 0 0 10px rgba(57,255,136,0.3)}
+.panel-title.red{color:#ff3939;text-shadow:0 0 30px rgba(255,57,57,0.6), 0 0 10px rgba(255,57,57,0.3)}
+.panel-title.pink{color:#ff39b8;text-shadow:0 0 30px rgba(255,57,184,0.6), 0 0 10px rgba(255,57,184,0.3)}
+.panel-title.gold{color:#ffd84d;text-shadow:0 0 30px rgba(255,216,77,0.6), 0 0 10px rgba(255,216,77,0.3)}
+.panel-title.purple{color:#9b59ff;text-shadow:0 0 30px rgba(155,89,255,0.6), 0 0 10px rgba(155,89,255,0.3)}
+
+/* Botonera Futurista */
+.btn{display:inline-flex;align-items:center;justify-content:center;min-width:190px;min-height:50px;padding:12px 30px;border:2px solid;background:transparent;color:inherit;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;transition:all 0.25s cubic-bezier(0.25, 1, 0.5, 1);border-radius:8px;text-decoration:none;margin:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.btn:active{transform:scale(0.96)}
+.btn-cyan{border-color:#7df9ff;color:#7df9ff}
+.btn-cyan:hover{background:rgba(125,249,255,0.12);box-shadow:0 0 25px rgba(125,249,255,0.4)}
+.btn-pink{border-color:#ff39b8;color:#ff39b8}
+.btn-pink:hover{background:rgba(255,57,184,0.12);box-shadow:0 0 25px rgba(255,57,184,0.4)}
+.btn-gold{border-color:#ffd84d;color:#ffd84d}
+.btn-gold:hover{background:rgba(255,216,77,0.12);box-shadow:0 0 25px rgba(255,216,77,0.4)}
+.btn-green{border-color:#39ff88;color:#39ff88}
+.btn-green:hover{background:rgba(57,255,136,0.12);box-shadow:0 0 25px rgba(57,255,136,0.4)}
+.btn-red{border-color:#ff3939;color:#ff3939}
+.btn-red:hover{background:rgba(255,57,57,0.12);box-shadow:0 0 25px rgba(255,57,57,0.4)}
+.btn-purple{border-color:#9b59ff;color:#9b59ff}
+.btn-purple:hover{background:rgba(155,89,255,0.12);box-shadow:0 0 25px rgba(155,89,255,0.4)}
+.btn-large{min-width:240px;min-height:58px;font-size:17px;padding:16px 40px}
+.back-btn{position:absolute;top:20px;left:20px;min-width:auto;padding:10px 18px;font-size:12px;z-index:110}
+
+@keyframes floatTitle{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 12px var(--glow-color)}50%{box-shadow:0 0 30px var(--glow-color),0 0 50px var(--glow-color)}}
+@keyframes starEntrance{0%{transform:scale(0) rotate(-180deg);opacity:0}80%{transform:scale(1.2) rotate(15deg);opacity:0.9}100%{transform:scale(1) rotate(0deg);opacity:1}}
+
+/* Scrollbars estilizados estéticos */
+::-webkit-scrollbar {width:6px}
+::-webkit-scrollbar-track {background:rgba(255,255,255,0.01);border-radius:3px}
+::-webkit-scrollbar-thumb {background:rgba(125,249,255,0.25);border-radius:3px}
+::-webkit-scrollbar-thumb:hover {background:rgba(125,249,255,0.55)}
+
+/* Tarjetas de Skins Premium */
+.skin-card{background:rgba(16,16,32,0.65);border:2px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px;transition:all 0.3s cubic-bezier(0.25, 1, 0.5, 1)}
+.skin-card.owned{border-color:rgba(125,249,255,0.25)}
+.skin-card.equipped{border-color:#39ff88;box-shadow:0 0 20px rgba(57,255,136,0.2);background:rgba(12,28,24,0.75)}
+.skin-card.locked{opacity:0.7}
+.skin-preview{width:56px;height:56px;border-radius:50%;--glow-color:#7df9ff;animation:pulseGlow 2.5s ease-in-out infinite}
+.skin-name{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.95);text-align:center;font-weight:700}
+.skin-ability{font-size:10px;color:#7df9ff;letter-spacing:0.5px;text-align:center;line-height:1.3;margin-top:2px;background:rgba(125,249,255,0.07);padding:4px 8px;border-radius:4px;border:1px solid rgba(125,249,255,0.15);font-style:italic}
+.skin-price{font-size:11px;color:#ffd84d;letter-spacing:1px;font-weight:800}
+.skin-status{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:800}
+
+/* Tarjetas de Niveles */
+.level-card{background:rgba(15,15,30,0.7);border:2px solid rgba(125,249,255,0.12);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:all 0.25s cubic-bezier(0.25, 1, 0.5, 1);display:flex;flex-direction:column;justify-content:center;align-items:center}
+.level-card:hover{border-color:#7df9ff;box-shadow:0 0 18px rgba(125,249,255,0.22);transform:translateY(-4px)}
+.level-card.locked{opacity:0.3;pointer-events:none;border-color:rgba(255,255,255,0.03)}
+.level-card .lname{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7df9ff;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+.level-card .lstars{font-size:12px;color:#ffd84d;letter-spacing:2px;margin-top:3px}
+.level-card .lnum{font-size:28px;font-weight:900;color:rgba(125,249,255,0.3);line-height:1}
+
+/* Contenedores de estética Premium para Victoria/Derrota */
+.glass-panel{background:rgba(10,10,25,0.75);border:2px solid rgba(255,255,255,0.06);border-radius:20px;padding:35px;max-width:550px;width:90%;display:flex;flex-direction:column;align-items:center;box-shadow:0 25px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.star-container{display:flex;justify-content:center;gap:15px;margin:20px 0}
+.animated-star{font-size:42px;opacity:0;line-height:1}
+.animated-star.active{animation:starEntrance 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards}
+
+/* PANEL DE AJUSTES (Settings) */
+.settings-card{background:rgba(15,15,30,0.7);border:2px solid rgba(125,249,255,0.15);border-radius:14px;padding:18px 22px;width:90%;max-width:520px;display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
+.settings-row{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.settings-label{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:700}
+.settings-desc{font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:1px;line-height:1.4;margin-top:4px}
+.q-toggle{display:inline-flex;border:2px solid rgba(125,249,255,0.25);border-radius:10px;overflow:hidden;background:rgba(0,0,0,0.35)}
+.q-opt{padding:8px 18px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:rgba(255,255,255,0.6);background:transparent;border:none;transition:all 0.2s;min-width:64px;font-family:inherit}
+.q-opt.active{background:linear-gradient(135deg,rgba(125,249,255,0.18),rgba(155,89,255,0.12));color:#7df9ff;text-shadow:0 0 8px rgba(125,249,255,0.6)}
+.q-opt:active{transform:scale(0.96)}
+.q-info{font-size:10px;color:rgba(125,249,255,0.55);letter-spacing:1px;text-align:center;margin-top:4px}
+.fps-badge{position:absolute;bottom:10px;right:10px;font-size:10px;color:rgba(125,249,255,0.6);letter-spacing:1px;font-family:ui-monospace,monospace;pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.8)}
+
+/* ============================================================
+   INVASIÓN ALIEN - Aviso imponente cinematográfico
+   ============================================================ */
+@keyframes alienStrobe{0%,100%{background:rgba(255,0,30,0)}50%{background:rgba(255,0,30,0.18)}}
+@keyframes alienBarSlideTop{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+@keyframes alienBarSlideBot{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes alienTitlePulse{0%,100%{transform:scale(1);text-shadow:0 0 30px rgba(255,40,40,0.95),0 0 70px rgba(255,40,40,0.7),0 0 110px rgba(255,80,80,0.5)}50%{transform:scale(1.06);text-shadow:0 0 50px rgba(255,80,80,1),0 0 100px rgba(255,40,40,0.9),0 0 160px rgba(255,100,100,0.7)}}
+@keyframes alienTitleGlitch{0%,90%,100%{transform:translate(0,0) scale(1)}92%{transform:translate(-3px,1px) scale(1.02)}94%{transform:translate(3px,-1px) scale(0.99)}96%{transform:translate(-1px,2px) scale(1.01)}98%{transform:translate(2px,0) scale(1)}}
+@keyframes alienUfoPulse{0%,100%{opacity:0.55;transform:translateY(0)}50%{opacity:1;transform:translateY(-6px)}}
+@keyframes alienScan{0%{background-position:0 0}100%{background-position:0 100%}}
+@keyframes alienHudBlink{0%,100%{opacity:0.85;box-shadow:0 0 18px rgba(255,40,40,0.55),inset 0 0 12px rgba(255,40,40,0.25)}50%{opacity:1;box-shadow:0 0 28px rgba(255,40,40,0.85),inset 0 0 18px rgba(255,40,40,0.4)}}
+
+#alienAlert{position:fixed;inset:0;z-index:200;pointer-events:none;display:none;animation:alienStrobe 0.45s steps(2) infinite;overflow:hidden}
+#alienAlert.active{display:block}
+#alienAlert .a-bar{position:absolute;left:0;right:0;height:14vh;background:linear-gradient(180deg,#000,#180000 70%,#3a0808);border-bottom:3px solid #ff3030;border-top:3px solid #ff3030;box-shadow:0 0 40px rgba(255,40,40,0.6),inset 0 0 60px rgba(255,40,40,0.25)}
+#alienAlert .a-bar.top{top:0;animation:alienBarSlideTop 0.5s cubic-bezier(0.5,1.6,0.4,1) forwards}
+#alienAlert .a-bar.bot{bottom:0;border-top:3px solid #ff3030;border-bottom:3px solid #ff3030;animation:alienBarSlideBot 0.5s cubic-bezier(0.5,1.6,0.4,1) forwards}
+#alienAlert .a-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,40,40,0.05) 0,rgba(255,40,40,0.05) 2px,transparent 2px,transparent 5px);background-size:100% 14px;animation:alienScan 1.6s linear infinite;mix-blend-mode:screen;pointer-events:none}
+#alienAlert .a-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;width:96%;max-width:1100px}
+#alienAlert .a-icon-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;font-size:clamp(34px,7vw,80px);color:#ff3030;text-shadow:0 0 25px rgba(255,40,40,0.95);animation:alienUfoPulse 0.7s ease-in-out infinite}
+#alienAlert .a-warn{font-size:clamp(12px,2vw,22px);color:#ff8a8a;letter-spacing:8px;font-weight:900;text-transform:uppercase;margin-bottom:14px;text-shadow:0 0 14px rgba(255,40,40,0.7)}
+#alienAlert .a-title{font-size:clamp(38px,8.5vw,108px);font-weight:900;letter-spacing:6px;color:#fff;text-transform:uppercase;font-family:'Impact',system-ui,sans-serif;line-height:1;animation:alienTitlePulse 0.55s ease-in-out infinite,alienTitleGlitch 2.4s linear infinite;background:linear-gradient(180deg,#fff 0%,#ffb0b0 40%,#ff3030 70%,#8a0000 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 18px rgba(255,40,40,0.9))}
+#alienAlert .a-sub{font-size:clamp(11px,1.8vw,18px);color:rgba(255,200,200,0.85);letter-spacing:5px;margin-top:18px;font-weight:700;text-transform:uppercase}
+#alienAlert .a-counter{display:inline-block;margin-top:14px;padding:6px 18px;border:2px solid #ff3030;border-radius:6px;color:#ff5050;font-family:ui-monospace,monospace;font-weight:900;letter-spacing:3px;font-size:clamp(13px,1.8vw,18px);background:rgba(40,0,0,0.7);box-shadow:inset 0 0 12px rgba(255,40,40,0.4),0 0 20px rgba(255,40,40,0.4)}
+#alienAlert .a-vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 30%,rgba(80,0,0,0.55) 75%,rgba(0,0,0,0.95) 100%);pointer-events:none}
+
+/* HUD permanente cuando la invasión está activa */
+#alienHudBanner{position:absolute;top:54px;left:50%;transform:translateX(-50%);padding:6px 18px;background:rgba(40,0,0,0.78);border:2px solid #ff3030;border-radius:6px;font-size:11px;letter-spacing:3px;font-weight:900;color:#ff5050;text-transform:uppercase;text-shadow:0 0 8px rgba(255,40,40,0.9);box-shadow:0 0 18px rgba(255,40,40,0.55),inset 0 0 12px rgba(255,40,40,0.25);font-family:ui-monospace,monospace;animation:alienHudBlink 0.9s ease-in-out infinite;display:none;pointer-events:none;z-index:55;white-space:nowrap}
+#alienHudBanner.active{display:block}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+
+<!-- PANEL DE MENÚ PRINCIPAL -->
+<div id="menuPanel" class="panel active">
+  <div id="menuStardust" style="position:absolute;top:20px;right:20px;color:#ffd84d;font-size:14px;letter-spacing:2px;text-transform:uppercase;font-weight:700">POLVO ESTELAR: <span id="menuStardustVal">0</span></div>
+  <div class="panel-title cyan" style="font-size:clamp(36px,8vw,72px);animation:floatTitle 3.5s ease-in-out infinite;margin-bottom:8px">NEO GRAVITY</div>
+  <div style="font-size:clamp(10px,2vw,14px);letter-spacing:6px;color:rgba(125,249,255,0.5);margin-bottom:50px;text-transform:uppercase;font-weight:700">EDICIÓN DEFINITIVA v3.0 • ULTRA HD</div>
+  <button class="btn btn-cyan btn-large" onclick="G.showLevelSelect()">JUGAR</button>
+  <button class="btn btn-pink" onclick="G.setState('SHOP')">BÓVEDA DE SKINS</button>
+  <button class="btn btn-purple" onclick="G.setState('SETTINGS')">AJUSTES</button>
+  <div style="position:absolute;bottom:20px;color:rgba(255,255,255,0.3);font-size:11px;letter-spacing:2px;text-transform:uppercase;text-align:center;padding:0 10px">ARRASTRA PARA LANZAR • USA LA GRAVEDAD • JUNTA ESTRELLAS</div>
+</div>
+
+<!-- PANEL DE AJUSTES -->
+<div id="settingsPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">&lt; ATRÁS</button>
+  <div class="panel-title purple" style="margin-top:60px;margin-bottom:20px">AJUSTES</div>
+
+  <div class="settings-card" style="border-color:rgba(255,57,184,0.35);background:linear-gradient(135deg,rgba(155,89,255,0.08),rgba(255,57,184,0.06))">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#ff39b8;letter-spacing:3px">MODO ULTRA HD</div>
+        <div class="settings-desc">Siempre activo. Parallax 3D, nebulosas, estrellas fugaces, vignette CRT y partículas premium. Optimizado para todos los dispositivos.</div>
+      </div>
+      <div class="q-toggle" style="border-color:rgba(255,57,184,0.4)">
+        <button class="q-opt active" style="background:linear-gradient(135deg,rgba(255,57,184,0.2),rgba(155,89,255,0.15));color:#ff39b8;text-shadow:0 0 10px rgba(255,57,184,0.6);min-width:90px;cursor:default" disabled>★ ULTRA ★</button>
+      </div>
+    </div>
+    <div class="q-info" id="qualityInfo" style="color:rgba(255,57,184,0.6)"></div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#39ff88">SONIDO</div>
+        <div class="settings-desc">Activa o desactiva los efectos sonoros del juego.</div>
+      </div>
+      <div class="q-toggle">
+        <button class="q-opt" data-s="off" onclick="G.setSound(false)" id="sndOff">OFF</button>
+        <button class="q-opt" data-s="on" onclick="G.setSound(true)" id="sndOn">ON</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="border-color:rgba(255,57,57,0.2)">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#ff8b8b">REINICIAR PROGRESO</div>
+        <div class="settings-desc">Borra TODO tu progreso, polvo estelar y skins desbloqueadas. ¡No se puede deshacer!</div>
+      </div>
+      <button class="btn btn-red" style="min-width:auto;padding:8px 18px;font-size:11px;height:auto" onclick="G.resetProgress()">BORRAR</button>
+    </div>
+  </div>
+
+  <div style="font-size:10px;color:rgba(255,255,255,0.25);letter-spacing:2px;margin-top:10px">NEO GRAVITY v3.0 ULTRA • Invasión Alien • Modo HD permanente</div>
+</div>
+
+<!-- PANEL DE SELECCIÓN DE NIVEL -->
+<div id="levelPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">&lt; ATRÁS</button>
+  <div class="panel-title cyan" style="margin-top:60px;margin-bottom:10px">MISIONES COSMOS</div>
+  <div id="levelGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;max-width:760px;width:92%;margin-top:10px;max-height:65vh;overflow-y:auto;padding:12px"></div>
+</div>
+
+<!-- PANEL DE TIENDA (BÓVEDA DE SKINS CON ABILIDADES) -->
+<div id="shopPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">&lt; ATRÁS</button>
+  <div style="position:absolute;top:20px;right:20px;color:#ffd84d;font-size:15px;letter-spacing:2px;text-transform:uppercase;font-weight:700">POLVO: <span id="shopStardustVal">0</span></div>
+  <div class="panel-title pink" style="margin-top:60px;margin-bottom:10px">BÓVEDA COSMÉTICA</div>
+  <div id="skinGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;max-width:760px;width:92%;margin-top:10px;max-height:65vh;overflow-y:auto;padding:12px"></div>
+</div>
+
+<!-- PANEL DE PAUSA -->
+<div id="pausePanel" class="panel">
+  <div class="panel-title cyan">TRANSMISIÓN PAUSADA</div>
+  <button class="btn btn-cyan btn-large" onclick="G.resume()">REANUDAR</button>
+  <button class="btn btn-gold" onclick="G.restartLevel()">REINICIAR</button>
+  <button class="btn btn-red" onclick="G.setState('MENU')">MENÚ PRINCIPAL</button>
+</div>
+
+<!-- PANEL DE VICTORIA REMODELADO (ESTÉTICO Y ELEGANTE) -->
+<div id="victoryPanel" class="panel">
+  <div class="glass-panel" style="border-color: rgba(57,255,136,0.25); box-shadow: 0 0 30px rgba(57,255,136,0.1)">
+    <div class="panel-title green" style="margin-bottom:5px; font-size: 28px">ÓRBITA ESTABLECIDA</div>
+    <div style="font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.4); text-transform: uppercase">Misión Cosmos Completada</div>
+    
+    <!-- Contenedor de estrellas animadas secuencialmente -->
+    <div class="star-container" id="victoryStarsContainer"></div>
+    
+    <div id="victoryScore" style="font-size:14px; color:rgba(255,255,255,0.85); letter-spacing:1px; margin-bottom:24px; text-align:center; line-height:1.8"></div>
+    
+    <button class="btn btn-green btn-large" id="nextLevelBtn" onclick="G.nextLevel()">SIGUIENTE MISIÓN</button>
+    <button class="btn btn-cyan" onclick="G.setState('MENU')" style="min-width: 240px">VOLVER AL MENÚ</button>
+  </div>
+</div>
+
+<!-- PANEL DE DERROTA REMODELADO (INSPIRADOR) -->
+<div id="gameoverPanel" class="panel">
+  <div class="glass-panel" style="border-color: rgba(255,57,57,0.25); box-shadow: 0 0 30px rgba(255,57,57,0.1)">
+    <div class="panel-title red" style="margin-bottom:5px; font-size: 28px">SINALIZACIÓN PERDIDA</div>
+    <div style="font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 20px">El Orbe fue Destruido</div>
+    
+    <!-- Frase inspiradora para volver a intentar -->
+    <div id="gameoverQuote" style="font-size:14px; color: #ff8b8b; line-height:1.6; text-align:center; margin-bottom:30px; padding: 0 15px; font-style: italic; border-left: 3px solid #ff3939"></div>
+    
+    <button class="btn btn-red btn-large" onclick="G.restartLevel()">REINTENTAR MISIÓN</button>
+    <button class="btn btn-cyan" onclick="G.setState('MENU')" style="min-width: 240px">VOLVER AL MENÚ</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" style="position:absolute;top:0;left:0;width:100%;pointer-events:none;z-index:50;display:none">
+  <div style="position:absolute;top:12px;left:12px;pointer-events:none">
+    <div id="hudLevel" style="font-size:14px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(125,249,255,0.9)">NIVEL 1</div>
+    <div id="hudShots" style="font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:1px;margin-top:3px">LANZAMIENTOS: 0</div>
+    <div id="hudShield" style="font-size:11px;color:#39ff88;letter-spacing:1px;margin-top:2px;display:none;font-weight:bold">ESCUDO ACTIVO</div>
+  </div>
+  <div style="position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:12px;pointer-events:all">
+    <div id="hudStars" style="font-size:16px;letter-spacing:4px;color:#ffd84d"></div>
+    <button id="pauseBtn" onclick="G.pause()" style="width:40px;height:40px;border:2px solid rgba(125,249,255,0.5);background:rgba(10,10,18,0.85);color:#7df9ff;font-size:16px;font-weight:900;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all 0.2s">||</button>
+  </div>
+  <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);pointer-events:none">
+    <div id="hudDust" style="font-size:11px;color:rgba(255,216,77,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:700"></div>
+  </div>
+  <div id="fpsBadge" class="fps-badge" style="display:none">FPS 60 • ALTO</div>
+  <div id="alienHudBanner">⚠ INVASIÓN ALIEN ACTIVA ⚠</div>
+</div>
+
+<!-- AVISO IMPONENTE DE INVASIÓN ALIEN -->
+<div id="alienAlert">
+  <div class="a-bar top"></div>
+  <div class="a-bar bot"></div>
+  <div class="a-scan"></div>
+  <div class="a-vignette"></div>
+  <div class="a-center">
+    <div class="a-icon-row">
+      <span style="filter:drop-shadow(0 0 18px rgba(255,60,60,0.9))">🛸</span>
+      <span style="filter:drop-shadow(0 0 18px rgba(255,60,60,0.9))">⚠</span>
+      <span style="filter:drop-shadow(0 0 18px rgba(255,60,60,0.9))">🛸</span>
+    </div>
+    <div class="a-warn">// TRANSMISIÓN INTERCEPTADA //</div>
+    <div class="a-title">INVASIÓN ALIEN</div>
+    <div class="a-sub">Detectadas naves hostiles en órbita • Cuidado con los rayos láser</div>
+    <div class="a-counter" id="alienCounter">INICIANDO HOSTILIDADES EN 3</div>
+  </div>
+</div>
+
+
+<script>
+'use strict';
+
+// ============================================================
+// MOTOR DE JUEGO - NEO GRAVITY (Edición Definitiva v2.0)
+// ============================================================
+
+const G = {
+  // Referencias centrales
+  canvas: null,
+  ctx: null,
+  W: 0,
+  H: 0,
+  dpr: 1,
+
+  // Máquina de estados
+  state: 'MENU',
+  prevState: 'MENU',
+
+  // Datos guardados e inventario
+  currentLevel: 0,
+  shots: 0,
+  starsCollected: 0,
+  stardust: 0,
+  unlockedLevels: Array(14).fill(false),
+  bestScores: Array(14).fill(0),
+  unlockedSkins: ['default'],
+  equippedSkin: 'default',
+
+  // ============================================================
+  // SISTEMA DE CALIDAD GRÁFICA - SIEMPRE ULTRA HD (sin selector)
+  // ============================================================
+  quality: 'high',     // Siempre ULTRA HD - el selector ya no existe
+  qualityActive: 'high', // calidad efectiva (siempre 'high')
+  soundEnabled: true,
+  qSettings: {
+    high: {
+      dprMax: 2.2,
+      bgParticles: 130,         // antes 60
+      maxParticles: 320,        // antes 250
+      maxConfetti: 180,         // antes 150
+      trailMax: 22,             // antes 14
+      bhSpiralPoints: 36,       // antes 25
+      bhSpiralArms: 4,          // antes 3
+      useGradients: true,
+      useShadowBlur: true,
+      useStripes: true,
+      starGlow: true,
+      orbHalo: true,
+      goalGlow: true,
+      bumperGlow: true,
+      parallaxLayers: 3,        // antes 2 - 3 capas de profundidad
+      bgRedrawEveryN: 1,
+      // ===== Nuevas flags ULTRA =====
+      shootingStars: true,      // estrellas fugaces con estela
+      nebulas: true,            // nebulosas radiales pulsantes
+      vignette: true,           // viñeta cinematográfica
+      scanlines: true,          // líneas CRT sutiles
+      starSparkle: true,        // halo cruz + multi-color en estrellas
+      cosmicDust: true,         // motas de polvo flotantes
+      walIPattern: true,        // patrón circuito en paredes
+      bumperRing: true,         // anillo de energía rotando en bumpers
+      goalArcs: true,           // arcos eléctricos en el portal
+      orbAura: true             // aura energética siempre visible en el orbe
+    },
+    // Alias: 'low' redirige a las mismas settings que 'high'.
+    // Mantenido por compatibilidad con código legacy que pueda consultar 'low'.
+    low: null
+  },
+
+  // FPS tracking para auto-quality y badge
+  fpsAvg: 60,
+  fpsLast: performance.now ? performance.now() : Date.now(),
+  fpsFrames: 0,
+  fpsAccum: 0,
+  showFps: false,
+
+  // ============================================================
+  // INVASIÓN ALIEN - Estado del subsistema (cada 3 niveles)
+  // ============================================================
+  alien: {
+    active: false,           // hay invasión en este nivel
+    alertActive: false,      // mostrando aviso imponente
+    alertTime: 0,            // contador del aviso
+    alertDuration: 3.2,      // segundos de aviso antes de empezar
+    spawnTimer: 0,           // contador hasta el próximo spawn de nave
+    spawnInterval: 5.0,      // segundos entre spawns
+    ships: [],               // naves UFO activas
+    lasers: [],              // rayos láser activos
+    explosions: [],          // explosiones de naves derribadas
+    sirenPlayed: false,      // ya sonó la sirena del aviso
+    countdown: 3             // contador visual 3,2,1,YA
+  },
+
+  // Cursor de spawn O(1) para pools (evita .find() costoso)
+  particleCursor: 0,
+  confettiCursor: 0,
+
+  // Cache de fondo en offscreen canvas
+  bgCanvas: null,
+  bgCtx: null,
+  bgFrameTick: 0,
+
+  // Objetos de escena
+  orb: null,
+  trail: [],
+  walls: [],
+  bumpers: [],
+  blackHoles: [],
+  killZones: [],
+  stars: [],
+  goal: null,
+
+  // Sistema de partículas optimizado (POOLING - Evita Lag/GC)
+  particlesPool: [],
+  maxParticles: 200,
+  confettiPool: [],
+  maxConfetti: 120,
+
+  // Racha de derrotas en el nivel actual (para escalar tono de mensajes)
+  loseStreak: 0,
+  lastLevelDied: -1,
+
+  // Control de entrada
+  aiming: false,
+  aimStart: { x: 0, y: 0 },
+  aimEnd: { x: 0, y: 0 },
+
+  // Temporizadores físicos
+  lastTime: 0,
+  accumulator: 0,
+  dt: 1 / 60,
+  frameCount: 0,
+
+  // Fondo estrellado dinámico
+  bgParticles: [],
+
+  // Contexto de Audio Web
+  audioCtx: null,
+
+  // ============================================================
+  // SISTEMA DE FRASES MOTIVACIONALES
+  // ============================================================
+
+  // Frases para la pantalla de VICTORIA (motivacionales positivas)
+  victoryQuotes: [
+    "“Las leyes de la gravedad se rinden ante tu precisión cósmica.”",
+    "“Magistral. La galaxia ha tomado nota de tu nombre.”",
+    "“Eso fue arte orbital puro. Sigue así, capitán.”",
+    "“Otro sistema solar conquistado. ¿Cuántos más caben en una vida?”",
+    "“La física llora de envidia ante tu trayectoria.”",
+    "“Newton estaría orgulloso. Einstein, también.”",
+    "“Tu polvo estelar se duplica, igual que tu leyenda.”",
+    "“La órbita perfecta no existe... excepto cuando tú lanzas.”",
+    "“Brillas más que el agujero negro al que acabas de esquivar.”",
+    "“Misión completada. El cosmos te debe una.”"
+  ],
+
+  // Frases para DERROTA SUAVES (rachas 0-2): motivacionales amables
+  motivationQuotes: [
+    "“Quizás en tu siguiente ronda puedas superar este nivel. ¡El cosmos premia la persistencia!”",
+    "“El fracaso es solo una corrección de órbita hacia la perfección. ¡Inténtalo de nuevo!”",
+    "“La gravedad es implacable, pero tu determinación lo es aún más. ¡Lanza de nuevo!”",
+    "“Cada choque te enseña una nueva trayectoria. ¡En la siguiente ronda conquistarás el espacio!”",
+    "“Incluso las estrellas colapsan antes de brillar con su máxima fuerza. ¡Tú puedes lograrlo!”",
+    "“La precisión orbital requiere paciencia. Tu siguiente cálculo será el definitivo.”"
+  ],
+
+  // Frases para DERROTA INTERMEDIA (rachas 3-4): firmes pero respetuosas
+  toughQuotes: [
+    "“Tres intentos y la nave sigue hecha pedazos. Respira, calcula, vuelve a lanzar.”",
+    "“La gravedad gana otra batalla. Pero la guerra... aún es tuya.”",
+    "“Empezamos a sospechar que el agujero negro tiene tu número. Cuélgaselo.”",
+    "“Tu trayectoria está siendo... creativa. Demasiado creativa.”",
+    "“El cosmos no es paciente, pero te está dando otra oportunidad. No la desperdicies.”"
+  ],
+
+  // Frases para DERROTA SAVAGE (racha 5+): sarcasmo motivacional ácido
+  savageQuotes: [
+    "“¿En serio? ¿OTRA VEZ? Mi abuela esquiva mejor obstáculos con los ojos cerrados.”",
+    "“He visto cometas con mejor puntería, y eso que no tienen cerebro.”",
+    "“La definición de locura: repetir lo mismo esperando un resultado distinto. ¿Te suena?”",
+    "“El polvo estelar te tiene miedo. Y sinceramente, no le culpo.”",
+    "“Dato curioso: hasta una piedra rebotando al azar tendría más éxito que tú ahora mismo.”",
+    "“¿Estás jugando con los pies? Es la única explicación racional.”",
+    "“Si los agujeros negros pagaran impuestos, tú serías su mayor patrocinador.”",
+    "“Te lo decimos con cariño cósmico: REVISA TU ÁNGULO, ESTRATEGA DE PASILLO.”",
+    "“Newton se está revolcando en su tumba. Y no de risa.”",
+    "“A este ritmo, las estrellas se apagarán antes que termines este nivel.”",
+    "“Un mono con un teclado escribiría Shakespeare antes de que tú pases este nivel.”",
+    "“Respira. Cuenta hasta diez. Y por amor a la galaxia, AJUSTA LA POTENCIA.”"
+  ],
+
+  // ============================================================
+  // SKINS CON HABILIDADES ESPECIALES REALES E IMPLEMENTADAS
+  // ============================================================
+  skins: [
+    { 
+      id: 'default', 
+      name: 'Cian Estándar', 
+      price: 0, 
+      colorCore: '#7df9ff', 
+      colorGlow: 'rgba(125,249,255,0.4)', 
+      colorTrail: 'rgba(125,249,255,',
+      ability: 'none',
+      abilityDesc: 'Estabilizador Básico (Sin habilidades especiales)'
+    },
+    { 
+      id: 'neon-lime', 
+      name: 'Lima Neón', 
+      price: 30, 
+      colorCore: '#39ff14', 
+      colorGlow: 'rgba(57,255,20,0.4)', 
+      colorTrail: 'rgba(57,255,20,',
+      ability: 'elasticity',
+      abilityDesc: 'Especial: Superelasticidad (+12% de rebote en muros)'
+    },
+    { 
+      id: 'hot-pink', 
+      name: 'Rosa Eléctrico', 
+      price: 80, 
+      colorCore: '#ff1493', 
+      colorGlow: 'rgba(255,20,147,0.4)', 
+      colorTrail: 'rgba(255,20,147,',
+      ability: 'magnet',
+      abilityDesc: 'Especial: Atracción (Atrae estrellas un 18% más lejos)'
+    },
+    { 
+      id: 'electric-blue', 
+      name: 'Azul Eléctrico', 
+      price: 140, 
+      colorCore: '#0066ff', 
+      colorGlow: 'rgba(0,102,255,0.4)', 
+      colorTrail: 'rgba(0,102,255,',
+      ability: 'gravity_res',
+      abilityDesc: 'Especial: Escudo Gravitacional (-22% fuerza de agujeros negros)'
+    },
+    { 
+      id: 'vortex-edge', 
+      name: 'Vórtice Púrpura', 
+      price: 200, 
+      colorCore: '#9b59ff', 
+      colorGlow: 'rgba(155,89,255,0.4)', 
+      colorTrail: 'rgba(155,89,255,',
+      ability: 'mini',
+      abilityDesc: 'Especial: Micro-Tamaño (-15% tamaño, ideal para huecos estrechos)'
+    },
+    { 
+      id: 'solar-flare', 
+      name: 'Fuego Solar', 
+      price: 320, 
+      colorCore: '#ffd700', 
+      colorGlow: 'rgba(255,215,0,0.4)', 
+      colorTrail: 'rgba(255,215,0,',
+      ability: 'low_friction',
+      abilityDesc: 'Especial: Inercia Solar (-30% rozamiento, vuela más rápido)'
+    },
+    { 
+      id: 'singularity', 
+      name: 'Singularidad Roja', 
+      price: 500, 
+      colorCore: '#ff0044', 
+      colorGlow: 'rgba(255,0,68,0.4)', 
+      colorTrail: 'rgba(255,0,68,',
+      ability: 'shield_1',
+      abilityDesc: 'Especial: Escudo Vital (Sobrevive a 1 impacto mortal por nivel)'
+    },
+    { 
+      id: 'aurora', 
+      name: 'Aurora Verde', 
+      price: 650, 
+      colorCore: '#00ffaa', 
+      colorGlow: 'rgba(0,255,170,0.4)', 
+      colorTrail: 'rgba(0,255,170,',
+      ability: 'super_magnet',
+      abilityDesc: 'Especial: Magnetismo Aurora (Atrae estrellas un 38% más lejos)'
+    },
+    { 
+      id: 'supernova', 
+      name: 'Supernova', 
+      price: 850, 
+      colorCore: '#ff5500', 
+      colorGlow: 'rgba(255,85,0,0.45)', 
+      colorTrail: 'rgba(255,85,0,',
+      ability: 'hyper_power',
+      abilityDesc: 'Especial: Impulso Supernova (+12% de fuerza de lanzamiento)'
+    },
+    { 
+      id: 'stardust-skin', 
+      name: 'Polvo Astral', 
+      price: 1000, 
+      colorCore: '#ffffff', 
+      colorGlow: 'rgba(255,255,255,0.45)', 
+      colorTrail: 'rgba(255,255,255,',
+      ability: 'goal_suction',
+      abilityDesc: 'Especial: Sintonía Astral (La meta te atrae desde un 20% más lejos)'
+    },
+    { 
+      id: 'exotic-matter', 
+      name: 'Materia Exótica', 
+      price: 1300, 
+      colorCore: '#e0115f', 
+      colorGlow: 'rgba(224,17,95,0.4)', 
+      colorTrail: 'rgba(224,17,95,',
+      ability: 'quantum_break',
+      abilityDesc: 'ACTIVA: Salto Cuántico (Tap en el aire para frenar - 1 uso por lanzamiento)'
+    },
+    { 
+      id: 'absolute-zero', 
+      name: 'Cero Absoluto', 
+      price: 1600, 
+      colorCore: '#00f3ff', 
+      colorGlow: 'rgba(0,243,255,0.4)', 
+      colorTrail: 'rgba(0,243,255,',
+      ability: 'cold_inertia',
+      abilityDesc: 'Especial: Cero Inercia (Te detienes antes al ir despacio)'
+    },
+    { 
+      id: 'hiperespacio', 
+      name: 'Hiperespacio', 
+      price: 2000, 
+      colorCore: '#ff00ff', 
+      colorGlow: 'rgba(255,0,255,0.5)', 
+      colorTrail: 'rgba(255,255,255,',
+      ability: 'midair_launch',
+      abilityDesc: 'ACTIVA: Doble Órbita (Re-lanza en el aire con -20% de potencia)'
+    },
+    { 
+      id: 'wormhole', 
+      name: 'Agujero Gusano', 
+      price: 2400, 
+      colorCore: '#0c0c17', 
+      colorGlow: 'rgba(255,216,77,0.6)', 
+      colorTrail: 'rgba(255,216,77,',
+      ability: 'anti_grav',
+      abilityDesc: 'Especial: Singularidad Pura (-65% atracción gravitatoria)'
+    },
+    { 
+      id: 'orion-nebula', 
+      name: 'Orión Nebulosa', 
+      price: 2800, 
+      colorCore: '#8a2be2', 
+      colorGlow: 'rgba(138,43,226,0.55)', 
+      colorTrail: 'rgba(138,43,226,',
+      ability: 'shield_2',
+      abilityDesc: 'Especial: Hiper-Escudo (Sobrevive a 2 impactos mortales)'
+    },
+    { 
+      id: 'zero-gravity', 
+      name: 'Gravedad Cero', 
+      price: 3500, 
+      colorCore: '#a9a9a9', 
+      colorGlow: 'rgba(169,169,169,0.4)', 
+      colorTrail: 'rgba(169,169,169,',
+      ability: 'frictionless_predict',
+      abilityDesc: 'Especial: Vacío Absoluto (-40% fricción y predictor orbital duplicado)'
+    }
+  ],
+
+  getSkin: function() {
+    return this.skins.find(function(s) { return s.id === G.equippedSkin; }) || this.skins[0];
+  },
+
+  // ============================================================
+  // DEFINICIÓN DE LOS 14 NIVELES
+  // ============================================================
+  levels: [
+    {
+      name: 'Primer Destello',
+      par: 3,
+      spawn: { x: 0.1, y: 0.85 },
+      goal: { x: 0.9, y: 0.18, r: 0.038 },
+      stars: [
+        { x: 0.32, y: 0.55 },
+        { x: 0.58, y: 0.7 },
+        { x: 0.74, y: 0.36 }
+      ],
+      walls: [
+        // Bordes de la cámara
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        // Plataforma izquierda-baja: rampa de salida del lanzamiento
+        { x: 0.18, y: 0.78, w: 0.14, h: 0.022 },
+        // Pilar central bajo: pieza arquitectónica que define el "centro"
+        { x: 0.47, y: 0.55, w: 0.025, h: 0.2 },
+        // Plataforma derecha-alta: enmarca el portal de meta
+        { x: 0.7, y: 0.3, w: 0.16, h: 0.022 },
+        // Mini barra arriba-izquierda: decorativa con espacio para rebote
+        { x: 0.1, y: 0.42, w: 0.1, h: 0.022 }
+      ],
+      bumpers: [
+        // Diamante de 4 bumpers que abre múltiples caminos hacia la meta
+        { x: 0.3, y: 0.42, r: 0.025 },     // NO - desvía hacia las estrellas altas
+        { x: 0.62, y: 0.42, r: 0.024 },    // NE - rebota hacia el portal
+        { x: 0.5, y: 0.86, r: 0.028 },     // S  - trampolín del suelo
+        { x: 0.82, y: 0.62, r: 0.026 }     // E  - eyección final al portal
+      ],
+      blackHoles: [],
+      killZones: []
+    },
+    {
+      name: 'Bulevar Rebotes',
+      par: 3,
+      spawn: { x: 0.1, y: 0.85 },
+      goal: { x: 0.9, y: 0.15, r: 0.033 },
+      stars: [
+        { x: 0.3, y: 0.7 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.72, y: 0.3 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.22, y: 0.55, w: 0.2, h: 0.025 },
+        { x: 0.58, y: 0.4, w: 0.2, h: 0.025 }
+      ],
+      bumpers: [
+        { x: 0.35, y: 0.75, r: 0.035 },
+        { x: 0.5, y: 0.32, r: 0.03 },
+        { x: 0.78, y: 0.55, r: 0.03 }
+      ],
+      blackHoles: [],
+      killZones: []
+    },
+    {
+      name: 'El Desafío',
+      par: 3,
+      alienAttack: true,
+      spawn: { x: 0.1, y: 0.5 },
+      goal: { x: 0.9, y: 0.5, r: 0.03 },
+      stars: [
+        { x: 0.35, y: 0.28 },
+        { x: 0.55, y: 0.72 },
+        { x: 0.78, y: 0.35 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.25, y: 0.18, w: 0.025, h: 0.35 },
+        { x: 0.45, y: 0.48, w: 0.025, h: 0.38 },
+        { x: 0.65, y: 0.12, w: 0.025, h: 0.42 }
+      ],
+      bumpers: [
+        { x: 0.35, y: 0.62, r: 0.025 },
+        { x: 0.55, y: 0.32, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.045, strength: 0.35 }
+      ],
+      killZones: [
+        { x: 0.42, y: 0.87, w: 0.14, h: 0.025 }
+      ]
+    },
+    {
+      name: 'Pozo Gravitatorio',
+      par: 4,
+      spawn: { x: 0.1, y: 0.9 },
+      goal: { x: 0.9, y: 0.1, r: 0.03 },
+      stars: [
+        { x: 0.5, y: 0.58 },
+        { x: 0.28, y: 0.3 },
+        { x: 0.82, y: 0.52 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.62, w: 0.4, h: 0.022 }
+      ],
+      bumpers: [
+        { x: 0.2, y: 0.45, r: 0.03 },
+        { x: 0.82, y: 0.72, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.4, r: 0.06, strength: 0.52 },
+        { x: 0.72, y: 0.25, r: 0.045, strength: 0.3 }
+      ],
+      killZones: [
+        { x: 0.0, y: 0.44, w: 0.12, h: 0.022 }
+      ]
+    },
+    {
+      name: 'Laberinto de Neón',
+      par: 5,
+      spawn: { x: 0.08, y: 0.92 },
+      goal: { x: 0.92, y: 0.08, r: 0.028 },
+      stars: [
+        { x: 0.22, y: 0.72 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.78, y: 0.28 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.16, y: 0.28, w: 0.02, h: 0.5 },
+        { x: 0.32, y: 0.22, w: 0.02, h: 0.5 },
+        { x: 0.48, y: 0.32, w: 0.02, h: 0.5 },
+        { x: 0.64, y: 0.18, w: 0.02, h: 0.5 },
+        { x: 0.8, y: 0.28, w: 0.02, h: 0.5 }
+      ],
+      bumpers: [
+        { x: 0.24, y: 0.22, r: 0.02 },
+        { x: 0.4, y: 0.78, r: 0.02 },
+        { x: 0.56, y: 0.28, r: 0.02 },
+        { x: 0.72, y: 0.72, r: 0.02 }
+      ],
+      blackHoles: [
+        { x: 0.4, y: 0.45, r: 0.035, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.56, y: 0.88, w: 0.14, h: 0.022 },
+        { x: 0.22, y: 0.14, w: 0.1, h: 0.022 }
+      ]
+    },
+    {
+      name: 'Materia Oscura',
+      par: 4,
+      alienAttack: true,
+      spawn: { x: 0.5, y: 0.92 },
+      goal: { x: 0.5, y: 0.08, r: 0.028 },
+      stars: [
+        { x: 0.22, y: 0.5 },
+        { x: 0.78, y: 0.5 },
+        { x: 0.5, y: 0.3 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.2, y: 0.65, w: 0.25, h: 0.02 },
+        { x: 0.55, y: 0.65, w: 0.25, h: 0.02 },
+        { x: 0.35, y: 0.38, w: 0.3, h: 0.02 },
+        { x: 0.1, y: 0.2, w: 0.2, h: 0.02 },
+        { x: 0.7, y: 0.2, w: 0.2, h: 0.02 }
+      ],
+      bumpers: [
+        { x: 0.5, y: 0.78, r: 0.03 },
+        { x: 0.15, y: 0.45, r: 0.025 },
+        { x: 0.85, y: 0.45, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.32, y: 0.52, r: 0.045, strength: 0.4 },
+        { x: 0.68, y: 0.52, r: 0.045, strength: 0.4 }
+      ],
+      killZones: [
+        { x: 0.42, y: 0.52, w: 0.16, h: 0.02 },
+        { x: 0.0, y: 0.78, w: 0.08, h: 0.02 },
+        { x: 0.92, y: 0.78, w: 0.08, h: 0.02 }
+      ]
+    },
+    {
+      name: 'Singularidad',
+      par: 5,
+      spawn: { x: 0.08, y: 0.08 },
+      goal: { x: 0.92, y: 0.92, r: 0.025 },
+      stars: [
+        { x: 0.5, y: 0.18 },
+        { x: 0.18, y: 0.72 },
+        { x: 0.82, y: 0.5 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.2, y: 0.2, w: 0.15, h: 0.02 },
+        { x: 0.65, y: 0.2, w: 0.15, h: 0.02 },
+        { x: 0.2, y: 0.8, w: 0.15, h: 0.02 },
+        { x: 0.65, y: 0.8, w: 0.15, h: 0.02 },
+        { x: 0.38, y: 0.38, w: 0.24, h: 0.02 },
+        { x: 0.38, y: 0.6, w: 0.24, h: 0.02 },
+        { x: 0.38, y: 0.38, w: 0.02, h: 0.24 },
+        { x: 0.6, y: 0.38, w: 0.02, h: 0.24 }
+      ],
+      bumpers: [
+        { x: 0.15, y: 0.5, r: 0.025 },
+        { x: 0.85, y: 0.5, r: 0.025 },
+        { x: 0.5, y: 0.88, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.055, strength: 0.6 },
+        { x: 0.28, y: 0.35, r: 0.03, strength: 0.25 },
+        { x: 0.72, y: 0.65, r: 0.03, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.35, y: 0.26, w: 0.3, h: 0.02 },
+        { x: 0.35, y: 0.74, w: 0.3, h: 0.02 }
+      ]
+    },
+    {
+      name: 'Cinturón de Asteroides',
+      par: 4,
+      spawn: { x: 0.15, y: 0.5 },
+      goal: { x: 0.85, y: 0.5, r: 0.03 },
+      stars: [
+        { x: 0.5, y: 0.2 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.5, y: 0.8 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.45, y: 0.25, w: 0.1, h: 0.02 },
+        { x: 0.45, y: 0.73, w: 0.1, h: 0.02 }
+      ],
+      bumpers: [
+        { x: 0.38, y: 0.35, r: 0.032 },
+        { x: 0.38, y: 0.65, r: 0.032 },
+        { x: 0.62, y: 0.35, r: 0.032 },
+        { x: 0.62, y: 0.65, r: 0.032 },
+        { x: 0.5, y: 0.35, r: 0.025 },
+        { x: 0.5, y: 0.65, r: 0.025 }
+      ],
+      blackHoles: [],
+      killZones: [
+        { x: 0.48, y: 0.02, w: 0.04, h: 0.15 },
+        { x: 0.48, y: 0.83, w: 0.04, h: 0.15 }
+      ]
+    },
+    {
+      name: 'Órbitas Binarias',
+      par: 3,
+      alienAttack: true,
+      spawn: { x: 0.1, y: 0.5 },
+      goal: { x: 0.9, y: 0.5, r: 0.03 },
+      stars: [
+        { x: 0.4, y: 0.72 },
+        { x: 0.6, y: 0.28 },
+        { x: 0.5, y: 0.5 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 }
+      ],
+      bumpers: [
+        { x: 0.25, y: 0.25, r: 0.03 },
+        { x: 0.25, y: 0.75, r: 0.03 },
+        { x: 0.75, y: 0.25, r: 0.03 },
+        { x: 0.75, y: 0.75, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.4, y: 0.32, r: 0.045, strength: 0.35 },
+        { x: 0.6, y: 0.68, r: 0.045, strength: 0.35 }
+      ],
+      killZones: [
+        { x: 0.48, y: 0.35, w: 0.04, h: 0.3 }
+      ]
+    },
+    {
+      name: 'Frenesí de Rebote',
+      par: 4,
+      spawn: { x: 0.5, y: 0.15 },
+      goal: { x: 0.5, y: 0.85, r: 0.028 },
+      stars: [
+        { x: 0.2, y: 0.5 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.8, y: 0.5 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.45, w: 0.4, h: 0.022 }
+      ],
+      bumpers: [
+        { x: 0.15, y: 0.35, r: 0.035 },
+        { x: 0.35, y: 0.25, r: 0.03 },
+        { x: 0.65, y: 0.25, r: 0.03 },
+        { x: 0.85, y: 0.35, r: 0.035 },
+        { x: 0.3, y: 0.65, r: 0.028 },
+        { x: 0.7, y: 0.65, r: 0.028 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.35, r: 0.04, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.02, y: 0.48, w: 0.12, h: 0.04 },
+        { x: 0.86, y: 0.48, w: 0.12, h: 0.04 }
+      ]
+    },
+    {
+      name: 'Vórtice Inverso',
+      par: 5,
+      spawn: { x: 0.1, y: 0.1 },
+      goal: { x: 0.9, y: 0.9, r: 0.026 },
+      stars: [
+        { x: 0.4, y: 0.2 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.6, y: 0.8 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.3, y: 0.35, w: 0.03, h: 0.4 },
+        { x: 0.67, y: 0.25, w: 0.03, h: 0.4 }
+      ],
+      bumpers: [
+        { x: 0.5, y: 0.25, r: 0.025 },
+        { x: 0.5, y: 0.75, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.2, y: 0.6, r: 0.05, strength: -0.4 }, // Agujero repulsivo
+        { x: 0.8, y: 0.4, r: 0.05, strength: 0.45 }
+      ],
+      killZones: [
+        { x: 0.33, y: 0.02, w: 0.34, h: 0.022 }
+      ]
+    },
+    {
+      name: 'Laberinto de Gravedad',
+      par: 6,
+      alienAttack: true,
+      spawn: { x: 0.1, y: 0.9 },
+      goal: { x: 0.9, y: 0.1, r: 0.025 },
+      stars: [
+        { x: 0.15, y: 0.3 },
+        { x: 0.5, y: 0.55 },
+        { x: 0.85, y: 0.7 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.28, y: 0.3, w: 0.02, h: 0.7 },
+        { x: 0.7, y: 0.0, w: 0.02, h: 0.7 }
+      ],
+      bumpers: [
+        { x: 0.15, y: 0.5, r: 0.03 },
+        { x: 0.5, y: 0.2, r: 0.028 },
+        { x: 0.5, y: 0.8, r: 0.028 },
+        { x: 0.85, y: 0.5, r: 0.03 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.04, strength: 0.3 },
+        { x: 0.85, y: 0.3, r: 0.035, strength: -0.2 }
+      ],
+      killZones: [
+        { x: 0.42, y: 0.48, w: 0.16, h: 0.025 }
+      ]
+    },
+    {
+      name: 'La Tempestad Cósmica',
+      par: 5,
+      spawn: { x: 0.5, y: 0.9 },
+      goal: { x: 0.5, y: 0.1, r: 0.024 },
+      stars: [
+        { x: 0.32, y: 0.42 },
+        { x: 0.68, y: 0.42 },
+        { x: 0.5, y: 0.65 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.4, y: 0.28, w: 0.2, h: 0.022 }
+      ],
+      bumpers: [
+        { x: 0.22, y: 0.25, r: 0.032 },
+        { x: 0.78, y: 0.25, r: 0.032 },
+        { x: 0.25, y: 0.7, r: 0.025 },
+        { x: 0.75, y: 0.7, r: 0.025 }
+      ],
+      blackHoles: [
+        { x: 0.2, y: 0.45, r: 0.045, strength: 0.32 },
+        { x: 0.5, y: 0.45, r: 0.05, strength: -0.35 },
+        { x: 0.8, y: 0.45, r: 0.045, strength: 0.32 }
+      ],
+      killZones: [
+        { x: 0.12, y: 0.55, w: 0.1, h: 0.025 },
+        { x: 0.78, y: 0.55, w: 0.1, h: 0.025 }
+      ]
+    },
+    {
+      name: 'Singularidad Suprema',
+      par: 6,
+      spawn: { x: 0.1, y: 0.5 },
+      goal: { x: 0.9, y: 0.5, r: 0.022 },
+      stars: [
+        { x: 0.3, y: 0.55 },
+        { x: 0.5, y: 0.25 },
+        { x: 0.7, y: 0.55 }
+      ],
+      walls: [
+        { x: 0.0, y: 0.0, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.98, w: 1.0, h: 0.02 },
+        { x: 0.0, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.98, y: 0.0, w: 0.02, h: 1.0 },
+        { x: 0.4, y: 0.15, w: 0.2, h: 0.02 },
+        { x: 0.4, y: 0.83, w: 0.2, h: 0.02 }
+      ],
+      bumpers: [
+        { x: 0.35, y: 0.3, r: 0.026 },
+        { x: 0.35, y: 0.7, r: 0.026 },
+        { x: 0.65, y: 0.3, r: 0.026 },
+        { x: 0.65, y: 0.7, r: 0.026 }
+      ],
+      blackHoles: [
+        { x: 0.5, y: 0.5, r: 0.062, strength: 0.6 },
+        { x: 0.25, y: 0.22, r: 0.03, strength: 0.25 },
+        { x: 0.75, y: 0.78, r: 0.03, strength: 0.25 }
+      ],
+      killZones: [
+        { x: 0.45, y: 0.35, w: 0.1, h: 0.022 },
+        { x: 0.45, y: 0.62, w: 0.1, h: 0.022 }
+      ]
+    }
+  ],
+
+  // ============================================================
+  // SINTETIZADOR DE AUDIO - WEB AUDIO API (Ultra Limpio)
+  // ============================================================
+  initAudio: function() {
+    if (this.audioCtx) return;
+    try {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { /* Fallback silencioso */ }
+  },
+
+  playTone: function(freq, duration, type, gain, delay) {
+    if (!this.audioCtx || !this.soundEnabled) return;
+    var ctx = this.audioCtx;
+    var t = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var gn = ctx.createGain();
+    var master = ctx.createGain();
+    master.gain.value = 0.5; 
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gn.gain.setValueAtTime(gain || 0.4, t);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.connect(gn);
+    gn.connect(master);
+    master.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + duration);
+  },
+
+  sfx: {
+    launch: function() {
+      G.playTone(90, 0.14, 'square', 0.45);
+      G.playTone(140, 0.1, 'sawtooth', 0.35, 0.02);
+    },
+    bounce: function() {
+      G.playTone(800, 0.04, 'square', 0.4);
+      G.playTone(1200, 0.03, 'sine', 0.3, 0.01);
+    },
+    star: function() {
+      G.playTone(523, 0.1, 'sine', 0.4);       
+      G.playTone(659, 0.1, 'sine', 0.4, 0.06);  
+      G.playTone(784, 0.1, 'sine', 0.4, 0.12);  
+      G.playTone(1047, 0.18, 'sine', 0.45, 0.18); 
+    },
+    victory: function() {
+      G.playTone(523, 0.1, 'sine', 0.45);
+      G.playTone(659, 0.1, 'sine', 0.45, 0.08);
+      G.playTone(784, 0.1, 'sine', 0.45, 0.16);
+      G.playTone(1047, 0.2, 'sine', 0.5, 0.24);
+      G.playTone(1319, 0.25, 'sine', 0.4, 0.32);
+    },
+    death: function() {
+      G.playTone(350, 0.15, 'sawtooth', 0.5);
+      G.playTone(250, 0.15, 'sawtooth', 0.45, 0.06);
+      G.playTone(150, 0.2, 'sawtooth', 0.45, 0.14);
+      G.playTone(80, 0.3, 'square', 0.5, 0.25);
+    },
+    shieldBreak: function() {
+      G.playTone(300, 0.08, 'sawtooth', 0.5);
+      G.playTone(600, 0.12, 'square', 0.5, 0.04);
+      G.playTone(900, 0.15, 'sine', 0.4, 0.08);
+    },
+    bumper: function() {
+      G.playTone(420, 0.08, 'square', 0.45);
+      G.playTone(650, 0.05, 'sawtooth', 0.35, 0.01);
+    },
+    buy: function() {
+      G.playTone(600, 0.08, 'sine', 0.4);
+      G.playTone(800, 0.1, 'sine', 0.4, 0.05);
+      G.playTone(1100, 0.12, 'sine', 0.35, 0.1);
+    },
+    // ============================================================
+    // SFX DE INVASIÓN ALIEN
+    // ============================================================
+    alienSiren: function() {
+      // Sirena imponente: oscila grave→agudo→grave 3 veces
+      G.playTone(180, 0.25, 'sawtooth', 0.5);
+      G.playTone(380, 0.25, 'square', 0.4, 0.22);
+      G.playTone(180, 0.25, 'sawtooth', 0.5, 0.45);
+      G.playTone(380, 0.25, 'square', 0.4, 0.7);
+      G.playTone(180, 0.25, 'sawtooth', 0.5, 0.92);
+      G.playTone(380, 0.25, 'square', 0.4, 1.15);
+      // Subsuelo grave continuo
+      G.playTone(60, 1.4, 'sine', 0.45);
+    },
+    alienBeep: function() {
+      // Cuenta atrás 3,2,1
+      G.playTone(800, 0.06, 'square', 0.45);
+      G.playTone(1100, 0.05, 'sine', 0.35, 0.04);
+    },
+    laserCharge: function() {
+      // Sonido subiendo de tono mientras carga
+      if (!G.audioCtx || !G.soundEnabled) return;
+      var ctx = G.audioCtx;
+      var t = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var gn = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(900, t + 0.85);
+      gn.gain.setValueAtTime(0.0001, t);
+      gn.gain.exponentialRampToValueAtTime(0.35, t + 0.4);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+      osc.connect(gn);
+      gn.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.9);
+    },
+    laserFire: function() {
+      // Disparo: pew agudo + bajo descendente
+      G.playTone(1400, 0.18, 'square', 0.42);
+      G.playTone(900, 0.22, 'sawtooth', 0.35, 0.02);
+      G.playTone(220, 0.25, 'sine', 0.3, 0.05);
+    },
+    alienHit: function() {
+      // Explosión de nave: ruido descendente
+      G.playTone(420, 0.1, 'square', 0.5);
+      G.playTone(220, 0.18, 'sawtooth', 0.45, 0.05);
+      G.playTone(110, 0.3, 'square', 0.55, 0.12);
+      G.playTone(55, 0.4, 'sawtooth', 0.5, 0.2);
+    }
+  },
+
+  // ============================================================
+  // SISTEMA DE GUARDADO / LOCAL STORAGE
+  // ============================================================
+  save: function() {
+    var data = {
+      stardust: this.stardust,
+      unlockedLevels: this.unlockedLevels,
+      bestScores: this.bestScores,
+      unlockedSkins: this.unlockedSkins,
+      equippedSkin: this.equippedSkin,
+      quality: this.quality,
+      soundEnabled: this.soundEnabled
+    };
+    try { localStorage.setItem('neogravity_save_v3', JSON.stringify(data)); } catch (e) { /* Guardado silencioso */ }
+  },
+
+  load: function() {
+    try {
+      var raw = localStorage.getItem('neogravity_save_v3');
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.stardust !== undefined) this.stardust = data.stardust;
+      if (data.unlockedLevels) this.unlockedLevels = data.unlockedLevels;
+      if (data.bestScores) this.bestScores = data.bestScores;
+      if (data.unlockedSkins) this.unlockedSkins = data.unlockedSkins;
+      if (data.equippedSkin) this.equippedSkin = data.equippedSkin;
+      // Forzar quality='high' siempre - en v3.0 ULTRA es permanente,
+      // ignoramos cualquier valor antiguo guardado ('low'/'auto').
+      this.quality = 'high';
+      if (data.soundEnabled !== undefined) this.soundEnabled = !!data.soundEnabled;
+      
+      while (this.unlockedLevels.length < 14) this.unlockedLevels.push(false);
+      while (this.bestScores.length < 14) this.bestScores.push(0);
+    } catch (e) { /* Error silencioso */ }
+  },
+
+  // Borrado total de progreso (botón en Ajustes)
+  resetProgress: function() {
+    if (typeof window.confirm === 'function' && !window.confirm('¿Seguro que quieres BORRAR todo tu progreso? Esto no se puede deshacer.')) return;
+    try { localStorage.removeItem('neogravity_save_v3'); } catch (e) {}
+    this.stardust = 0;
+    this.unlockedLevels = Array(14).fill(false);
+    this.unlockedLevels[0] = true;
+    this.bestScores = Array(14).fill(0);
+    this.unlockedSkins = ['default'];
+    this.equippedSkin = 'default';
+    this.loseStreak = 0;
+    this.lastLevelDied = -1;
+    this.save();
+    this.updateMenuUI();
+    this.setState('MENU');
+  },
+
+  // ============================================================
+  // SISTEMA DE CALIDAD GRÁFICA - API (siempre ULTRA HD)
+  // ============================================================
+  resolveQuality: function() {
+    // En v3.0 la calidad ULTRA está siempre activa - no degradamos por hardware
+    return 'high';
+  },
+
+  applyQuality: function() {
+    this.qualityActive = 'high';
+    // Alias: low apunta al mismo objeto que high para compatibilidad legacy
+    this.qSettings.low = this.qSettings.high;
+    var q = this.qSettings.high;
+    this.maxParticles = q.maxParticles;
+    this.maxConfetti = q.maxConfetti;
+    if (!this.particlesPool || this.particlesPool.length !== this.maxParticles) {
+      this.initPools();
+    }
+    if (this.canvas) this.resize();
+    this.updateQualityUI();
+  },
+
+  setQuality: function(q) {
+    // Bloqueado: la calidad siempre es ULTRA HD en v3.0
+    this.quality = 'high';
+    this.save();
+    this.applyQuality();
+  },
+
+  setSound: function(on) {
+    this.soundEnabled = !!on;
+    this.save();
+    this.updateQualityUI();
+  },
+
+  updateQualityUI: function() {
+    // Ya no existe el toggle BAJO/AUTO/ALTO; la calidad siempre es ULTRA HD.
+    var info = document.getElementById('qualityInfo');
+    if (info) {
+      info.textContent = '★ MODO ULTRA HD PERMANENTE • Parallax 3D • Nebulosas • Naves alien • Vignette CRT ★';
+    }
+    var on = document.getElementById('sndOn');
+    var off = document.getElementById('sndOff');
+    if (on) on.classList.toggle('active', this.soundEnabled);
+    if (off) off.classList.toggle('active', !this.soundEnabled);
+  },
+
+  // ============================================================
+  // MÁQUINA DE ESTADOS Y CONTROL DE PANELES
+  // ============================================================
+  setState: function(s) {
+    this.prevState = this.state;
+    this.state = s;
+    document.getElementById('menuPanel').classList.toggle('active', s === 'MENU');
+    document.getElementById('levelPanel').classList.toggle('active', s === 'LEVEL_SELECT');
+    document.getElementById('shopPanel').classList.toggle('active', s === 'SHOP');
+    document.getElementById('settingsPanel').classList.toggle('active', s === 'SETTINGS');
+    document.getElementById('pausePanel').classList.toggle('active', s === 'PAUSED');
+    document.getElementById('victoryPanel').classList.toggle('active', s === 'VICTORY');
+    document.getElementById('gameoverPanel').classList.toggle('active', s === 'GAME_OVER');
+    document.getElementById('hud').style.display = (s === 'PLAYING' || s === 'PAUSED') ? 'block' : 'none';
+    // Si salimos de PLAYING, ocultar el aviso alien y banner permanente
+    if (s !== 'PLAYING' && s !== 'PAUSED') {
+      var alertEl = document.getElementById('alienAlert');
+      if (alertEl) alertEl.classList.remove('active');
+      var hudBanner = document.getElementById('alienHudBanner');
+      if (hudBanner) hudBanner.classList.remove('active');
+      if (this.alien) {
+        this.alien.alertActive = false;
+        this.alien.active = false;
+      }
+    }
+    if (s === 'MENU') this.updateMenuUI();
+    if (s === 'SHOP') this.updateShopUI();
+    if (s === 'SETTINGS') this.updateQualityUI();
+    if (s === 'LEVEL_SELECT') this.updateLevelSelectUI();
+  },
+
+  showLevelSelect: function() {
+    this.setState('LEVEL_SELECT');
+  },
+
+  updateMenuUI: function() {
+    document.getElementById('menuStardustVal').textContent = this.stardust;
+  },
+
+  // ============================================================
+  // INTERFAZ DE SELECCIÓN DE NIVELES (Estilo Grid Cyberpunk)
+  // ============================================================
+  updateLevelSelectUI: function() {
+    var grid = document.getElementById('levelGrid');
+    grid.innerHTML = '';
+    for (var i = 0; i < this.levels.length; i++) {
+      var lv = this.levels[i];
+      var unlocked = this.unlockedLevels[i];
+      var card = document.createElement('div');
+      card.className = 'level-card' + (unlocked ? '' : ' locked');
+      var best = this.bestScores[i];
+      var starHtml = '';
+      
+      for (var j = 0; j < 3; j++) {
+        if (unlocked && j < best) {
+          starHtml += '<span style="color:#ffd84d">★</span>';
+        } else {
+          starHtml += '<span style="color:rgba(255,255,255,0.12)">☆</span>';
+        }
+      }
+      card.innerHTML = '<div class="lnum">' + (i + 1) + '</div><div class="lname">' + lv.name + '</div><div class="lstars">' + starHtml + '</div>';
+      
+      if (unlocked) {
+        (function(idx) {
+          card.onclick = function() { G.startLevel(idx); };
+        })(i);
+      }
+      grid.appendChild(card);
+    }
+  },
+
+  // ============================================================
+  // TIENDA DE SKINS (BÓVEDA DE COSMÉTICOS CON DETALLE DE HABILIDAD)
+  // ============================================================
+  updateShopUI: function() {
+    document.getElementById('shopStardustVal').textContent = this.stardust;
+    var grid = document.getElementById('skinGrid');
+    grid.innerHTML = '';
+    for (var si = 0; si < this.skins.length; si++) {
+      var skin = this.skins[si];
+      var owned = this.unlockedSkins.indexOf(skin.id) >= 0;
+      var equipped = this.equippedSkin === skin.id;
+      var card = document.createElement('div');
+      card.className = 'skin-card' + (equipped ? ' equipped' : owned ? ' owned' : ' locked');
+
+      // Previsualización del orbe
+      var preview = document.createElement('div');
+      preview.className = 'skin-preview';
+      if (skin.id === 'hiperespacio') {
+        preview.style.background = 'linear-gradient(135deg, #ff00ff, #00ffff, #ffff00)';
+      } else if (skin.id === 'wormhole') {
+        preview.style.background = 'radial-gradient(circle, #000 35%, #ffd84d 75%)';
+      } else {
+        preview.style.background = 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.95), ' + skin.colorCore + ' 55%, rgba(0,0,0,0.6))';
+      }
+      preview.style.setProperty('--glow-color', skin.id === 'wormhole' ? '#ffd84d' : skin.colorCore);
+      card.appendChild(preview);
+
+      // Nombre del cosmético
+      var name = document.createElement('div');
+      name.className = 'skin-name';
+      name.textContent = skin.name;
+      card.appendChild(name);
+
+      // Etiqueta de habilidad especial
+      var abilityEl = document.createElement('div');
+      abilityEl.className = 'skin-ability';
+      abilityEl.textContent = skin.abilityDesc;
+      card.appendChild(abilityEl);
+
+      if (equipped) {
+        var st = document.createElement('div');
+        st.className = 'skin-status';
+        st.style.color = '#39ff88';
+        st.textContent = 'ACTIVO';
+        card.appendChild(st);
+      } else if (owned) {
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-cyan';
+        btn.style.cssText = 'min-width:auto;padding:6px 14px;font-size:11px;margin-top:4px;height:32px';
+        btn.textContent = 'EQUIPAR';
+        (function(id) {
+          btn.onclick = function() {
+            G.equippedSkin = id;
+            G.save();
+            G.updateShopUI();
+          };
+        })(skin.id);
+        card.appendChild(btn);
+      } else {
+        var price = document.createElement('div');
+        price.className = 'skin-price';
+        price.textContent = skin.price + ' POLVO';
+        card.appendChild(price);
+
+        var buyBtn = document.createElement('button');
+        buyBtn.className = 'btn btn-gold';
+        buyBtn.style.cssText = 'min-width:auto;padding:6px 14px;font-size:11px;margin-top:4px;height:32px';
+        buyBtn.textContent = 'COMPRAR';
+        if (this.stardust < skin.price) {
+          buyBtn.style.opacity = '0.35';
+          buyBtn.style.pointerEvents = 'none';
+        }
+        (function(s) {
+          buyBtn.onclick = function() {
+            if (G.stardust >= s.price) {
+              G.stardust -= s.price;
+              G.unlockedSkins.push(s.id);
+              G.equippedSkin = s.id;
+              G.save();
+              G.sfx.buy();
+              G.updateShopUI();
+            }
+          };
+        })(skin);
+        card.appendChild(buyBtn);
+      }
+      grid.appendChild(card);
+    }
+  },
+
+  // ============================================================
+  // GESTIÓN DE NIVELES Y PARTIDA
+  // ============================================================
+  startLevel: function(idx) {
+    this.initAudio();
+    this.currentLevel = idx;
+    this.shots = 0;
+    this.starsCollected = 0;
+    this.trail = [];
+    
+    // Limpieza de pools de partículas
+    this.clearParticles();
+
+    var lv = this.levels[idx];
+    var minDim = Math.min(this.W, this.H);
+    var skin = this.getSkin();
+
+    // Configuración de tamaño basada en habilidad
+    // BALANCE: -15% (antes -20%) para no trivializar huecos.
+    var customRadius = minDim * 0.017;
+    if (skin.ability === 'mini') {
+      customRadius *= 0.85; // antes 0.8
+    }
+
+    // Creación y reset del orbe del jugador
+    this.orb = {
+      x: lv.spawn.x * this.W,
+      y: lv.spawn.y * this.H,
+      vx: 0,
+      vy: 0,
+      r: customRadius,
+      alive: true,
+      launched: false,
+      grounded: true,
+      midAirLaunched: false, // Control para habilidad de doble lanzamiento
+      shieldCharges: 0       // Escudos vitales cargados
+    };
+
+    // Asignar escudos basados en habilidad
+    if (skin.ability === 'shield_1') this.orb.shieldCharges = 1;
+    if (skin.ability === 'shield_2') this.orb.shieldCharges = 2;
+
+    this.updateShieldHUD();
+
+    // Creación escalada de los elementos de la escena
+    this.walls = lv.walls.map(function(w) {
+      return { x: w.x * G.W, y: w.y * G.H, w: w.w * G.W, h: w.h * G.H };
+    });
+    this.bumpers = lv.bumpers.map(function(b) {
+      return { x: b.x * G.W, y: b.y * G.H, r: b.r * minDim, flash: 0 };
+    });
+
+    // DIFICULTAD PROGRESIVA: Escalar ligeramente la atracción de agujeros negros según el nivel
+    var difficultyGravScale = 1 + (idx * 0.03); // +3% de fuerza por nivel adicional
+    this.blackHoles = lv.blackHoles.map(function(b) {
+      return { 
+        x: b.x * G.W, 
+        y: b.y * G.H, 
+        r: b.r * minDim, 
+        strength: b.strength * difficultyGravScale, 
+        angle: 0 
+      };
+    });
+
+    this.killZones = lv.killZones.map(function(k) {
+      return { x: k.x * G.W, y: k.y * G.H, w: k.w * G.W, h: k.h * G.H };
+    });
+    this.stars = lv.stars.map(function(s) {
+      return { x: s.x * G.W, y: s.y * G.H, r: minDim * 0.015, collected: false, angle: 0, pulse: 0 };
+    });
+    this.goal = {
+      x: lv.goal.x * this.W,
+      y: lv.goal.y * this.H,
+      r: lv.goal.r * minDim,
+      pulse: 0
+    };
+
+    this.aiming = false;
+    this.updateHUD();
+    // Iniciar (o resetear) el subsistema de invasión alien según el nivel
+    this.startAlienInvasion(lv);
+    this.setState('PLAYING');
+  },
+
+  restartLevel: function() {
+    this.startLevel(this.currentLevel);
+  },
+
+  nextLevel: function() {
+    if (this.currentLevel < this.levels.length - 1) {
+      this.startLevel(this.currentLevel + 1);
+    } else {
+      this.setState('MENU');
+    }
+  },
+
+  pause: function() {
+    if (this.state === 'PLAYING') this.setState('PAUSED');
+  },
+
+  resume: function() {
+    if (this.state === 'PAUSED') {
+      this.setState('PLAYING');
+      this.lastTime = 0;
+    }
+  },
+
+  // Mostrar u ocultar indicador de escudo activo en el HUD
+  updateShieldHUD: function() {
+    var indicator = document.getElementById('hudShield');
+    if (this.orb && this.orb.shieldCharges > 0) {
+      indicator.style.display = 'block';
+      indicator.textContent = 'ESCUDO ACTIVO (' + this.orb.shieldCharges + ')';
+    } else {
+      indicator.style.display = 'none';
+    }
+  },
+
+  // ============================================================
+  // ACTUALIZACIÓN DEL PANEL HUD
+  // ============================================================
+  updateHUD: function() {
+    var lv = this.levels[this.currentLevel];
+    document.getElementById('hudLevel').textContent = (this.currentLevel + 1) + '. ' + lv.name;
+    document.getElementById('hudShots').textContent = 'LANZAMIENTOS: ' + this.shots + ' / PAR: ' + lv.par;
+    var starHtml = '';
+    for (var i = 0; i < 3; i++) {
+      if (i < this.starsCollected) {
+        starHtml += '<span style="color:#ffd84d">★</span>';
+      } else {
+        starHtml += '<span style="color:rgba(255,255,255,0.22)">☆</span>';
+      }
+    }
+    document.getElementById('hudStars').innerHTML = starHtml;
+    document.getElementById('hudDust').textContent = 'POLVO: ' + this.stardust;
+  },
+
+  // ============================================================
+  // GESTIÓN DE POOL DE PARTÍCULAS (Mantiene el lag en cero)
+  // ============================================================
+  initPools: function() {
+    this.particlesPool = [];
+    for (var i = 0; i < this.maxParticles; i++) {
+      this.particlesPool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '', size: 0, active: false });
+    }
+    this.confettiPool = [];
+    for (var j = 0; j < this.maxConfetti; j++) {
+      this.confettiPool.push({ x: 0, y: 0, vx: 0, vy: 0, color: '', life: 0, size: 0, rot: 0, active: false });
+    }
+    this.particleCursor = 0;
+    this.confettiCursor = 0;
+  },
+
+  clearParticles: function() {
+    for (var i = 0; i < this.particlesPool.length; i++) this.particlesPool[i].active = false;
+    for (var j = 0; j < this.confettiPool.length; j++) this.confettiPool[j].active = false;
+    this.particleCursor = 0;
+    this.confettiCursor = 0;
+  },
+
+  // OPTIMIZADO: cursor circular con búsqueda corta (O(1) amortizado)
+  // En lugar de scan completo del pool, avanzamos hasta 8 posiciones; si no hay slot libre,
+  // sobrescribimos la siguiente. Evita stutter en hot paths con muchas explosiones.
+  spawnParticle: function(x, y, vx, vy, color, size, life) {
+    var pool = this.particlesPool;
+    var len = pool.length;
+    if (!len) return;
+    var cursor = this.particleCursor;
+    var maxScan = 8;
+    var p;
+    for (var k = 0; k < maxScan; k++) {
+      p = pool[cursor];
+      cursor = (cursor + 1) % len;
+      if (!p.active) break;
+    }
+    this.particleCursor = cursor;
+    p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+    p.color = color; p.size = size;
+    p.life = life || 1.0;
+    p.active = true;
+  },
+
+  spawnConfetti: function(x, y, vx, vy, color, size, life) {
+    var pool = this.confettiPool;
+    var len = pool.length;
+    if (!len) return;
+    var cursor = this.confettiCursor;
+    var maxScan = 8;
+    var c;
+    for (var k = 0; k < maxScan; k++) {
+      c = pool[cursor];
+      cursor = (cursor + 1) % len;
+      if (!c.active) break;
+    }
+    this.confettiCursor = cursor;
+    c.x = x; c.y = y; c.vx = vx; c.vy = vy;
+    c.color = color; c.size = size;
+    c.life = life || 1.0;
+    c.rot = Math.random() * 360;
+    c.active = true;
+  },
+
+  // Explota un escudo al salvarnos del peligro
+  spawnShieldBurst: function(x, y) {
+    this.sfx.shieldBreak();
+    for (var i = 0; i < 30; i++) {
+      var angle = (i / 30) * Math.PI * 2;
+      var speed = Math.random() * 4 + 3;
+      this.spawnParticle(
+        x, y,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+        '#00ffff',
+        Math.random() * 4 + 3,
+        1.0
+      );
+    }
+  },
+
+  // ============================================================
+  // VICTORIA REMODELADA (Elegante, frase motivacional, economía equilibrada)
+  // ============================================================
+  completeLevel: function() {
+    var lv = this.levels[this.currentLevel];
+
+    // ECONOMÍA EQUILIBRADA: el polvo escasea para alargar la progresión.
+    // Antes: 15 base + 15/estrella + 25 si perfect = hasta 85/nivel (skin de 1200 en una corrida)
+    // Ahora: 4 base + 5/estrella + 10 si perfect + bonus por dificultad
+    //        (3 estrellas perfect en nivel 14 ≈ 4+15+10+12 = 41)
+    var starReward = this.starsCollected * 5;
+    var perfect = (this.shots <= lv.par) ? 10 : 0;
+    var difficultyBonus = Math.floor(this.currentLevel * 0.9);
+    var base = 4;
+    var total = base + starReward + perfect + difficultyBonus;
+    this.stardust += total;
+
+    // Reset de racha de derrotas al ganar el nivel
+    this.loseStreak = 0;
+    this.lastLevelDied = -1;
+
+    // Guardar mejor puntuación (estrellas)
+    if (this.starsCollected > this.bestScores[this.currentLevel]) {
+      this.bestScores[this.currentLevel] = this.starsCollected;
+    }
+
+    // Desbloquear el siguiente nivel
+    if (this.currentLevel < this.levels.length - 1) {
+      this.unlockedLevels[this.currentLevel + 1] = true;
+      document.getElementById('nextLevelBtn').style.display = 'inline-flex';
+    } else {
+      document.getElementById('nextLevelBtn').style.display = 'none';
+    }
+
+    this.save();
+    this.sfx.victory();
+
+    // Transición de visual de estrellas animadas estéticamente
+    var container = document.getElementById('victoryStarsContainer');
+    container.innerHTML = '';
+    
+    for (var i = 0; i < 3; i++) {
+      var starSpan = document.createElement('span');
+      starSpan.className = 'animated-star';
+      if (i < this.starsCollected) {
+        starSpan.style.color = '#ffd84d';
+        starSpan.style.textShadow = '0 0 20px rgba(255,216,77,0.7)';
+        starSpan.textContent = '★';
+      } else {
+        starSpan.style.color = 'rgba(255,255,255,0.1)';
+        starSpan.textContent = '☆';
+      }
+      container.appendChild(starSpan);
+      
+      (function(el, delay) {
+        setTimeout(function() {
+          el.classList.add('active');
+        }, delay);
+      })(starSpan, i * 250);
+    }
+
+    // Frase motivacional de victoria
+    var quote = this.victoryQuotes[Math.floor(Math.random() * this.victoryQuotes.length)];
+    var perfectText = perfect ? '<br><span style="color:#39ff88; font-weight:bold; letter-spacing: 2px">¡TIRO PERFECTO! (+' + perfect + ')</span>' : '';
+    var diffText = difficultyBonus ? '<br><span style="color:#9b59ff; font-size:11px">BONUS DIFICULTAD +' + difficultyBonus + '</span>' : '';
+    document.getElementById('victoryScore').innerHTML =
+      '<div style="font-size:13px; color:#a8ffce; font-style:italic; line-height:1.5; margin-bottom:14px; padding-left:12px; border-left:3px solid #39ff88; text-align:left">' + quote + '</div>' +
+      'ESTRELLAS: <span style="color:#ffd84d; font-weight:bold">+' + starReward + '</span>' + perfectText + diffText + 
+      '<br>POLVO ESTELAR GANADO: <span style="color:#7df9ff; font-weight:bold">+' + total + '</span>';
+
+    // Confeti escalado por calidad
+    var confettiCount = (this.qualityActive === 'low') ? 35 : 70;
+    for (var c = 0; c < confettiCount; c++) {
+      this.spawnConfetti(
+        this.W * 0.5,
+        this.H * 0.4,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10 - 4,
+        ['#7df9ff', '#ff39b8', '#ffd84d', '#39ff88', '#9b59ff', '#ff3939'][Math.floor(Math.random() * 6)],
+        Math.random() * 5 + 3,
+        1.0
+      );
+    }
+
+    this.setState('VICTORY');
+  },
+
+  // ============================================================
+  // DERROTA INSPIRADORA Y MEJORADA - escala el tono según racha de fracasos
+  // ============================================================
+  die: function() {
+    if (!this.orb || !this.orb.alive) return;
+
+    // Verificar si la habilidad de escudo está activa
+    if (this.orb.shieldCharges > 0) {
+      this.orb.shieldCharges--;
+      this.updateShieldHUD();
+      this.spawnShieldBurst(this.orb.x, this.orb.y);
+      
+      // Pequeño empujón de rebote para escapar del peligro inmediato
+      this.orb.vx = -this.orb.vx * 0.8 || (Math.random() - 0.5) * 4;
+      this.orb.vy = -this.orb.vy * 0.8 || -4;
+      return;
+    }
+
+    this.orb.alive = false;
+    this.sfx.death();
+
+    // Tracking de racha en el mismo nivel (resetea al cambiar de nivel)
+    if (this.lastLevelDied !== this.currentLevel) {
+      this.loseStreak = 1;
+      this.lastLevelDied = this.currentLevel;
+    } else {
+      this.loseStreak++;
+    }
+
+    // Explosión de partículas (cantidad escalada por calidad)
+    var skin = this.getSkin();
+    var pColor = skin.colorCore;
+    if (skin.id === 'hiperespacio') pColor = '#ff00ff';
+    var explosionCount = (this.qualityActive === 'low') ? 18 : 35;
+
+    for (var i = 0; i < explosionCount; i++) {
+      var angle = (i / explosionCount) * Math.PI * 2;
+      var speed = Math.random() * 5 + 2;
+      this.spawnParticle(
+        this.orb.x,
+        this.orb.y,
+        Math.cos(angle) * speed + (Math.random() - 0.5),
+        Math.sin(angle) * speed + (Math.random() - 0.5),
+        pColor,
+        Math.random() * 4 + 2,
+        1.0
+      );
+    }
+
+    // Selección de frase basada en RACHA: el tono se va volviendo más ácido
+    var pool, label, color;
+    if (this.loseStreak >= 5) {
+      pool = this.savageQuotes;
+      label = 'INTENTO #' + this.loseStreak + ' • EL COSMOS SE BURLA';
+      color = '#ff3939';
+    } else if (this.loseStreak >= 3) {
+      pool = this.toughQuotes;
+      label = 'INTENTO #' + this.loseStreak + ' • RECALCULA';
+      color = '#ffaa55';
+    } else {
+      pool = this.motivationQuotes;
+      label = this.loseStreak === 1 ? 'EL ORBE FUE DESTRUIDO' : 'INTENTO #' + this.loseStreak + ' • SIGUE ASÍ';
+      color = '#ff8b8b';
+    }
+    var randomQuote = pool[Math.floor(Math.random() * pool.length)];
+
+    var quoteEl = document.getElementById('gameoverQuote');
+    quoteEl.textContent = randomQuote;
+    quoteEl.style.color = color;
+    quoteEl.style.borderLeftColor = color;
+
+    // Actualiza también el subtitulo del panel para reflejar la racha
+    var subtitle = document.querySelector('#gameoverPanel .glass-panel > div:nth-child(2)');
+    if (subtitle) subtitle.textContent = label;
+
+    var self = this;
+    setTimeout(function() { self.setState('GAME_OVER'); }, 850);
+  },
+
+
+  // ============================================================
+  // SUBSISTEMA DE INVASIÓN ALIEN
+  // Cada 3 niveles aparece un aviso imponente y luego naves UFO
+  // que cargan rayos láser y los disparan al jugador.
+  // Tocar la nave o el rayo = muerte instantánea.
+  // El orbe puede derribar naves si las golpea con velocidad.
+  // ============================================================
+
+  // Inicia o resetea el estado alien para el nivel actual.
+  // Si lv.alienAttack es true, activa el aviso imponente.
+  startAlienInvasion: function(lv) {
+    var a = this.alien;
+    a.ships = [];
+    a.lasers = [];
+    a.explosions = [];
+    a.spawnTimer = 0;
+    a.sirenPlayed = false;
+    a.countdown = 3;
+
+    if (lv && lv.alienAttack) {
+      a.active = true;
+      a.alertActive = true;
+      a.alertTime = 0;
+      // Mostrar overlay del aviso
+      var alertEl = document.getElementById('alienAlert');
+      if (alertEl) {
+        alertEl.classList.remove('active');
+        // Forzar reflow para reiniciar animaciones del CSS
+        void alertEl.offsetWidth;
+        alertEl.classList.add('active');
+      }
+      // Resetear contador visual
+      var counter = document.getElementById('alienCounter');
+      if (counter) counter.textContent = 'INICIANDO HOSTILIDADES EN 3';
+      // Banner permanente en el HUD se activará al terminar el aviso
+      var hudBanner = document.getElementById('alienHudBanner');
+      if (hudBanner) hudBanner.classList.remove('active');
+      // Sirena al iniciar el aviso
+      this.sfx.alienSiren();
+      a.sirenPlayed = true;
+    } else {
+      a.active = false;
+      a.alertActive = false;
+      a.alertTime = 0;
+      var alertEl2 = document.getElementById('alienAlert');
+      if (alertEl2) alertEl2.classList.remove('active');
+      var hudBanner2 = document.getElementById('alienHudBanner');
+      if (hudBanner2) hudBanner2.classList.remove('active');
+    }
+  },
+
+  // Avanza el contador del aviso. Cuando termina, oculta el overlay
+  // y activa el banner permanente del HUD + el spawn de naves.
+  updateAlienAlert: function(dt) {
+    var a = this.alien;
+    if (!a.alertActive) return;
+    a.alertTime += dt;
+
+    // Actualizar contador visual 3,2,1
+    var counter = document.getElementById('alienCounter');
+    var remaining = Math.max(0, a.alertDuration - a.alertTime);
+    var seconds = Math.ceil(remaining);
+    if (counter && seconds !== a.countdown && seconds >= 1) {
+      a.countdown = seconds;
+      counter.textContent = 'INICIANDO HOSTILIDADES EN ' + seconds;
+      this.sfx.alienBeep();
+    }
+
+    if (a.alertTime >= a.alertDuration) {
+      a.alertActive = false;
+      var alertEl = document.getElementById('alienAlert');
+      if (alertEl) alertEl.classList.remove('active');
+      var hudBanner = document.getElementById('alienHudBanner');
+      if (hudBanner) hudBanner.classList.add('active');
+      // Spawnear primera nave inmediatamente al terminar el aviso
+      a.spawnTimer = a.spawnInterval - 0.6;
+    }
+  },
+
+  // Crea una nave UFO en el borde lateral, con velocidad horizontal constante
+  // y altura aleatoria en el tercio superior del nivel.
+  spawnAlienShip: function() {
+    var a = this.alien;
+    if (a.ships.length >= 2) return; // máximo 2 naves a la vez
+
+    var fromLeft = Math.random() < 0.5;
+    var minDim = Math.min(this.W, this.H);
+    var ship = {
+      x: fromLeft ? -minDim * 0.08 : this.W + minDim * 0.08,
+      y: this.H * (0.08 + Math.random() * 0.28), // tercio superior
+      vx: (fromLeft ? 1 : -1) * minDim * 0.0028,
+      vy: 0,
+      r: minDim * 0.038,         // radio de colisión
+      size: minDim * 0.045,      // tamaño visual
+      bobPhase: Math.random() * Math.PI * 2,
+      hp: 1,
+      // Estados: 'patrol' → 'aiming' → 'firing' → 'cooldown'
+      state: 'patrol',
+      stateTime: 0,
+      patrolDuration: 1.6 + Math.random() * 1.2,
+      aimDuration: 0.9,        // tiempo cargando láser
+      fireDuration: 0.45,      // tiempo del rayo activo
+      cooldownDuration: 1.4,
+      // Posición/dirección del láser cuando dispara
+      laserAngle: 0,
+      targetX: 0,
+      targetY: 0,
+      dead: false,
+      deadTimer: 0
+    };
+    a.ships.push(ship);
+  },
+
+  // Actualiza naves alien: movimiento, máquina de estados, dispara cuando aim termina.
+  updateAlienShips: function(dt) {
+    var a = this.alien;
+    if (!a.active || a.alertActive) return;
+
+    // Spawn periódico
+    a.spawnTimer += dt;
+    if (a.spawnTimer >= a.spawnInterval) {
+      a.spawnTimer = 0;
+      this.spawnAlienShip();
+    }
+
+    var minDim = Math.min(this.W, this.H);
+
+    for (var i = a.ships.length - 1; i >= 0; i--) {
+      var ship = a.ships[i];
+
+      if (ship.dead) {
+        ship.deadTimer += dt;
+        ship.y += minDim * 0.4 * dt; // cae al ser destruida
+        ship.vx *= 0.96;
+        ship.x += ship.vx;
+        if (ship.deadTimer > 1.2) {
+          a.ships.splice(i, 1);
+        }
+        continue;
+      }
+
+      // Movimiento básico + bobbing vertical
+      ship.bobPhase += dt * 2.5;
+      ship.x += ship.vx * 60 * dt;
+      ship.y += Math.sin(ship.bobPhase) * minDim * 0.0006;
+
+      // Eliminar si salió de la pantalla por el lado contrario
+      if (ship.vx > 0 && ship.x > this.W + minDim * 0.15) { a.ships.splice(i, 1); continue; }
+      if (ship.vx < 0 && ship.x < -minDim * 0.15)         { a.ships.splice(i, 1); continue; }
+
+      // Máquina de estados de combate
+      ship.stateTime += dt;
+      if (ship.state === 'patrol') {
+        if (ship.stateTime >= ship.patrolDuration) {
+          ship.state = 'aiming';
+          ship.stateTime = 0;
+          // Lockear objetivo en la posición actual del orbe
+          if (this.orb && this.orb.alive) {
+            ship.targetX = this.orb.x;
+            ship.targetY = this.orb.y;
+            ship.laserAngle = Math.atan2(ship.targetY - ship.y, ship.targetX - ship.x);
+          } else {
+            ship.targetX = ship.x;
+            ship.targetY = this.H;
+            ship.laserAngle = Math.PI / 2;
+          }
+          this.sfx.laserCharge();
+        }
+      } else if (ship.state === 'aiming') {
+        // Reaiming suave: ajusta ligeramente el ángulo hacia el orbe (no es perfect aim)
+        if (this.orb && this.orb.alive) {
+          var targetAngle = Math.atan2(this.orb.y - ship.y, this.orb.x - ship.x);
+          var diff = targetAngle - ship.laserAngle;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          ship.laserAngle += diff * Math.min(1, dt * 1.3);
+        }
+        if (ship.stateTime >= ship.aimDuration) {
+          ship.state = 'firing';
+          ship.stateTime = 0;
+          // Crear el rayo
+          var laserLen = Math.max(this.W, this.H) * 1.3;
+          a.lasers.push({
+            x: ship.x,
+            y: ship.y + ship.size * 0.35,
+            angle: ship.laserAngle,
+            length: laserLen,
+            life: ship.fireDuration,
+            maxLife: ship.fireDuration,
+            shipRef: ship
+          });
+          this.sfx.laserFire();
+          // Partículas del disparo
+          for (var p = 0; p < 12; p++) {
+            this.spawnParticle(
+              ship.x + Math.cos(ship.laserAngle) * ship.size * 0.5,
+              ship.y + ship.size * 0.35 + Math.sin(ship.laserAngle) * ship.size * 0.5,
+              Math.cos(ship.laserAngle) * (Math.random() * 4 + 2),
+              Math.sin(ship.laserAngle) * (Math.random() * 4 + 2),
+              '#ff5050',
+              Math.random() * 3 + 2,
+              0.7
+            );
+          }
+        }
+      } else if (ship.state === 'firing') {
+        if (ship.stateTime >= ship.fireDuration) {
+          ship.state = 'cooldown';
+          ship.stateTime = 0;
+        }
+      } else if (ship.state === 'cooldown') {
+        if (ship.stateTime >= ship.cooldownDuration) {
+          ship.state = 'patrol';
+          ship.stateTime = 0;
+          ship.patrolDuration = 1.4 + Math.random() * 1.4;
+        }
+      }
+    }
+  },
+
+  // Actualiza láseres y los retira cuando expira su tiempo de vida.
+  updateLasers: function(dt) {
+    var a = this.alien;
+    for (var i = a.lasers.length - 1; i >= 0; i--) {
+      var L = a.lasers[i];
+      L.life -= dt;
+      // Acompañar al barco que disparó (el rayo se origina en él)
+      if (L.shipRef && !L.shipRef.dead) {
+        L.x = L.shipRef.x;
+        L.y = L.shipRef.y + L.shipRef.size * 0.35;
+      }
+      if (L.life <= 0) {
+        a.lasers.splice(i, 1);
+      }
+    }
+  },
+
+  // Distancia mínima entre un punto y un segmento orientado (origen + ángulo + longitud)
+  // Devuelve la distancia perpendicular al rayo láser.
+  laserPointDist: function(L, px, py) {
+    var dx = Math.cos(L.angle);
+    var dy = Math.sin(L.angle);
+    var ex = L.x + dx * L.length;
+    var ey = L.y + dy * L.length;
+    var lenSq = (ex - L.x) * (ex - L.x) + (ey - L.y) * (ey - L.y);
+    if (lenSq < 0.0001) return Math.sqrt((px - L.x) * (px - L.x) + (py - L.y) * (py - L.y));
+    var t = ((px - L.x) * (ex - L.x) + (py - L.y) * (ey - L.y)) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    var cx = L.x + t * (ex - L.x);
+    var cy = L.y + t * (ey - L.y);
+    return Math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+  },
+
+  // Comprueba colisiones del orbe con naves y láseres.
+  // Retorna true si el orbe murió (para abortar el resto del physicsStep).
+  checkAlienCollisions: function() {
+    var a = this.alien;
+    if (!a.active || a.alertActive) return false;
+    if (!this.orb || !this.orb.alive || !this.orb.launched) return false;
+
+    var ox = this.orb.x;
+    var oy = this.orb.y;
+    var or = this.orb.r;
+
+    // Colisión con láseres (instakill - no la para el escudo de la skin)
+    for (var i = 0; i < a.lasers.length; i++) {
+      var L = a.lasers[i];
+      // Sólo en su fase activa (no en los últimos frames de fade)
+      if (L.life < 0.05) continue;
+      var d = this.laserPointDist(L, ox, oy);
+      // El núcleo del láser tiene grosor: ~6px + or
+      if (d < or + 6) {
+        // Explosión llamativa
+        for (var p = 0; p < 28; p++) {
+          var ang = (p / 28) * Math.PI * 2;
+          this.spawnParticle(
+            ox, oy,
+            Math.cos(ang) * (Math.random() * 6 + 3),
+            Math.sin(ang) * (Math.random() * 6 + 3),
+            p % 2 ? '#ff3030' : '#ffffff',
+            Math.random() * 4 + 3,
+            1.0
+          );
+        }
+        this.die();
+        return true;
+      }
+    }
+
+    // Colisión con naves: si va lento muere, si va rápido derriba la nave
+    for (var j = 0; j < a.ships.length; j++) {
+      var s = a.ships[j];
+      if (s.dead) continue;
+      var dx = ox - s.x;
+      var dy = oy - s.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < or + s.r) {
+        var orbSpeed = Math.sqrt(this.orb.vx * this.orb.vx + this.orb.vy * this.orb.vy);
+        if (orbSpeed > 7) {
+          // Derribada por impacto rápido del orbe
+          s.dead = true;
+          s.deadTimer = 0;
+          this.sfx.alienHit();
+          // Bonus de polvo estelar por derribo
+          this.stardust += 8;
+          this.updateHUD();
+          // Explosión de la nave
+          for (var ep = 0; ep < 24; ep++) {
+            var ea = (ep / 24) * Math.PI * 2;
+            this.spawnParticle(
+              s.x, s.y,
+              Math.cos(ea) * (Math.random() * 6 + 3),
+              Math.sin(ea) * (Math.random() * 6 + 3),
+              ['#ff5050', '#ffd84d', '#ffffff'][ep % 3],
+              Math.random() * 4 + 2,
+              1.0
+            );
+          }
+          // Rebote del orbe al impactar
+          var nx2 = dx / dist;
+          var ny2 = dy / dist;
+          this.orb.vx = nx2 * orbSpeed * 0.85;
+          this.orb.vy = ny2 * orbSpeed * 0.85;
+        } else {
+          // Choque suave = muerte del orbe
+          this.die();
+          return true;
+        }
+      }
+    }
+
+    return false;
+  },
+
+  // Dibuja una nave UFO con estética cyber-alien (cúpula + casco metálico + luces)
+  drawAlienShip: function(ctx, ship) {
+    var s = ship.size;
+    var x = ship.x;
+    var y = ship.y;
+    var t = Date.now() / 1000;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    if (ship.dead) {
+      // Caída con humo y rotación errática
+      ctx.rotate(Math.sin(t * 8) * 0.8);
+      ctx.globalAlpha = Math.max(0, 1 - ship.deadTimer);
+    }
+
+    // Halo de propulsión (resplandor inferior)
+    var grad = ctx.createRadialGradient(0, s * 0.15, 0, 0, s * 0.15, s * 1.4);
+    grad.addColorStop(0, 'rgba(255,80,80,0.45)');
+    grad.addColorStop(0.5, 'rgba(180,30,30,0.18)');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, s * 0.15, s * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Casco principal (elipse metálica plateada)
+    grad = ctx.createLinearGradient(0, -s * 0.25, 0, s * 0.4);
+    grad.addColorStop(0, '#c8c8d8');
+    grad.addColorStop(0.45, '#5a5a6e');
+    grad.addColorStop(1, '#1a1a25');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s, s * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Cúpula superior verde alien (semicírculo)
+    grad = ctx.createRadialGradient(-s * 0.12, -s * 0.18, 0, 0, -s * 0.05, s * 0.55);
+    grad.addColorStop(0, 'rgba(180,255,200,0.95)');
+    grad.addColorStop(0.4, 'rgba(60,200,120,0.85)');
+    grad.addColorStop(1, 'rgba(20,80,50,0.7)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, -s * 0.1, s * 0.55, s * 0.4, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,255,160,0.7)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Luces de navegación parpadeantes (3 luces RGB en el casco)
+    var blink = (Math.sin(t * 6) + 1) * 0.5;
+    var lights = [
+      { x: -s * 0.7, color: 'rgba(255,80,80,', phase: 0 },
+      { x: 0,         color: 'rgba(255,216,77,', phase: 1 },
+      { x: s * 0.7,   color: 'rgba(80,200,255,', phase: 2 }
+    ];
+    for (var li = 0; li < lights.length; li++) {
+      var ll = lights[li];
+      var bb = (Math.sin(t * 6 + ll.phase) + 1) * 0.5;
+      ctx.fillStyle = ll.color + (0.5 + bb * 0.5) + ')';
+      ctx.beginPath();
+      ctx.arc(ll.x, s * 0.18, s * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      // Halo
+      ctx.fillStyle = ll.color + (bb * 0.35) + ')';
+      ctx.beginPath();
+      ctx.arc(ll.x, s * 0.18, s * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Indicador de carga del láser cuando está apuntando
+    if (ship.state === 'aiming' && !ship.dead) {
+      var prog = Math.min(1, ship.stateTime / ship.aimDuration);
+      // Esfera roja pulsante creciendo bajo la nave
+      var radius = s * 0.18 + s * 0.18 * prog;
+      var pulse = 0.6 + Math.sin(t * 18) * 0.4;
+      grad = ctx.createRadialGradient(0, s * 0.4, 0, 0, s * 0.4, radius * 1.8);
+      grad.addColorStop(0, 'rgba(255,255,255,' + pulse + ')');
+      grad.addColorStop(0.4, 'rgba(255,40,40,' + (pulse * 0.7) + ')');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, s * 0.4, radius * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, s * 0.4, radius * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Línea de mira (laser sight) hasta el target
+      ctx.save();
+      ctx.translate(0, s * 0.4);
+      ctx.rotate(ship.laserAngle - 0); // ya está en local space, rotamos al ángulo absoluto
+      // Como translate ya está en world, el ángulo es absoluto. Re-corregimos:
+      ctx.restore();
+      ctx.save();
+      ctx.translate(-x, -y); // volver a world space
+      ctx.translate(ship.x, ship.y + s * 0.4);
+      ctx.rotate(ship.laserAngle);
+      ctx.strokeStyle = 'rgba(255,40,40,' + (0.3 + prog * 0.5) + ')';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.max(this.W, this.H) * 1.3, 0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(x, y); // restaurar para el resto del dibujo
+    }
+
+    ctx.restore();
+  },
+
+  // Dibuja un rayo láser en multi-capa: glow externo + núcleo blanco brillante
+  drawLaser: function(ctx, L) {
+    var fade = Math.min(1, L.life / Math.max(0.001, L.maxLife));
+    var alphaCore = 0.85 * (0.4 + fade * 0.6);
+    var alphaGlow = 0.55 * fade;
+
+    ctx.save();
+    ctx.translate(L.x, L.y);
+    ctx.rotate(L.angle);
+
+    // Glow externo (rojo amplio)
+    ctx.strokeStyle = 'rgba(255,40,40,' + alphaGlow + ')';
+    ctx.lineWidth = 26;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(L.length, 0);
+    ctx.stroke();
+
+    // Capa media
+    ctx.strokeStyle = 'rgba(255,80,80,' + (alphaCore * 0.85) + ')';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(L.length, 0);
+    ctx.stroke();
+
+    // Capa interna (rosa pálido)
+    ctx.strokeStyle = 'rgba(255,180,180,' + alphaCore + ')';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(L.length, 0);
+    ctx.stroke();
+
+    // Núcleo blanco intenso
+    ctx.strokeStyle = 'rgba(255,255,255,' + alphaCore + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(L.length, 0);
+    ctx.stroke();
+
+    // Origen flash (esfera blanca)
+    var gradF = ctx.createRadialGradient(0, 0, 0, 0, 0, 22);
+    gradF.addColorStop(0, 'rgba(255,255,255,' + (fade * 0.95) + ')');
+    gradF.addColorStop(0.4, 'rgba(255,80,80,' + (fade * 0.6) + ')');
+    gradF.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradF;
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  },
+
+  // ============================================================
+  // MOTOR DE FÍSICAS - Timestep Fijo (Skins con Habilidades Pasivas)
+  // ============================================================
+  physicsStep: function() {
+    // Si el aviso alien está activo, congelar la física hasta que termine
+    if (this.alien && this.alien.alertActive) return;
+
+    if (!this.orb || !this.orb.alive || !this.orb.launched) return;
+
+    var orb = this.orb;
+    var skin = this.getSkin();
+
+    // Habilidad Pasiva: Fricción reducida (Solar Flare / Gravedad Cero)
+    // BALANCE: valores bajados respecto al original para evitar OP
+    var friction = 0.997; 
+    if (skin.ability === 'low_friction') friction = 0.9978;       // antes 0.9985 (-30% rozamiento real)
+    if (skin.ability === 'frictionless_predict') friction = 0.9988; // antes 1.0 (-40% rozamiento, NO cero)
+
+    var i, dx, dy, dist, force, nx, ny, speed;
+
+    // ---- ATRACTORES GRAVITATORIOS (AGUJEROS NEGROS) ----
+    for (i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      dx = bh.x - orb.x;
+      dy = bh.y - orb.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Colisión central fatal
+      if (dist < bh.r * 0.38) {
+        this.die();
+        return;
+      }
+
+      // Habilidad pasiva: Inmunidad o reducción ante agujeros negros
+      // BALANCE: anti_grav ya NO es inmunidad total (rompía niveles), reduce al 35%.
+      var gravityMod = 1.0;
+      if (skin.ability === 'gravity_res') gravityMod = 0.78;  // antes 0.65 (más equilibrado)
+      if (skin.ability === 'anti_grav') gravityMod = 0.35;    // antes 0.0 (¡rompía la mecánica!)
+
+      if (dist < bh.r * 6 && gravityMod > 0) {
+        force = (bh.strength * gravityMod) * 180 / (dist * dist + 80);
+        orb.vx += (dx / dist) * force;
+        orb.vy += (dy / dist) * force;
+      }
+      bh.angle += 0.025; 
+    }
+
+    // ---- APLICAR VELOCIDADES ----
+    orb.vx *= friction;
+    orb.vy *= friction;
+    orb.x += orb.vx;
+    orb.y += orb.vy;
+
+    // ---- COLISIÓN ALIEN (naves UFO + láseres) ----
+    // Si el orbe muere, abortamos el resto del step.
+    if (this.checkAlienCollisions()) return;
+
+    // ---- COLISIÓN CON PAREDES ----
+    for (i = 0; i < this.walls.length; i++) {
+      var w = this.walls[i];
+      if (orb.x + orb.r > w.x && orb.x - orb.r < w.x + w.w &&
+          orb.y + orb.r > w.y && orb.y - orb.r < w.y + w.h) {
+
+        var overlapL = (orb.x + orb.r) - w.x;
+        var overlapR = (w.x + w.w) - (orb.x - orb.r);
+        var overlapT = (orb.y + orb.r) - w.y;
+        var overlapB = (w.y + w.h) - (orb.y - orb.r);
+        var minO = Math.min(overlapL, overlapR, overlapT, overlapB);
+
+        // Habilidad pasiva: Elasticidad mejorada (Neon Lime)
+        // BALANCE: bonus reducido para evitar trayectorias infinitas
+        var bounceFactor = (skin.ability === 'elasticity') ? 0.81 : 0.72; // antes 0.88
+
+        if (minO === overlapL) { orb.x = w.x - orb.r; orb.vx = -Math.abs(orb.vx) * bounceFactor; }
+        else if (minO === overlapR) { orb.x = w.x + w.w + orb.r; orb.vx = Math.abs(orb.vx) * bounceFactor; }
+        else if (minO === overlapT) { orb.y = w.y - orb.r; orb.vy = -Math.abs(orb.vy) * bounceFactor; }
+        else { orb.y = w.y + w.h + orb.r; orb.vy = Math.abs(orb.vy) * bounceFactor; }
+
+        this.sfx.bounce();
+
+        for (var wp = 0; wp < 3; wp++) {
+          this.spawnParticle(
+            orb.x, orb.y,
+            (Math.random() - 0.5) * 3,
+            (Math.random() - 0.5) * 3,
+            'rgba(125,249,255,0.7)',
+            Math.random() * 2 + 1,
+            0.6
+          );
+        }
+      }
+    }
+
+    // ---- COLISIÓN CON BUMPERS ----
+    for (i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      dx = orb.x - b.x;
+      dy = orb.y - b.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < orb.r + b.r) {
+        nx = dx / dist;
+        ny = dy / dist;
+        speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
+        
+        var bounceSpeed = Math.max(speed * 1.25, 5.5);
+        orb.vx = nx * bounceSpeed;
+        orb.vy = ny * bounceSpeed;
+        orb.x = b.x + nx * (orb.r + b.r + 1);
+        orb.y = b.y + ny * (orb.r + b.r + 1);
+        b.flash = 1.0;
+        this.sfx.bumper();
+
+        for (var bp = 0; bp < 6; bp++) {
+          this.spawnParticle(
+            orb.x, orb.y,
+            nx * Math.random() * 3 + (Math.random() - 0.5) * 2,
+            ny * Math.random() * 3 + (Math.random() - 0.5) * 2,
+            '#ffd84d',
+            Math.random() * 3 + 1,
+            0.8
+          );
+        }
+      }
+    }
+
+    // ---- ZONAS DE DAÑO ADVERSO ----
+    for (i = 0; i < this.killZones.length; i++) {
+      var kz = this.killZones[i];
+      if (orb.x + orb.r > kz.x && orb.x - orb.r < kz.x + kz.w &&
+          orb.y + orb.r > kz.y && orb.y - orb.r < kz.y + kz.h) {
+        this.die();
+        return;
+      }
+    }
+
+    // ---- CAPTURA DE ESTRELLAS CON MAGNETISMO ACTIVO ----
+    for (i = 0; i < this.stars.length; i++) {
+      var star = this.stars[i];
+      if (star.collected) continue;
+      dx = orb.x - star.x;
+      dy = orb.y - star.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Habilidad pasiva: Imán de estrellas (Hot Pink y Aurora Green)
+      // BALANCE: rangos reducidos para que la skill aporte sin trivializar.
+      var magnetDistance = orb.r + star.r;
+      if (skin.ability === 'magnet') magnetDistance += this.W * 0.035;       // antes 0.055
+      if (skin.ability === 'super_magnet') magnetDistance += this.W * 0.058; // antes 0.095
+
+      // Atraer estrellas físicamente si están en rango de imán
+      if (dist < magnetDistance && dist > orb.r) {
+        var pullForce = 0.25;
+        star.x += (dx / dist) * pullForce;
+        star.y += (dy / dist) * pullForce;
+      }
+
+      if (dist < orb.r + star.r) {
+        star.collected = true;
+        this.starsCollected++;
+        this.sfx.star();
+
+        for (var sp = 0; sp < 12; sp++) {
+          var a = (sp / 12) * Math.PI * 2;
+          this.spawnParticle(
+            star.x, star.y,
+            Math.cos(a) * (Math.random() * 4 + 2),
+            Math.sin(a) * (Math.random() * 4 + 2),
+            '#ffd84d',
+            Math.random() * 3 + 2,
+            0.9
+          );
+        }
+        this.updateHUD();
+      }
+    }
+
+    // ---- META DE META CON SUCCIÓN OPCIONAL (Polvo Astral) ----
+    dx = orb.x - this.goal.x;
+    dy = orb.y - this.goal.y;
+    dist = Math.sqrt(dx * dx + dy * dy);
+
+    var goalReachDistance = this.goal.r + orb.r * 0.5;
+    if (skin.ability === 'goal_suction') {
+      // Atrae sutilmente al portal final si el orbe pasa lo suficientemente cerca.
+      // BALANCE: rango y fuerza reducidos.
+      var suctionDistance = this.goal.r * 1.35; // antes 1.6
+      if (dist < suctionDistance) {
+        orb.vx += (dx / dist) * 0.05;           // antes 0.08
+        orb.vy += (dy / dist) * 0.05;
+      }
+    }
+
+    if (dist < goalReachDistance) {
+      this.completeLevel();
+      return;
+    }
+
+    // ---- COMPROBACIÓN DE DETENCIÓN ----
+    speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
+    
+    // Habilidad pasiva: Cero Inercia (Cero Absoluto) detiene de golpe al ir despacio
+    // BALANCE: threshold bajado para que no congele al instante.
+    var stopThreshold = (skin.ability === 'cold_inertia') ? 0.45 : 0.12; // antes 0.8
+    if (speed < stopThreshold) {
+      orb.vx = 0;
+      orb.vy = 0;
+      orb.grounded = true;
+      orb.launched = false;
+      orb.midAirLaunched = false; // Reset de re-lanzamiento al tocar tierra
+    }
+
+    // ---- RASTRO DE PARTÍCULAS ----
+    if (speed > 0.4) {
+      this.trail.push({ x: orb.x, y: orb.y, life: 1 });
+      var trailMax = this.qSettings[this.qualityActive].trailMax;
+      while (this.trail.length > trailMax) this.trail.shift();
+    }
+
+    // ---- CAER AL VACÍO ----
+    if (orb.x < -60 || orb.x > this.W + 60 || orb.y < -60 || orb.y > this.H + 60) {
+      this.die();
+    }
+  },
+
+
+  // ============================================================
+  // ACTUALIZACIÓN DE PARTÍCULAS DE POOL
+  // ============================================================
+  updateParticles: function() {
+    var i;
+    var pLen = this.particlesPool.length;
+    var cLen = this.confettiPool.length;
+
+    // Actualizar partículas de juego
+    for (i = 0; i < pLen; i++) {
+      var p = this.particlesPool[i];
+      if (!p.active) continue;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.07; 
+      p.vx *= 0.98;
+      p.life -= 0.025;
+      if (p.life <= 0) p.active = false;
+    }
+
+    // Rastro
+    for (i = this.trail.length - 1; i >= 0; i--) {
+      this.trail[i].life -= 0.085;
+      if (this.trail[i].life <= 0) this.trail.splice(i, 1);
+    }
+
+    // Enfriamiento de bumpers
+    for (i = 0; i < this.bumpers.length; i++) {
+      if (this.bumpers[i].flash > 0) {
+        this.bumpers[i].flash -= 0.045;
+        if (this.bumpers[i].flash < 0) this.bumpers[i].flash = 0;
+      }
+    }
+
+    // Estrellas
+    for (i = 0; i < this.stars.length; i++) {
+      this.stars[i].angle += 0.035;
+      this.stars[i].pulse += 0.055;
+    }
+
+    // Portal
+    if (this.goal) {
+      this.goal.pulse += 0.045;
+      if (this.goal.pulse > Math.PI * 2) this.goal.pulse -= Math.PI * 2;
+    }
+
+    // Confeti
+    for (i = 0; i < cLen; i++) {
+      var c = this.confettiPool[i];
+      if (!c.active) continue;
+      c.x += c.vx;
+      c.y += c.vy;
+      c.vy += 0.11;
+      c.vx *= 0.98;
+      c.rot += c.vx * 1.8;
+      c.life -= 0.012;
+      if (c.life <= 0) c.active = false;
+    }
+  },
+
+  initBgParticles: function() {
+    var q = this.qSettings[this.qualityActive];
+    var count = q.bgParticles;
+    this.bgParticles = [];
+    var palette = ['#7df9ff', '#9b59ff', '#ff39b8', '#ffd84d'];
+    for (var i = 0; i < count; i++) {
+      // Capa de profundidad para parallax (3 capas en modo ULTRA)
+      var layer = 0;
+      if (q.parallaxLayers >= 3 && i % 5 === 0) layer = 2;       // capa más cercana, rápida
+      else if (q.parallaxLayers >= 2 && i % 3 === 0) layer = 1;
+      var speedMul = layer === 2 ? 2.4 : layer === 1 ? 1.6 : 1.0;
+      var sizeMul  = layer === 2 ? 1.9 : layer === 1 ? 1.4 : 1.0;
+      this.bgParticles.push({
+        x: Math.random() * this.W,
+        y: Math.random() * this.H,
+        vy: -(Math.random() * 0.2 + 0.06) * speedMul,
+        vx: (Math.random() - 0.5) * 0.08 * speedMul,
+        size: (Math.random() * 2 + 0.5) * sizeMul,
+        alpha: Math.random() * 0.4 + 0.15,
+        color: palette[Math.floor(Math.random() * palette.length)],
+        layer: layer,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 1.5 + Math.random() * 2.5
+      });
+    }
+
+    // ===== NEBULOSAS pulsantes (capas radiales gigantes) =====
+    this.nebulas = [];
+    if (q.nebulas) {
+      var nebColors = [
+        ['rgba(255,57,184,', 'rgba(120,30,150,'],     // magenta/violeta
+        ['rgba(125,249,255,', 'rgba(40,80,150,'],      // cian/azul profundo
+        ['rgba(155,89,255,', 'rgba(60,30,120,'],       // púrpura
+        ['rgba(255,216,77,', 'rgba(150,80,30,'],       // dorado/naranja
+        ['rgba(57,255,136,', 'rgba(20,100,70,']        // verde aurora
+      ];
+      var nebCount = 4;
+      for (var n = 0; n < nebCount; n++) {
+        var c = nebColors[n % nebColors.length];
+        this.nebulas.push({
+          x: Math.random() * this.W,
+          y: Math.random() * this.H,
+          r: Math.min(this.W, this.H) * (0.35 + Math.random() * 0.35),
+          vx: (Math.random() - 0.5) * 0.18,
+          vy: (Math.random() - 0.5) * 0.12,
+          colorInner: c[0],
+          colorOuter: c[1],
+          phase: Math.random() * Math.PI * 2,
+          phaseSpeed: 0.4 + Math.random() * 0.5
+        });
+      }
+    }
+
+    // ===== ESTRELLAS FUGACES (spawn aleatorio durante el render) =====
+    this.shootingStars = [];
+    this.shootingStarTimer = 0;
+    this.nextShootingStarIn = 1.2 + Math.random() * 2.5;
+
+    // ===== POLVO CÓSMICO (motas brillantes flotando lentas) =====
+    this.cosmicDust = [];
+    if (q.cosmicDust) {
+      var dustCount = 35;
+      for (var d = 0; d < dustCount; d++) {
+        this.cosmicDust.push({
+          x: Math.random() * this.W,
+          y: Math.random() * this.H,
+          size: Math.random() * 1.2 + 0.4,
+          alpha: Math.random() * 0.35 + 0.1,
+          driftX: (Math.random() - 0.5) * 0.15,
+          driftY: (Math.random() - 0.5) * 0.1,
+          twinkle: Math.random() * Math.PI * 2,
+          twinkleSpeed: 1 + Math.random() * 2
+        });
+      }
+    }
+  },
+
+  updateBgParticles: function() {
+    for (var i = 0; i < this.bgParticles.length; i++) {
+      var p = this.bgParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      // Actualizar twinkle (usado para parpadear las estrellas de fondo)
+      if (p.twinklePhase !== undefined) {
+        p.twinklePhase += 0.016 * p.twinkleSpeed;
+      }
+      if (p.y < -10) {
+        p.y = this.H + 10;
+        p.x = Math.random() * this.W;
+      }
+      if (p.x < -10) p.x = this.W + 10;
+      if (p.x > this.W + 10) p.x = -10;
+    }
+
+    // ===== NEBULOSAS (drift lento + pulse de tamaño/opacidad) =====
+    if (this.nebulas) {
+      for (var n = 0; n < this.nebulas.length; n++) {
+        var nb = this.nebulas[n];
+        nb.x += nb.vx;
+        nb.y += nb.vy;
+        nb.phase += 0.005 * nb.phaseSpeed;
+        // Wrap suave
+        if (nb.x < -nb.r * 1.5) nb.x = this.W + nb.r * 1.5;
+        if (nb.x > this.W + nb.r * 1.5) nb.x = -nb.r * 1.5;
+        if (nb.y < -nb.r * 1.5) nb.y = this.H + nb.r * 1.5;
+        if (nb.y > this.H + nb.r * 1.5) nb.y = -nb.r * 1.5;
+      }
+    }
+
+    // ===== POLVO CÓSMICO =====
+    if (this.cosmicDust) {
+      for (var d = 0; d < this.cosmicDust.length; d++) {
+        var dt = this.cosmicDust[d];
+        dt.x += dt.driftX;
+        dt.y += dt.driftY;
+        dt.twinkle += 0.02 * dt.twinkleSpeed;
+        if (dt.x < 0) dt.x = this.W;
+        if (dt.x > this.W) dt.x = 0;
+        if (dt.y < 0) dt.y = this.H;
+        if (dt.y > this.H) dt.y = 0;
+      }
+    }
+
+    // ===== ESTRELLAS FUGACES (spawn cronometrado) =====
+    if (this.qSettings[this.qualityActive].shootingStars) {
+      this.shootingStarTimer += 0.016;
+      if (this.shootingStarTimer >= this.nextShootingStarIn) {
+        this.shootingStarTimer = 0;
+        this.nextShootingStarIn = 1.5 + Math.random() * 3.5;
+        this.spawnShootingStar();
+      }
+      if (this.shootingStars) {
+        for (var ss = this.shootingStars.length - 1; ss >= 0; ss--) {
+          var sObj = this.shootingStars[ss];
+          sObj.x += sObj.vx;
+          sObj.y += sObj.vy;
+          sObj.life -= 0.018;
+          if (sObj.life <= 0 || sObj.x < -200 || sObj.x > this.W + 200 ||
+              sObj.y < -200 || sObj.y > this.H + 200) {
+            this.shootingStars.splice(ss, 1);
+          }
+        }
+      }
+    }
+  },
+
+  spawnShootingStar: function() {
+    if (!this.shootingStars) this.shootingStars = [];
+    // Spawn desde el borde superior con ángulo descendente diagonal
+    var fromLeft = Math.random() < 0.5;
+    var startX = fromLeft ? -50 : this.W + 50;
+    var startY = Math.random() * this.H * 0.5;
+    var angle = fromLeft
+      ? (Math.PI * 0.18 + Math.random() * 0.18)   // 18°-36° hacia abajo-derecha
+      : (Math.PI * 0.82 - Math.random() * 0.18);  // 144°-162° hacia abajo-izquierda
+    var speed = 14 + Math.random() * 8;
+    this.shootingStars.push({
+      x: startX,
+      y: startY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1.0,
+      color: ['#ffffff', '#7df9ff', '#ffd84d', '#ff39b8'][Math.floor(Math.random() * 4)]
+    });
+  },
+
+  drawNebulas: function(ctx) {
+    if (!this.nebulas || !this.qSettings[this.qualityActive].nebulas) return;
+    // Modo aditivo para que los colores se mezclen como nebulosas reales
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var n = 0; n < this.nebulas.length; n++) {
+      var nb = this.nebulas[n];
+      var pulse = 0.55 + Math.sin(nb.phase) * 0.25;
+      var radius = nb.r * (0.85 + Math.sin(nb.phase * 1.3) * 0.12);
+      var grad = ctx.createRadialGradient(nb.x, nb.y, 0, nb.x, nb.y, radius);
+      grad.addColorStop(0,    nb.colorInner + (0.18 * pulse) + ')');
+      grad.addColorStop(0.35, nb.colorInner + (0.10 * pulse) + ')');
+      grad.addColorStop(0.7,  nb.colorOuter + (0.05 * pulse) + ')');
+      grad.addColorStop(1,    'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(nb.x, nb.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  drawCosmicDust: function(ctx) {
+    if (!this.cosmicDust || !this.qSettings[this.qualityActive].cosmicDust) return;
+    for (var d = 0; d < this.cosmicDust.length; d++) {
+      var dt = this.cosmicDust[d];
+      var twinkle = 0.5 + Math.sin(dt.twinkle) * 0.5;
+      ctx.globalAlpha = dt.alpha * twinkle;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(dt.x, dt.y, dt.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  drawShootingStars: function(ctx) {
+    if (!this.shootingStars || !this.shootingStars.length) return;
+    if (!this.qSettings[this.qualityActive].shootingStars) return;
+    for (var ss = 0; ss < this.shootingStars.length; ss++) {
+      var s = this.shootingStars[ss];
+      var trailLen = 60;
+      var alpha = Math.min(1, s.life * 1.4);
+      // Estela degradada
+      var tailX = s.x - (s.vx / 14) * trailLen;
+      var tailY = s.y - (s.vy / 14) * trailLen;
+      var grad = ctx.createLinearGradient(s.x, s.y, tailX, tailY);
+      grad.addColorStop(0,   s.color);
+      grad.addColorStop(0.4, s.color);
+      grad.addColorStop(1,   'transparent');
+      ctx.strokeStyle = grad;
+      ctx.lineCap = 'round';
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(tailX, tailY);
+      ctx.stroke();
+      // Cabeza brillante
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(s.x - (s.vx / 14) * (trailLen * 0.5), s.y - (s.vy / 14) * (trailLen * 0.5));
+      ctx.stroke();
+      // Halo en la punta
+      var headGrad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 8);
+      headGrad.addColorStop(0, 'rgba(255,255,255,' + alpha + ')');
+      headGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = headGrad;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  drawVignette: function(ctx) {
+    if (!this.qSettings[this.qualityActive].vignette) return;
+    var cx = this.W / 2;
+    var cy = this.H / 2;
+    var maxR = Math.sqrt(cx * cx + cy * cy);
+    var grad = ctx.createRadialGradient(cx, cy, maxR * 0.55, cx, cy, maxR);
+    grad.addColorStop(0,   'rgba(0,0,0,0)');
+    grad.addColorStop(0.55, 'rgba(0,0,0,0.18)');
+    grad.addColorStop(1,   'rgba(0,0,0,0.6)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, this.W, this.H);
+  },
+
+  drawScanlines: function(ctx) {
+    if (!this.qSettings[this.qualityActive].scanlines) return;
+    // Overlay sutil de líneas horizontales (efecto CRT)
+    ctx.save();
+    ctx.globalAlpha = 0.04;
+    ctx.fillStyle = '#000000';
+    var step = 3;
+    for (var y = 0; y < this.H; y += step) {
+      ctx.fillRect(0, y, this.W, 1);
+    }
+    ctx.restore();
+  },
+
+
+  // ============================================================
+  // RENDERIZADO DEL JUEGO (Adaptativo a calidad: ALTO añade glow/parallax/gradientes;
+  // BAJO usa fills planos, menos partículas, sin shadowBlur, ideal para gama baja)
+  // ============================================================
+  render: function() {
+    var ctx = this.ctx;
+    var W = this.W;
+    var H = this.H;
+    var i, grad;
+    var q = this.qSettings[this.qualityActive];
+    var hi = (this.qualityActive === 'high');
+
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = '#07070e';
+    ctx.fillRect(0, 0, W, H);
+
+    // ===== NEBULOSAS DE FONDO (modo aditivo, súper sutiles) =====
+    this.drawNebulas(ctx);
+
+    // Fondo: en gama baja saltamos un frame de movimiento para ahorrar (es imperceptible)
+    this.bgFrameTick = (this.bgFrameTick + 1) % 10;
+    if (hi || this.bgFrameTick % q.bgRedrawEveryN === 0) {
+      this.updateBgParticles();
+    }
+    for (i = 0; i < this.bgParticles.length; i++) {
+      var bp = this.bgParticles[i];
+      // Twinkle dinámico (parpadeo) en modo ULTRA
+      var bpAlpha = bp.alpha;
+      if (q.starSparkle && bp.twinklePhase !== undefined) {
+        bpAlpha *= 0.55 + Math.sin(bp.twinklePhase) * 0.45;
+      }
+      ctx.globalAlpha = bpAlpha;
+      ctx.fillStyle = bp.color;
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+      ctx.fill();
+      // Halo extra para estrellas de capa 2 (cercanas)
+      if (bp.layer === 2 && q.starGlow) {
+        ctx.globalAlpha = bpAlpha * 0.4;
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, bp.size * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // ===== POLVO CÓSMICO + ESTRELLAS FUGACES =====
+    this.drawCosmicDust(ctx);
+    this.drawShootingStars(ctx);
+
+    if (this.state !== 'PLAYING' && this.state !== 'PAUSED') {
+      if (this.state === 'VICTORY') {
+        this.renderConfetti(ctx);
+      }
+      return;
+    }
+
+    var skin = this.getSkin();
+
+    // Dinamismo de color para Skin Arcoíris Hiperespacio
+    var skinCoreColor = skin.colorCore;
+    var skinGlowColor = skin.colorGlow;
+    if (skin.id === 'hiperespacio') {
+      var hue = (Date.now() / 15) % 360;
+      skinCoreColor = 'hsl(' + hue + ', 100%, 65%)';
+      skinGlowColor = 'hsla(' + hue + ', 100%, 65%, 0.4)';
+    }
+
+    // ---- ZONAS ROJAS DE MUERTE ----
+    for (i = 0; i < this.killZones.length; i++) {
+      var kz = this.killZones[i];
+      ctx.fillStyle = 'rgba(255,57,57,0.18)';
+      ctx.fillRect(kz.x, kz.y, kz.w, kz.h);
+      ctx.strokeStyle = 'rgba(255,57,57,0.7)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(kz.x, kz.y, kz.w, kz.h);
+
+      // Las rayas diagonales (clip+save) son lo más caro de toda la escena.
+      // En modo BAJO se omiten por completo: la zona roja sigue siendo perfectamente legible.
+      if (q.useStripes) {
+        ctx.fillStyle = 'rgba(255,57,57,0.35)';
+        var stripeW = 8;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(kz.x, kz.y, kz.w, kz.h);
+        ctx.clip();
+        for (var sx = kz.x - kz.h; sx < kz.x + kz.w; sx += stripeW * 2) {
+          ctx.beginPath();
+          ctx.moveTo(sx, kz.y + kz.h);
+          ctx.lineTo(sx + kz.h, kz.y);
+          ctx.lineTo(sx + kz.h + stripeW, kz.y);
+          ctx.lineTo(sx + stripeW, kz.y + kz.h);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    // ---- PAREDES ----
+    for (i = 0; i < this.walls.length; i++) {
+      var w = this.walls[i];
+      ctx.fillStyle = 'rgba(125,249,255,0.06)';
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      ctx.strokeStyle = 'rgba(125,249,255,0.38)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    }
+
+    // ---- AGUJEROS NEGROS ----
+    // Las espirales son visualmente icónicas pero costosas. En modo BAJO
+    // simplificamos a 1 brazo y 12 puntos (vs 3 brazos × 25 puntos en alto).
+    for (i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      ctx.save();
+      ctx.translate(bh.x, bh.y);
+
+      var coreGlowColor = bh.strength < 0 ? 'rgba(0,255,255,' : 'rgba(155,89,255,';
+
+      ctx.rotate(bh.angle);
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(0, 0, bh.r * 0.3, 0, 0, bh.r * 2);
+        grad.addColorStop(0, coreGlowColor + '0.45)');
+        grad.addColorStop(0.4, coreGlowColor + '0.2)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = coreGlowColor + '0.18)';
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, bh.r * 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = bh.strength < 0 ? 'rgba(0,243,255,0.25)' : 'rgba(155,89,255,0.25)';
+      ctx.lineWidth = 1.8;
+      var spArms = q.bhSpiralArms;
+      var spPts = q.bhSpiralPoints;
+      for (var arm = 0; arm < spArms; arm++) {
+        ctx.beginPath();
+        var armOffset = (arm / spArms) * Math.PI * 2;
+        for (var t = 0; t < spPts; t++) {
+          var tt = t / spPts;
+          var spiral_r = bh.r * 0.45 + tt * bh.r * 1.35;
+          var spiral_a = armOffset + (bh.strength < 0 ? -1 : 1) * tt * Math.PI * 2.2;
+          var px = Math.cos(spiral_a) * spiral_r;
+          var py = Math.sin(spiral_a) * spiral_r;
+          if (t === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(0, 0, 0, 0, 0, bh.r * 0.58);
+        if (bh.strength < 0) {
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.5, '#00f3ff');
+          grad.addColorStop(1, 'rgba(0,10,25,0.7)');
+        } else {
+          grad.addColorStop(0, '#04000b');
+          grad.addColorStop(0.65, '#120524');
+          grad.addColorStop(1, 'rgba(30,5,55,0.6)');
+        }
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = bh.strength < 0 ? '#00f3ff' : '#120524';
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, bh.r * 0.58, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // ---- BUMPERS ----
+    for (i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      var flash = b.flash || 0;
+      var bR = b.r * (1 + flash * 0.25);
+
+      if (q.bumperGlow && flash > 0.05) {
+        grad = ctx.createRadialGradient(b.x, b.y, bR * 0.4, b.x, b.y, bR * 2.2);
+        grad.addColorStop(0, 'rgba(255,216,77,' + (flash * 0.45) + ')');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, bR * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(b.x - bR * 0.35, b.y - bR * 0.35, bR * 0.08, b.x, b.y, bR);
+        grad.addColorStop(0, flash > 0.4 ? '#ffffff' : '#ffe893');
+        grad.addColorStop(0.5, '#ffd84d');
+        grad.addColorStop(1, '#9b7600');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = flash > 0.4 ? '#ffe893' : '#ffd84d';
+      }
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, bR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,216,77,' + (0.5 + flash * 0.5) + ')';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+
+    // ---- ESTRELLAS (ULTRA: halos multi-color, cross sparkle rotativo, pulse) ----
+    for (i = 0; i < this.stars.length; i++) {
+      var star = this.stars[i];
+      if (star.collected) continue;
+
+      var t = Date.now() / 1000;
+      var starPulse = 0.55 + Math.sin(star.pulse) * 0.25;
+      var pulseScale = 1.0 + Math.sin(star.pulse * 0.8) * 0.08;
+
+      ctx.save();
+      ctx.translate(star.x, star.y);
+
+      // === Capa 1: Halo radial GRANDE multi-color (oro + cian + magenta) ===
+      // Aporta volumen luminoso y "presencia" visible desde lejos
+      grad = ctx.createRadialGradient(0, 0, 0, 0, 0, star.r * 4.5);
+      grad.addColorStop(0,    'rgba(255,255,255,' + (starPulse * 0.9) + ')');
+      grad.addColorStop(0.18, 'rgba(255,216,77,'  + (starPulse * 0.85) + ')');
+      grad.addColorStop(0.45, 'rgba(255,160,40,'  + (starPulse * 0.42) + ')');
+      grad.addColorStop(0.75, 'rgba(125,249,255,' + (starPulse * 0.18) + ')');
+      grad.addColorStop(1,    'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, star.r * 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // === Capa 2: Cruz brillante (lens-flare 4 brazos) ===
+      // Brazos largos rotando lentamente que se ven a la legua y dan el efecto "estrella"
+      var sparkAlpha = starPulse * 0.95;
+      var sparkLen = star.r * 3.8;
+      var sparkW = star.r * 0.3;
+      ctx.save();
+      ctx.rotate(star.angle * 0.5);
+      // Brazo horizontal
+      grad = ctx.createLinearGradient(-sparkLen, 0, sparkLen, 0);
+      grad.addColorStop(0,   'transparent');
+      grad.addColorStop(0.5, 'rgba(255,255,200,' + sparkAlpha + ')');
+      grad.addColorStop(1,   'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(-sparkLen, 0);
+      ctx.lineTo(0, -sparkW);
+      ctx.lineTo(sparkLen, 0);
+      ctx.lineTo(0, sparkW);
+      ctx.closePath();
+      ctx.fill();
+      // Brazo vertical
+      grad = ctx.createLinearGradient(0, -sparkLen, 0, sparkLen);
+      grad.addColorStop(0,   'transparent');
+      grad.addColorStop(0.5, 'rgba(255,255,200,' + sparkAlpha + ')');
+      grad.addColorStop(1,   'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(0, -sparkLen);
+      ctx.lineTo(sparkW, 0);
+      ctx.lineTo(0, sparkLen);
+      ctx.lineTo(-sparkW, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Cruz secundaria 45º (más corta)
+      ctx.rotate(Math.PI / 4);
+      var sparkLen2 = star.r * 2.4;
+      var sparkW2 = star.r * 0.18;
+      grad = ctx.createLinearGradient(-sparkLen2, 0, sparkLen2, 0);
+      grad.addColorStop(0,   'transparent');
+      grad.addColorStop(0.5, 'rgba(255,200,120,' + (sparkAlpha * 0.7) + ')');
+      grad.addColorStop(1,   'transparent');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(-sparkLen2, 0);
+      ctx.lineTo(0, -sparkW2);
+      ctx.lineTo(sparkLen2, 0);
+      ctx.lineTo(0, sparkW2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -sparkLen2);
+      ctx.lineTo(sparkW2, 0);
+      ctx.lineTo(0, sparkLen2);
+      ctx.lineTo(-sparkW2, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // === Capa 3: Cuerpo de estrella pentagonal con gradiente y pulse de tamaño ===
+      ctx.save();
+      ctx.rotate(star.angle);
+      ctx.scale(pulseScale, pulseScale);
+
+      // Gradiente del cuerpo: blanco→oro→naranja
+      grad = ctx.createRadialGradient(0, 0, 0, 0, 0, star.r);
+      grad.addColorStop(0,   '#ffffff');
+      grad.addColorStop(0.4, '#ffe893');
+      grad.addColorStop(0.8, '#ffd84d');
+      grad.addColorStop(1,   '#d49000');
+      ctx.fillStyle = grad;
+
+      ctx.beginPath();
+      for (var si = 0; si < 5; si++) {
+        var outerAngle = (si * 72 - 90) * Math.PI / 180;
+        var innerAngle = ((si * 72) + 36 - 90) * Math.PI / 180;
+        var ox2 = Math.cos(outerAngle) * star.r;
+        var oy2 = Math.sin(outerAngle) * star.r;
+        var ix = Math.cos(innerAngle) * star.r * 0.42;
+        var iy = Math.sin(innerAngle) * star.r * 0.42;
+        if (si === 0) ctx.moveTo(ox2, oy2);
+        else ctx.lineTo(ox2, oy2);
+        ctx.lineTo(ix, iy);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Borde exterior brillante
+      ctx.strokeStyle = 'rgba(255,255,200,' + (starPulse * 0.9) + ')';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Highlight del centro (especular blanco)
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath();
+      ctx.arc(-star.r * 0.18, -star.r * 0.22, star.r * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Punto central súper brillante
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.7 + Math.sin(t * 4 + star.pulse) * 0.3) + ')';
+      ctx.beginPath();
+      ctx.arc(0, 0, star.r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // ---- PORTAL DE LLEGADA ----
+    if (this.goal) {
+      var gP = Math.sin(this.goal.pulse) * 0.25 + 0.75;
+      var gr = this.goal.r;
+
+      if (q.goalGlow) {
+        grad = ctx.createRadialGradient(this.goal.x, this.goal.y, gr * 0.4, this.goal.x, this.goal.y, gr * 2.4);
+        grad.addColorStop(0, 'rgba(57,255,136,' + (gP * 0.35) + ')');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(this.goal.x, this.goal.y, gr * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(this.goal.x, this.goal.y, 0, this.goal.x, this.goal.y, gr);
+        grad.addColorStop(0, 'rgba(57,255,136,' + gP + ')');
+        grad.addColorStop(0.65, 'rgba(57,255,136,' + (gP * 0.4) + ')');
+        grad.addColorStop(1, 'rgba(57,255,136,0.08)');
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = 'rgba(57,255,136,' + (gP * 0.7) + ')';
+      }
+      ctx.beginPath();
+      ctx.arc(this.goal.x, this.goal.y, gr, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(57,255,136,' + gP + ')';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(this.goal.x, this.goal.y, gr * (1 + Math.sin(this.goal.pulse * 1.8) * 0.08), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+
+    // ---- RASTRO CÓSMICO ----
+    for (i = 0; i < this.trail.length; i++) {
+      var t = this.trail[i];
+      var tAlpha = t.life * 0.65;
+      var tSize = this.orb.r * t.life * 0.65;
+      
+      ctx.fillStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,' + tAlpha + ')' : skin.colorTrail + tAlpha + ')';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, tSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ---- ORBE DEL JUGADOR ----
+    if (this.orb && this.orb.alive) {
+      var ox = this.orb.x;
+      var oy = this.orb.y;
+      var or = this.orb.r;
+
+      // Halo de neón (sólo en alto)
+      if (q.orbHalo) {
+        grad = ctx.createRadialGradient(ox, oy, or, ox, oy, or * 2.4);
+        grad.addColorStop(0, skinGlowColor);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Esfera 3D vs disco plano (modo bajo)
+      if (q.useGradients) {
+        grad = ctx.createRadialGradient(ox - or * 0.35, oy - or * 0.35, or * 0.05, ox, oy, or);
+        if (skin.id === 'wormhole') {
+          grad.addColorStop(0, '#555555');
+          grad.addColorStop(0.3, '#0e0e1d');
+          grad.addColorStop(1, '#000000');
+        } else {
+          grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+          grad.addColorStop(0.3, skinCoreColor);
+          grad.addColorStop(0.75, skin.id === 'hiperespacio' ? skinCoreColor : skin.colorTrail + '0.8)');
+          grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+        }
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = skin.id === 'wormhole' ? '#0e0e1d' : skinCoreColor;
+      }
+      ctx.beginPath();
+      ctx.arc(ox, oy, or, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (hi) {
+        // Sombra
+        grad = ctx.createRadialGradient(ox + or * 0.2, oy + or * 0.35, 0, ox + or * 0.2, oy + or * 0.35, or * 0.85);
+        grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Reflejo
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.beginPath();
+        ctx.ellipse(ox - or * 0.28, oy - or * 0.32, or * 0.28, or * 0.13, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rim light
+        ctx.strokeStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,0.5)' : skin.colorTrail + '0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(ox, oy, or - 1, Math.PI * 0.7, Math.PI * 1.55);
+        ctx.stroke();
+      }
+
+      // Escudo Visual Activo (siempre visible: es información importante de juego)
+      if (this.orb.shieldCharges > 0) {
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        var pulseR = or * 1.4 + (hi ? Math.sin(Date.now() / 150) * 1.5 : 0);
+        ctx.arc(ox, oy, pulseR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // ---- PREDICCIÓN DE TRAYECTORIA REALISTA ----
+    if (this.aiming && this.orb && (this.orb.grounded || (skin.ability === 'midair_launch' && !this.orb.midAirLaunched))) {
+      var adx = this.aimStart.x - this.aimEnd.x;
+      var ady = this.aimStart.y - this.aimEnd.y;
+      var alen = Math.sqrt(adx * adx + ady * ady);
+
+      if (alen > 12) {
+        var power = Math.min(alen / 150, 1);
+        
+        // Habilidad Pasiva: Más potencia de lanzamiento (Supernova)
+        // BALANCE: bonus +12% (antes +25%, demasiado OP)
+        var maxLaunchPower = (skin.ability === 'hyper_power') ? 14.55 : 13.0;
+        var forceLaunch = power * maxLaunchPower;
+        
+        var nx_dir = adx / alen;
+        var ny_dir = ady / alen;
+
+        var tempX = this.orb.x;
+        var tempY = this.orb.y;
+        var tempVx = nx_dir * forceLaunch;
+        var tempVy = ny_dir * forceLaunch;
+        
+        ctx.fillStyle = 'rgba(125,249,255,0.5)';
+        
+        // Habilidad Pasiva: Duplicar predicción (Gravedad Cero)
+        var maxSimSteps = (skin.ability === 'frictionless_predict') ? 50 : 25;
+        
+        for (var step = 0; step < maxSimSteps; step++) {
+          for (var bh_idx = 0; bh_idx < this.blackHoles.length; bh_idx++) {
+            var bh_s = this.blackHoles[bh_idx];
+            var sdx = bh_s.x - tempX;
+            var sdy = bh_s.y - tempY;
+            var sdist = Math.sqrt(sdx * sdx + sdy * sdy);
+
+            // Respetar inmunidades de gravedad en predicción (alineadas con el motor)
+            var simGravityMod = 1.0;
+            if (skin.ability === 'gravity_res') simGravityMod = 0.78;
+            if (skin.ability === 'anti_grav') simGravityMod = 0.35;
+
+            if (sdist > bh_s.r * 0.38 && sdist < bh_s.r * 6 && simGravityMod > 0) {
+              var sforce = (bh_s.strength * simGravityMod) * 180 / (sdist * sdist + 80);
+              tempVx += (sdx / sdist) * sforce;
+              tempVy += (sdy / sdist) * sforce;
+            }
+          }
+          
+          var simFriction = (skin.ability === 'low_friction') ? 0.9978 : (skin.ability === 'frictionless_predict') ? 0.9988 : 0.997;
+          tempVx *= simFriction;
+          tempVy *= simFriction;
+          tempX += tempVx;
+          tempY += tempVy;
+
+          if (tempX < 0 || tempX > W || tempY < 0 || tempY > H) break;
+
+          if (step % 2 === 0) {
+            ctx.beginPath();
+            ctx.arc(tempX, tempY, 2.5 - (step * (0.05 / (maxSimSteps/25))), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.2 + power * 0.4) + ')';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([5, 8]);
+        ctx.beginPath();
+        ctx.moveTo(this.orb.x, this.orb.y);
+        ctx.lineTo(this.orb.x + adx * 0.32, this.orb.y + ady * 0.32);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        var arrowX = this.orb.x + adx * 0.32;
+        var arrowY = this.orb.y + ady * 0.32;
+        var arrowAngle = Math.atan2(ady, adx);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + power * 0.4) + ')';
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(arrowX - 8 * Math.cos(arrowAngle - 0.42), arrowY - 8 * Math.sin(arrowAngle - 0.42));
+        ctx.lineTo(arrowX - 8 * Math.cos(arrowAngle + 0.42), arrowY - 8 * Math.sin(arrowAngle + 0.42));
+        ctx.closePath();
+        ctx.fill();
+
+        // Barra de potencia
+        var barW = 48;
+        var barH = 5;
+        var barX = this.orb.x - barW / 2;
+        var barY = this.orb.y + this.orb.r + 14;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(barX, barY, barW, barH);
+
+        grad = ctx.createLinearGradient(barX, 0, barX + barW * power, 0);
+        grad.addColorStop(0, '#39ff88');
+        grad.addColorStop(0.5, '#ffd84d');
+        grad.addColorStop(1, '#ff3939');
+        ctx.fillStyle = grad;
+        ctx.fillRect(barX, barY, barW * power, barH);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barW, barH);
+      }
+    }
+
+    // ---- PARTÍCULAS (POOLING) ----
+    var pLen2 = this.particlesPool.length;
+    for (i = 0; i < pLen2; i++) {
+      var p = this.particlesPool[i];
+      if (!p.active) continue;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ---- NAVES ALIEN Y LÁSERES (encima de la escena, debajo del confeti) ----
+    if (this.alien && this.alien.active && !this.alien.alertActive) {
+      // Primero los láseres (detrás de las naves)
+      for (i = 0; i < this.alien.lasers.length; i++) {
+        this.drawLaser(ctx, this.alien.lasers[i]);
+      }
+      // Luego las naves (más arriba en z-order)
+      for (i = 0; i < this.alien.ships.length; i++) {
+        this.drawAlienShip(ctx, this.alien.ships[i]);
+      }
+    }
+
+    // ---- CONFETI ----
+    this.renderConfetti(ctx);
+
+    // ===== POST-FX ULTRA: VIGNETTE + SCANLINES (encima de todo) =====
+    this.drawVignette(ctx);
+    this.drawScanlines(ctx);
+  },
+
+  renderConfetti: function(ctx) {
+    var cLen = this.confettiPool.length;
+    for (var i = 0; i < cLen; i++) {
+      var c = this.confettiPool[i];
+      if (!c.active) continue;
+      ctx.globalAlpha = c.life;
+      ctx.fillStyle = c.color;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot * Math.PI / 180);
+      ctx.fillRect(-c.size / 2, -c.size / 4, c.size, c.size * 0.5);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  },
+
+
+  // ============================================================
+  // GESTIÓN DE ENTRADAS (Táctil y Ratón con Habilidades Activas)
+  // ============================================================
+  getPos: function(e) {
+    var rect = this.canvas.getBoundingClientRect();
+    var clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    return {
+      x: (clientX - rect.left) * this.dpr,
+      y: (clientY - rect.top) * this.dpr
+    };
+  },
+
+  onDown: function(e) {
+    if (this.state !== 'PLAYING') return;
+    if (!this.orb || !this.orb.alive) return;
+    // Bloquear input durante el aviso de invasión alien
+    if (this.alien && this.alien.alertActive) { e.preventDefault(); return; }
+    
+    var skin = this.getSkin();
+
+    // Habilidad Activa: Salto Cuántico (Materia Exótica) en pleno vuelo
+    if (skin.ability === 'quantum_break' && !this.orb.grounded) {
+      e.preventDefault();
+      this.orb.vx = 0;
+      this.orb.vy = 0;
+      this.orb.grounded = true;
+      this.orb.launched = false;
+      this.sfx.shieldBreak(); // Sonido warp futurista
+      
+      // Efecto visual cuántico
+      for (var i = 0; i < 20; i++) {
+        var a = (i / 20) * Math.PI * 2;
+        this.spawnParticle(this.orb.x, this.orb.y, Math.cos(a) * 4, Math.sin(a) * 4, '#e0115f', 3, 0.8);
+      }
+      return;
+    }
+
+    // Permitir apuntar desde el suelo, o en el aire si tiene habilidad de relanzamiento y no la ha usado
+    var canAim = this.orb.grounded || (skin.ability === 'midair_launch' && !this.orb.midAirLaunched);
+    if (!canAim) return;
+
+    e.preventDefault();
+    this.initAudio();
+    var pos = this.getPos(e);
+    this.aiming = true;
+    this.aimStart = { x: pos.x, y: pos.y };
+    this.aimEnd = { x: pos.x, y: pos.y };
+  },
+
+  onMove: function(e) {
+    if (!this.aiming) return;
+    e.preventDefault();
+    var pos = this.getPos(e);
+    this.aimEnd = { x: pos.x, y: pos.y };
+  },
+
+  onUp: function(e) {
+    if (!this.aiming) return;
+    e.preventDefault();
+    this.aiming = false;
+
+    var dx = this.aimStart.x - this.aimEnd.x;
+    var dy = this.aimStart.y - this.aimEnd.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len < 16) return; 
+
+    var skin = this.getSkin();
+    
+    // Potencia aumentada para Supernova (BALANCE: +12%, antes +25%)
+    var maxLaunchPower = (skin.ability === 'hyper_power') ? 14.55 : 13.0;
+    var power = Math.min(len / 150, 1) * maxLaunchPower;
+    var nx = dx / len;
+    var ny = dy / len;
+
+    // Si lanzamos en el aire usando la habilidad de Hiperespacio
+    // BALANCE: midair_launch ahora aplica -20% de potencia para no ser gratis.
+    if (!this.orb.grounded && skin.ability === 'midair_launch' && !this.orb.midAirLaunched) {
+      this.orb.midAirLaunched = true;
+      power *= 0.8;
+      // Efecto rastro de salto hiperespacial
+      for (var j = 0; j < 15; j++) {
+        this.spawnParticle(this.orb.x, this.orb.y, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, '#ff00ff', 4, 0.8);
+      }
+    }
+
+    this.orb.vx = nx * power;
+    this.orb.vy = ny * power;
+    this.orb.launched = true;
+    this.orb.grounded = false;
+    this.shots++;
+    this.updateHUD();
+    this.sfx.launch();
+  },
+
+  onKey: function(e) {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      if (this.state === 'PLAYING') this.pause();
+      else if (this.state === 'PAUSED') this.resume();
+    }
+    if (e.key === 'r' || e.key === 'R') {
+      if (this.state === 'PLAYING' || this.state === 'PAUSED' || this.state === 'GAME_OVER') {
+        this.restartLevel();
+      }
+    }
+  },
+
+  // ============================================================
+  // BUCLE DE JUEGO PRINCIPAL - Timestep Fijo + tracking de FPS + auto-tune
+  // ============================================================
+  loop: function(timestamp) {
+    if (!this.lastTime) this.lastTime = timestamp;
+    var delta = (timestamp - this.lastTime) / 1000;
+    this.lastTime = timestamp;
+
+    if (delta > 0.1) delta = 0.1;
+
+    if (this.state === 'PLAYING') {
+      // Actualizar el aviso imponente y las naves/láseres SIEMPRE durante PLAYING.
+      // Estos sistemas usan delta-time real (segundos) en vez del fixed timestep
+      // para que el aviso y las naves se sientan naturales aunque el orbe esté quieto.
+      this.updateAlienAlert(delta);
+      if (this.alien && this.alien.active) {
+        this.updateAlienShips(delta);
+        this.updateLasers(delta);
+      }
+
+      this.accumulator += delta;
+      var maxSteps = 4;
+      var steps = 0;
+      while (this.accumulator >= this.dt && steps < maxSteps) {
+        this.physicsStep();
+        this.accumulator -= this.dt;
+        steps++;
+      }
+      if (this.accumulator > this.dt * maxSteps) {
+        this.accumulator = 0;
+      }
+
+      // Comprobar también colisión orbe-láser cuando el orbe está quieto en suelo
+      // (el láser puede pasarle por encima sin que tengamos que esperar al physicsStep)
+      if (this.orb && this.orb.alive && !this.orb.launched && this.alien.active && !this.alien.alertActive) {
+        this.checkAlienCollisions();
+      }
+    }
+
+    this.updateParticles();
+    this.render();
+    this.frameCount++;
+
+    // ---- FPS TRACKING (1s rolling avg) ----
+    this.fpsAccum += delta;
+    this.fpsFrames++;
+    if (this.fpsAccum >= 1.0) {
+      this.fpsAvg = Math.round(this.fpsFrames / this.fpsAccum);
+      this.fpsAccum = 0;
+      this.fpsFrames = 0;
+
+      // Badge en HUD si está activado
+      if (this.showFps) {
+        var badge = document.getElementById('fpsBadge');
+        if (badge) {
+          badge.style.display = 'block';
+          badge.textContent = 'FPS ' + this.fpsAvg + ' • ' + this.qualityActive.toUpperCase();
+        }
+      }
+
+      // AUTO-TUNE DESACTIVADO en v3.0: ULTRA HD es permanente.
+      // No degradamos la calidad por FPS bajos, solo registramos métricas.
+      this._lowFpsCount = 0;
+    }
+
+    var self = this;
+    requestAnimationFrame(function(t) { self.loop(t); });
+  },
+
+  // ============================================================
+  // RESIZE ADAPTATIVO (DPR varía con la calidad activa)
+  // ============================================================
+  resize: function() {
+    var dprMax = this.qSettings[this.qualityActive].dprMax;
+    this.dpr = Math.min(window.devicePixelRatio || 1, dprMax);
+    var rect = this.canvas.getBoundingClientRect();
+    this.W = rect.width * this.dpr;
+    this.H = rect.height * this.dpr;
+    this.canvas.width = this.W;
+    this.canvas.height = this.H;
+    
+    this.initBgParticles();
+
+    if (this.state === 'PLAYING' && this.orb) {
+      // Conservar progreso al rotar el dispositivo:
+      // re-escalar el orbe en lugar de reiniciar el nivel.
+      this.startLevel(this.currentLevel);
+    }
+  },
+
+  onVisChange: function() {
+    if (document.hidden && this.state === 'PLAYING') {
+      this.pause();
+    }
+  },
+
+  // ============================================================
+  // INICIALIZACIÓN GENERAL DEL MOTOR DE JUEGO
+  // ============================================================
+  init: function() {
+    this.canvas = document.getElementById('gc');
+    this.ctx = this.canvas.getContext('2d', { alpha: false }); 
+
+    this.load();
+    // Resolver calidad efectiva ANTES de inicializar pools/canvas
+    this.qualityActive = this.resolveQuality();
+    // Alias de compatibilidad: cualquier código legacy que consulte
+    // qSettings.low recibirá las mismas settings que high (ya no degradamos).
+    this.qSettings.low = this.qSettings.high;
+    var q = this.qSettings[this.qualityActive];
+    this.maxParticles = q.maxParticles;
+    this.maxConfetti = q.maxConfetti;
+    this.initPools();
+    this.resize();
+
+    var self = this;
+    this.canvas.addEventListener('mousedown', function(e) { self.onDown(e); });
+    this.canvas.addEventListener('mousemove', function(e) { self.onMove(e); });
+    this.canvas.addEventListener('mouseup', function(e) { self.onUp(e); });
+    this.canvas.addEventListener('mouseleave', function() { if (self.aiming) { self.aiming = false; } });
+    
+    this.canvas.addEventListener('touchstart', function(e) { self.onDown(e); }, { passive: false });
+    this.canvas.addEventListener('touchmove', function(e) { self.onMove(e); }, { passive: false });
+    this.canvas.addEventListener('touchend', function(e) { self.onUp(e); }, { passive: false });
+    this.canvas.addEventListener('touchcancel', function() { self.aiming = false; }, { passive: false });
+    
+    window.addEventListener('keydown', function(e) { self.onKey(e); });
+    window.addEventListener('resize', function() { self.resize(); });
+    document.addEventListener('visibilitychange', function() { self.onVisChange(); });
+
+    this.unlockedLevels[0] = true;
+
+    this.updateMenuUI();
+    this.updateQualityUI();
+    this.setState('MENU');
+
+    requestAnimationFrame(function(t) { self.loop(t); });
+  }
+};
+
+window.addEventListener('DOMContentLoaded', function() {
+  G.init();
+});
+</script>
+</body>
+</html>
+
