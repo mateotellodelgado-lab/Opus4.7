@@ -1,57 +1,1183 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mía: La Mochila Robada</title>
-  <link rel="stylesheet" href="css/style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1, minimum-scale=1">
+<meta name="theme-color" content="#222">
+<title>Mátame Otra Vez — Troll Platformer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;background:#111;overflow:hidden;font-family:'Courier New',monospace;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#game{background:#222;image-rendering:pixelated;display:block;max-width:100%;max-height:100%;box-shadow:0 0 60px rgba(0,255,0,.08)}
+.tbtn{position:absolute;background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);color:#fff;font-size:30px;display:none;align-items:center;justify-content:center;border-radius:50%;font-family:inherit;font-weight:bold;touch-action:none}
+.tbtn:active{background:rgba(255,255,255,.35)}
+#bL,#bR{width:78px;height:78px;bottom:18px}
+#bL{left:18px}
+#bR{left:108px}
+#bJ{width:96px;height:96px;bottom:18px;right:18px}
+body.touch .tbtn{display:flex}
+#hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:11px;color:#666;letter-spacing:1px;pointer-events:none;text-align:center;line-height:1.4}
+</style>
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>Mía: La Mochila Robada</h1>
-      <p class="tagline">Un plataformero 2D al estilo clásico</p>
-    </header>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="bL" class="tbtn">◀</div>
+  <div id="bR" class="tbtn">▶</div>
+  <div id="bJ" class="tbtn">▲</div>
+  <div id="hint">PC: ← → / A D para moverte · ESPACIO / W / ↑ para saltar · R reinicia · M silencia</div>
+</div>
+<script>
+'use strict';
 
-    <div id="stage">
-      <canvas id="game" width="960" height="540"></canvas>
-      <div id="overlay" class="overlay">
-        <div class="panel">
-          <h2>Mía: La Mochila Robada</h2>
-          <p>
-            Recupera tu mochila de diseños de las garras del
-            <strong>Mapache Gigante Mutante</strong>.
-          </p>
-          <ul class="controls">
-            <li><kbd>A</kbd>/<kbd>D</kbd> o <kbd>←</kbd>/<kbd>→</kbd> — moverse</li>
-            <li><kbd>Shift</kbd> — correr</li>
-            <li><kbd>Espacio</kbd> o <kbd>↑</kbd> — saltar (mantén para saltar más alto)</li>
-            <li><kbd>K</kbd> o <kbd>Z</kbd> — atacar con espada ⚔</li>
-            <li><kbd>J</kbd> — lanzar nota musical (con auriculares mágicos)</li>
-            <li><kbd>P</kbd> — pausar &nbsp;·&nbsp; <kbd>R</kbd> — reiniciar nivel</li>
-          </ul>
-          <button id="startBtn" type="button">Comenzar aventura</button>
-        </div>
-      </div>
-    </div>
 
-    <footer>
-      <p>
-        Mundos: <strong>La Ciudad</strong> · <strong>El Parque Abandonado</strong> ·
-        <strong>Las Alcantarillas</strong> · <strong>El Rascacielos</strong>
-      </p>
-    </footer>
-  </div>
+/* ============================================================
+   1. CONSTANTES GLOBALES
+   ============================================================
+   Toda la "feel" del juego se afina aquí. Los valores están
+   calibrados para sentirse crujientes (gravedad alta, salto
+   corto y rápido) — tipo Celeste/Mario, no flotante.
+============================================================ */
+const CFG = {
+  WIDTH: 960, HEIGHT: 540,            // resolución lógica del canvas
+  GRAVITY: 2200,                      // px/s² (caída crujiente)
+  GRAVITY_CUT_MULT: 2.4,              // gravedad extra si sueltas el salto pronto
+  JUMP_VELOCITY: -780,                // velocidad inicial del salto (≈ 138 px de pico)
+  MOVE_SPEED: 290,                    // velocidad horizontal máxima
+  GROUND_ACCEL: 2400, AIR_ACCEL: 1700,
+  GROUND_FRICTION: 2200, AIR_FRICTION: 600,
+  MAX_FALL_SPEED: 1100,
+  COYOTE_TIME: 0.10,                  // 100 ms para saltar tras dejar el borde
+  JUMP_BUFFER: 0.12,                  // 120 ms para que un salto pulsado pronto cuente
+  TILE: 32, CULL_MARGIN: 100,         // culling: 100 px alrededor del viewport
+  PLAYER_W: 26, PLAYER_H: 30,
+  INVGRAV_DURATION: 2.0,              // 2 s de gravedad invertida
+  RESPAWN_DELAY: 0.55,                // pausa breve antes de respawnear
+};
 
-  <script src="js/audio.js"></script>
-  <script src="js/sprites.js"></script>
-  <script src="js/levels.js"></script>
-  <script src="js/world.js"></script>
-  <script src="js/player.js"></script>
-  <script src="js/enemies.js"></script>
-  <script src="js/entities.js"></script>
-  <script src="js/hud.js"></script>
-  <script src="js/input.js"></script>
-  <script src="js/main.js"></script>
+const COLORS = {
+  BG:'#222', PLAYER:'#0F0', PLAYER_DEAD:'#F44',
+  PLATFORM:'#AAA', PLATFORM_TOP:'#888',
+  DANGER:'#F00', DANGER_DARK:'#900',
+  GOAL:'#00F', GOAL_LIGHT:'#3399FF',
+  TEXT:'#FFF', SUB:'#888', UI_BG:'rgba(0,0,0,0.78)',
+  ACCENT:'#0F0', BAD:'#F44',
+};
+
+// IDs de tipos de trampa — usados en la definición JSON de niveles
+const TRAP = {
+  SPIKE:'spike',                      // pincho normal, siempre mortal
+  FAKE_PLATFORM:'fake_platform',      // se ve normal, cae al pisarla (0.18 s)
+  TRIGGERED_SPIKE:'triggered_spike',  // pincho oculto que sale a X px del jugador
+  FALLING_BLOCK:'falling_block',      // bloque de techo que cae cuando pasas debajo
+  FAKE_GOAL:'fake_goal',              // la meta se mueve 50 px revelando un foso
+  INVERTED_GRAV:'inverted_grav',      // zona invisible: invierte la gravedad 2 s
+};
+
+const STATE = { MENU:'menu', PLAYING:'playing', GAME_OVER:'gameover', WIN:'win' };
+
+
+/* ============================================================
+   AUDIO — sonidos sintetizados con WebAudio (sin assets)
+============================================================ */
+const Audio = {
+  ctx:null, muted:false,
+  init(){ if(!this.ctx){ try{ this.ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } },
+  tone(freq, dur, type='square', vol=0.10, slide=0){
+    if(!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq+slide), t+dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t); o.stop(t+dur);
+  },
+  jump(){ this.tone(540, 0.07, 'square', 0.07, 220); },
+  death(){ this.tone(220, 0.18, 'sawtooth', 0.13, -140); setTimeout(()=>this.tone(110, 0.32, 'sawtooth', 0.10, -50), 110); },
+  win(){ this.tone(523,0.10,'square',0.09); setTimeout(()=>this.tone(659,0.10,'square',0.09),110); setTimeout(()=>this.tone(784,0.18,'square',0.10),220); setTimeout(()=>this.tone(1046,0.25,'square',0.09),360); },
+  trap(){ this.tone(190, 0.15, 'sawtooth', 0.10, -90); },
+  toggle(){ this.muted = !this.muted; },
+};
+
+/* ============================================================
+   2. SISTEMA DE ENTRADA — teclado + táctil
+============================================================ */
+const Input = {
+  left:false, right:false, jumpHeld:false, jumpPressed:false, restart:false,
+  _jumpEdge:false,
+  init(){
+    addEventListener('keydown', e => {
+      if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Space'].includes(e.key)) e.preventDefault();
+      if(e.repeat) return;
+      const k = e.key.toLowerCase();
+      if(k==='arrowleft'||k==='a') this.left = true;
+      if(k==='arrowright'||k==='d') this.right = true;
+      if(k==='arrowup'||k==='w'||k===' '||e.code==='Space'){ if(!this.jumpHeld) this._jumpEdge = true; this.jumpHeld = true; }
+      if(k==='r') this.restart = true;
+      if(k==='m') Audio.toggle();
+      Audio.init(); // primer input desbloquea audio
+    });
+    addEventListener('keyup', e => {
+      const k = e.key.toLowerCase();
+      if(k==='arrowleft'||k==='a') this.left = false;
+      if(k==='arrowright'||k==='d') this.right = false;
+      if(k==='arrowup'||k==='w'||k===' '||e.code==='Space') this.jumpHeld = false;
+    });
+
+    // Touch — botones virtuales
+    const setup = (id, on, off) => {
+      const el = document.getElementById(id);
+      const start = e => { e.preventDefault(); on(); Audio.init(); };
+      const end = e => { e.preventDefault(); off(); };
+      el.addEventListener('touchstart', start, {passive:false});
+      el.addEventListener('touchend', end, {passive:false});
+      el.addEventListener('touchcancel', end, {passive:false});
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', end);
+      el.addEventListener('mouseleave', end);
+    };
+    setup('bL', ()=>this.left=true,  ()=>this.left=false);
+    setup('bR', ()=>this.right=true, ()=>this.right=false);
+    setup('bJ', ()=>{ if(!this.jumpHeld) this._jumpEdge = true; this.jumpHeld = true; }, ()=>this.jumpHeld=false);
+    // Tap general en el canvas: clicks en menús
+    const cv = document.getElementById('game');
+    cv.addEventListener('touchstart', e => { e.preventDefault(); this._jumpEdge = true; Audio.init(); }, {passive:false});
+    cv.addEventListener('mousedown', e => { this._jumpEdge = true; Audio.init(); });
+    // Detectar dispositivo táctil
+    if('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+  },
+  // Llamar al final de cada frame: el "edge" (pulsación nueva) sólo dura un frame
+  pollEdges(){ this.jumpPressed = this._jumpEdge; this._jumpEdge = false; const r = this.restart; this.restart = false; return r; },
+};
+
+/* ============================================================
+   3. CLASES DE ENTIDAD — Vector2D, GameObject, etc.
+============================================================ */
+class Vec2 { constructor(x,y){ this.x=x; this.y=y; } }
+
+class GameObject {
+  constructor(x, y, w, h){
+    this.x = x; this.y = y; this.w = w; this.h = h;
+    this.vx = 0; this.vy = 0;
+    this.alive = true;
+    this.solid = false;
+    this.dangerous = false;
+    this.isGoal = false;
+    this.isZone = false;
+    this.dynamic = false; // true ⇒ no se culla en update
+  }
+  get cx(){ return this.x + this.w/2; }
+  get cy(){ return this.y + this.h/2; }
+}
+
+/* ============================================================
+   4. MOTOR DE COLISIONES — AABB exacto al píxel
+============================================================ */
+function aabb(a, b){
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+function inView(e, cam){
+  const m = CFG.CULL_MARGIN;
+  return e.x + e.w > cam.x - m && e.x < cam.x + cam.w + m &&
+         e.y + e.h > cam.y - m && e.y < cam.y + cam.h + m;
+}
+
+
+/* Helpers de dibujo reutilizables ---------------------------- */
+function drawSpikes(ctx, x, y, w, h, color){
+  ctx.fillStyle = color || COLORS.DANGER;
+  const n = Math.max(1, Math.round(w / 14));
+  const sw = w / n;
+  for(let i=0;i<n;i++){
+    ctx.beginPath();
+    ctx.moveTo(x + i*sw, y + h);
+    ctx.lineTo(x + i*sw + sw/2, y);
+    ctx.lineTo(x + (i+1)*sw, y + h);
+    ctx.closePath(); ctx.fill();
+  }
+  // sombra base
+  ctx.fillStyle = COLORS.DANGER_DARK;
+  ctx.fillRect(x, y + h - 2, w, 2);
+}
+function drawGoal(ctx, g){
+  // poste blanco
+  ctx.fillStyle = '#FFF';
+  ctx.fillRect(g.x + g.w/2 - 2, g.y, 4, g.h);
+  // bandera azul
+  ctx.fillStyle = COLORS.GOAL;
+  ctx.beginPath();
+  ctx.moveTo(g.x + g.w/2 + 2, g.y + 4);
+  ctx.lineTo(g.x + g.w + 18, g.y + 14);
+  ctx.lineTo(g.x + g.w/2 + 2, g.y + 24);
+  ctx.closePath(); ctx.fill();
+  // base
+  ctx.fillStyle = '#FFF';
+  ctx.fillRect(g.x - 4, g.y + g.h - 4, g.w + 8, 4);
+}
+
+/* Plataforma sólida estándar -------------------------------- */
+class Platform extends GameObject {
+  constructor(def){ super(def.x, def.y, def.w, def.h); this.solid = true; this.kind = 'platform'; }
+  update(){}
+  render(ctx){
+    ctx.fillStyle = COLORS.PLATFORM;
+    ctx.fillRect(this.x, this.y, this.w, this.h);
+    ctx.fillStyle = COLORS.PLATFORM_TOP;
+    ctx.fillRect(this.x, this.y, this.w, 2);
+  }
+}
+
+/* Meta REAL (sin trampa) ------------------------------------ */
+class Goal extends GameObject {
+  constructor(def){ super(def.x, def.y, def.w || 24, def.h || 56); this.isGoal = true; this.fake = false; this.kind = 'goal'; }
+  update(){}
+  render(ctx){ drawGoal(ctx, this); }
+}
+
+
+/* ============================================================
+   TRAMPAS — clase única, comportamiento por type
+============================================================ */
+class Trap extends GameObject {
+  constructor(def){
+    const w = def.w !== undefined ? def.w : CFG.TILE;
+    const h = def.h !== undefined ? def.h : CFG.TILE;
+    super(def.x, def.y, w, h);
+    this.type = def.type;
+    this.def = def;
+    this.startX = def.x; this.startY = def.y;
+    this.timer = 0;
+    this.triggered = false;
+    this.activated = false;
+    this.fallVy = 0;
+    this.linked = [];          // referencias activadas al disparar (p.ej. spikes del fake_goal)
+    this.kind = 'trap';
+
+    switch(this.type){
+      case TRAP.SPIKE:
+        this.dangerous = true;
+        break;
+      case TRAP.FAKE_PLATFORM:
+        this.solid = true;
+        this.delay = def.delay !== undefined ? def.delay : 0.18;
+        break;
+      case TRAP.TRIGGERED_SPIKE:
+        // Empieza oculto: lo bajamos popHeight px bajo su startY
+        this.popHeight = def.popHeight || 26;
+        this.triggerDist = def.triggerDist || 100;
+        this.targetY = this.startY;
+        this.hiddenY = this.startY + this.popHeight;
+        this.y = this.hiddenY;
+        break;
+      case TRAP.FALLING_BLOCK:
+        this.solid = true;
+        this.triggerDist = def.triggerDist || 30; // banda horizontal extra a cada lado
+        this.fallReach = def.fallReach || 360;    // sólo dispara si el jugador está dentro de este rango vertical
+        break;
+      case TRAP.FAKE_GOAL:
+        this.isGoal = true; this.fake = true;
+        this.triggerDist = def.triggerDist || 130;
+        this.shiftAmount = def.shift !== undefined ? def.shift : 50;
+        this.shiftSpeed = def.shiftSpeed || 280;
+        break;
+      case TRAP.INVERTED_GRAV:
+        this.isZone = true;
+        this.duration = def.duration || CFG.INVGRAV_DURATION;
+        break;
+    }
+  }
+
+
+  // Llamado cuando el jugador aterriza encima — usado por la plataforma falsa
+  onPlayerStand(player, dt){
+    if(this.type === TRAP.FAKE_PLATFORM && !this.activated){
+      this.timer += dt;
+      if(this.timer >= this.delay){
+        this.activated = true;
+        this.solid = false;
+        this.dynamic = true;
+        Audio.trap();
+      }
+    }
+  }
+
+  update(dt, game){
+    if(!this.alive) return;
+    const p = game.player;
+
+    switch(this.type){
+      case TRAP.FAKE_PLATFORM:
+        if(this.activated){
+          // Cae un poco más rápido que el jugador para que se vea
+          // claramente la plataforma desplomándose bajo sus pies.
+          this.fallVy += CFG.GRAVITY * 1.4 * dt;
+          this.y += this.fallVy * dt;
+          if(this.y > game.level.height + 200){ this.alive = false; this.dynamic = false; }
+        }
+        break;
+
+      case TRAP.TRIGGERED_SPIKE: {
+        if(!this.triggered){
+          // Sólo dispara si el jugador está cerca horizontalmente Y a una altura cercana
+          const dx = p.cx - (this.x + this.w/2);
+          const dy = (p.y + p.h) - this.startY;
+          if(Math.abs(dx) < this.triggerDist && dy > -160 && dy < 80){
+            this.triggered = true; this.dangerous = true; this.dynamic = true;
+            Audio.trap();
+          }
+        } else if(this.y > this.targetY){
+          this.y -= 900 * dt;
+          if(this.y <= this.targetY){ this.y = this.targetY; this.dynamic = false; }
+        }
+        break;
+      }
+
+      case TRAP.FALLING_BLOCK: {
+        if(!this.triggered){
+          // Dispara cuando el jugador está bajo la columna del bloque
+          const dx = p.cx - (this.x + this.w/2);
+          const dy = p.y - (this.y + this.h);
+          if(Math.abs(dx) < (this.w/2 + this.triggerDist) && dy > 0 && dy < this.fallReach){
+            this.triggered = true; this.dangerous = true; this.solid = true; this.dynamic = true;
+            Audio.trap();
+          }
+        } else {
+          this.fallVy += CFG.GRAVITY * 1.4 * dt;
+          this.y += this.fallVy * dt;
+          if(this.y > game.level.height + 200){ this.alive = false; this.dynamic = false; }
+        }
+        break;
+      }
+
+
+      case TRAP.FAKE_GOAL: {
+        if(!this.activated){
+          const dx = p.cx - (this.x + this.w/2);
+          if(Math.abs(dx) < this.triggerDist && Math.abs(p.cy - this.cy) < 220){
+            this.activated = true; this.dynamic = true;
+            Audio.trap();
+            // Despertar pinchos enlazados (el "foso revelado")
+            for(const s of this.linked) s.alive = true;
+          }
+        } else {
+          const target = this.startX + this.shiftAmount;
+          if(this.x < target){
+            this.x += this.shiftSpeed * dt;
+            if(this.x >= target){ this.x = target; this.dynamic = false; }
+          }
+        }
+        break;
+      }
+
+      case TRAP.INVERTED_GRAV:
+        // El efecto se aplica desde el update del Player
+        break;
+    }
+  }
+
+  render(ctx){
+    if(!this.alive) return;
+    switch(this.type){
+      case TRAP.SPIKE:
+        drawSpikes(ctx, this.x, this.y, this.w, this.h);
+        break;
+      case TRAP.TRIGGERED_SPIKE:
+        // sólo lo dibujamos cuando ya empezó a salir
+        if(this.triggered || this.y < this.hiddenY - 0.5){
+          drawSpikes(ctx, this.x, this.y, this.w, this.h);
+        }
+        break;
+      case TRAP.FAKE_PLATFORM:
+        // Idéntica a una plataforma normal — esa es la trampa
+        ctx.fillStyle = COLORS.PLATFORM; ctx.fillRect(this.x, this.y, this.w, this.h);
+        ctx.fillStyle = COLORS.PLATFORM_TOP; ctx.fillRect(this.x, this.y, this.w, 2);
+        break;
+      case TRAP.FALLING_BLOCK:
+        ctx.fillStyle = this.triggered ? '#C44' : COLORS.PLATFORM;
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+        ctx.fillStyle = this.triggered ? '#700' : COLORS.PLATFORM_TOP;
+        ctx.fillRect(this.x, this.y, this.w, 2);
+        ctx.fillRect(this.x, this.y + this.h - 2, this.w, 2);
+        break;
+      case TRAP.FAKE_GOAL:
+        drawGoal(ctx, this);
+        break;
+      case TRAP.INVERTED_GRAV:
+        // Invisible en producción. Descomenta para depurar.
+        // ctx.strokeStyle = 'rgba(255,0,255,.3)'; ctx.strokeRect(this.x,this.y,this.w,this.h);
+        break;
+    }
+  }
+}
+
+
+/* ============================================================
+   PLAYER — física tight (coyote, buffer, jump-cut, gravedad invertida)
+============================================================ */
+class Player extends GameObject {
+  constructor(x, y){
+    super(x, y, CFG.PLAYER_W, CFG.PLAYER_H);
+    this.spawnX = x; this.spawnY = y;
+    this.onGround = false;
+    this.coyoteTimer = 0;
+    this.jumpBufferTimer = 0;
+    this.facing = 1;
+    this.invGravTimer = 0;
+    this.gravSign = 1;
+    this.deadTimer = 0;
+    this.dynamic = true;
+    this._wasGoingUp = false;
+  }
+  reset(x, y){
+    this.x = x !== undefined ? x : this.spawnX;
+    this.y = y !== undefined ? y : this.spawnY;
+    if(x !== undefined){ this.spawnX = x; this.spawnY = y; }
+    this.vx = 0; this.vy = 0;
+    this.onGround = false; this.alive = true;
+    this.coyoteTimer = 0; this.jumpBufferTimer = 0;
+    this.invGravTimer = 0; this.gravSign = 1;
+    this.deadTimer = 0; this.facing = 1;
+  }
+
+  update(dt, game){
+    if(!this.alive) return;
+    const ix = (Input.left ? -1 : 0) + (Input.right ? 1 : 0);
+
+    // ---- Coyote time + jump buffer --------------------------
+    if(Input.jumpPressed) this.jumpBufferTimer = CFG.JUMP_BUFFER;
+    this.jumpBufferTimer -= dt;
+
+    if(this.onGround) this.coyoteTimer = CFG.COYOTE_TIME;
+    else this.coyoteTimer -= dt;
+
+    // ---- Gravedad invertida ---------------------------------
+    if(this.invGravTimer > 0){ this.invGravTimer -= dt; this.gravSign = -1; }
+    else this.gravSign = 1;
+
+    // ---- Aceleración horizontal -----------------------------
+    if(ix !== 0){
+      this.facing = ix;
+      const acc = (this.onGround ? CFG.GROUND_ACCEL : CFG.AIR_ACCEL) * ix;
+      this.vx += acc * dt;
+      if(this.vx >  CFG.MOVE_SPEED) this.vx =  CFG.MOVE_SPEED;
+      if(this.vx < -CFG.MOVE_SPEED) this.vx = -CFG.MOVE_SPEED;
+    } else {
+      const fric = (this.onGround ? CFG.GROUND_FRICTION : CFG.AIR_FRICTION) * dt;
+      if(this.vx >  fric) this.vx -= fric;
+      else if(this.vx < -fric) this.vx += fric;
+      else this.vx = 0;
+    }
+
+
+    // ---- Salto (con buffer + coyote) ------------------------
+    if(this.jumpBufferTimer > 0 && this.coyoteTimer > 0){
+      this.vy = CFG.JUMP_VELOCITY * this.gravSign;
+      this.jumpBufferTimer = 0; this.coyoteTimer = 0;
+      this.onGround = false;
+      Audio.jump();
+    }
+
+    // ---- Variable jump cut: si sueltas el botón mientras subes, gravedad extra
+    const goingUp = (this.vy * this.gravSign) < 0;
+    if(goingUp && !Input.jumpHeld){
+      this.vy += CFG.GRAVITY * this.gravSign * (CFG.GRAVITY_CUT_MULT - 1) * dt;
+    }
+
+    // ---- Gravedad ------------------------------------------
+    this.vy += CFG.GRAVITY * this.gravSign * dt;
+    if(this.gravSign > 0 && this.vy >  CFG.MAX_FALL_SPEED) this.vy =  CFG.MAX_FALL_SPEED;
+    if(this.gravSign < 0 && this.vy < -CFG.MAX_FALL_SPEED) this.vy = -CFG.MAX_FALL_SPEED;
+
+    // ---- Movimiento + colisiones (eje a eje, AABB) ----------
+    const solids = game.solids();
+
+    // X
+    this.x += this.vx * dt;
+    for(const e of solids){
+      if(e === this || !e.alive || !e.solid) continue;
+      if(aabb(this, e)){
+        if(this.vx > 0)      this.x = e.x - this.w;
+        else if(this.vx < 0) this.x = e.x + e.w;
+        this.vx = 0;
+      }
+    }
+
+    // Y
+    this.onGround = false;
+    this.y += this.vy * dt;
+    for(const e of solids){
+      if(e === this || !e.alive || !e.solid) continue;
+      if(aabb(this, e)){
+        if(this.vy > 0){
+          // Cae sobre la cara superior
+          this.y = e.y - this.h; this.vy = 0;
+          if(this.gravSign > 0){ this.onGround = true; if(e.onPlayerStand) e.onPlayerStand(this, dt); }
+        } else if(this.vy < 0){
+          // Sube y choca con la cara inferior
+          this.y = e.y + e.h; this.vy = 0;
+          if(this.gravSign < 0){ this.onGround = true; if(e.onPlayerStand) e.onPlayerStand(this, dt); }
+        }
+      }
+    }
+
+
+    // ---- Daño (pinchos, bloques cayendo, etc.) --------------
+    for(const e of game.entities){
+      if(e === this || !e.alive || !e.dangerous) continue;
+      if(aabb(this, e)){ this.die(game); return; }
+    }
+
+    // ---- Meta (real o falsa, ambas son válidas para ganar) --
+    for(const e of game.entities){
+      if(e === this || !e.alive || !e.isGoal) continue;
+      if(aabb(this, e)){ game.win(); return; }
+    }
+
+    // ---- Zonas (gravedad invertida) -------------------------
+    for(const e of game.entities){
+      if(e === this || !e.alive || !e.isZone) continue;
+      const inside = aabb(this, e);
+      if(inside && !e.triggered){
+        e.triggered = true;
+        this.invGravTimer = e.duration;
+        Audio.trap();
+      } else if(!inside){ e.triggered = false; }
+    }
+
+    // ---- Caída fuera del mundo ------------------------------
+    if(this.y > game.level.height + 250 || this.y < -500) this.die(game);
+  }
+
+  die(game){
+    if(!this.alive) return;
+    this.alive = false;
+    this.deadTimer = CFG.RESPAWN_DELAY;
+    Audio.death();
+    game.onPlayerDeath();
+  }
+
+  render(ctx){
+    ctx.fillStyle = this.alive ? COLORS.PLAYER : COLORS.PLAYER_DEAD;
+    ctx.fillRect(this.x, this.y, this.w, this.h);
+    if(this.alive){
+      // Dos "ojos" pequeños para personalidad
+      ctx.fillStyle = '#000';
+      const eyeY = this.y + 7 + (this.gravSign < 0 ? 14 : 0);
+      const off = this.facing > 0 ? 10 : 4;
+      ctx.fillRect(this.x + off, eyeY, 4, 4);
+      ctx.fillRect(this.x + off + 8, eyeY, 4, 4);
+    }
+  }
+}
+
+
+/* ============================================================
+   CÁMARA — sigue al jugador con lerp y se queda en bounds
+============================================================ */
+class Camera {
+  constructor(){ this.x = 0; this.y = 0; this.w = CFG.WIDTH; this.h = CFG.HEIGHT; this.shakeT = 0; this.shakeAmp = 0; }
+  clampTo(target, lvlW, lvlH){
+    let tx = target.cx - this.w/2;
+    let ty = target.cy - this.h/2;
+    tx = Math.max(0, Math.min(tx, Math.max(0, lvlW - this.w)));
+    ty = Math.max(0, Math.min(ty, Math.max(0, lvlH - this.h)));
+    return [tx, ty];
+  }
+  follow(target, lvlW, lvlH){
+    const [tx, ty] = this.clampTo(target, lvlW, lvlH);
+    this.x += (tx - this.x) * 0.18;
+    this.y += (ty - this.y) * 0.18;
+  }
+  snap(target, lvlW, lvlH){
+    const [tx, ty] = this.clampTo(target, lvlW, lvlH);
+    this.x = tx; this.y = ty;
+  }
+  shake(amp, dur){ this.shakeAmp = amp; this.shakeT = dur; }
+  shakeOffset(dt){
+    if(this.shakeT <= 0) return [0,0];
+    this.shakeT -= dt;
+    const a = this.shakeAmp * (this.shakeT > 0 ? 1 : 0);
+    return [(Math.random()*2-1)*a, (Math.random()*2-1)*a];
+  }
+}
+
+/* ============================================================
+   5. GESTOR DE ESTADOS (GAME)
+============================================================ */
+const TAUNTS = [
+  "Otra vez será.","Te lo merecías.","Eso lo viste venir.","Inevitable.",
+  "Confiabas en el suelo, ¿eh?","Predecible.","Pulgares de mantequilla.","Casi.",
+  "Eso fue elegante.","La meta se ríe de ti.","La gravedad te traicionó.","Ouch.",
+];
+const LEVEL_WIN_MSGS = [
+  "¡Sobreviviste!","Imposible.","¿Suerte? ¿Habilidad?","Bien jugado.",
+];
+
+
+class Game {
+  constructor(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.cam = new Camera();
+    this.state = STATE.MENU;
+    this.entities = [];
+    this.player = new Player(0, 0);
+    this.level = null;
+    this.levelIndex = 0;
+    this.deaths = 0;
+    this.levelDeaths = 0;
+    this.tauntIdx = 0;
+    this.winMsgIdx = 0;
+    this.timeInState = 0;
+    this.totalTime = 0;
+    this.respawnDelay = 0;
+    this.frameCount = 0;
+  }
+
+  // Listas calculadas: sólidos para colisión rápida
+  solids(){
+    const out = [];
+    for(const e of this.entities) if(e.alive && e.solid) out.push(e);
+    return out;
+  }
+
+  loadLevel(idx){
+    this.levelIndex = idx;
+    this.level = LEVELS[idx];
+    this.entities = [];
+    this.levelDeaths = 0;
+
+    // Plataformas
+    for(const p of this.level.platforms || []) this.entities.push(new Platform(p));
+    // Pinchos estáticos
+    for(const s of this.level.spikes || []) this.entities.push(new Trap({type:TRAP.SPIKE, ...s}));
+    // Trampas tipadas
+    for(const t of this.level.traps || []){
+      const trap = new Trap(t);
+      this.entities.push(trap);
+      // pinchos enlazados (revelados por fake_goal)
+      if(t.linkedSpikes){
+        for(const s of t.linkedSpikes){
+          const sp = new Trap({type:TRAP.SPIKE, ...s});
+          sp.alive = false;        // ocultos hasta que el fake_goal active
+          this.entities.push(sp);
+          trap.linked.push(sp);
+        }
+      }
+    }
+    // Meta real
+    if(this.level.goal) this.entities.push(new Goal(this.level.goal));
+
+    // Player
+    this.player.reset(this.level.spawn.x, this.level.spawn.y);
+    this.cam.snap(this.player, this.level.width, this.level.height);
+    this.respawnDelay = 0;
+  }
+
+
+  start(){
+    this.deaths = 0;
+    this.totalTime = 0;
+    this.loadLevel(0);
+    this.state = STATE.PLAYING;
+    this.timeInState = 0;
+  }
+
+  onPlayerDeath(){
+    this.deaths++;
+    this.levelDeaths++;
+    this.tauntIdx = Math.floor(Math.random() * TAUNTS.length);
+    this.cam.shake(8, 0.25);
+    this.state = STATE.GAME_OVER;
+    this.timeInState = 0;
+  }
+
+  win(){
+    Audio.win();
+    this.winMsgIdx = Math.floor(Math.random() * LEVEL_WIN_MSGS.length);
+    if(this.levelIndex + 1 >= LEVELS.length){
+      this.state = STATE.WIN;
+      this.timeInState = 0;
+    } else {
+      // Pasar al siguiente nivel tras una breve pausa
+      const next = this.levelIndex + 1;
+      this.state = 'transition';
+      this.timeInState = 0;
+      this._nextLevel = next;
+    }
+  }
+
+  retry(){
+    this.loadLevel(this.levelIndex);
+    this.state = STATE.PLAYING;
+    this.timeInState = 0;
+  }
+
+  update(dt){
+    this.timeInState += dt;
+    if(this.state === STATE.PLAYING) this.totalTime += dt;
+
+    // R reinicia siempre el nivel
+    if(Input.restart && this.state !== STATE.MENU){ Input.restart = false; this.retry(); return; }
+
+    if(this.state === STATE.MENU){
+      if(Input.jumpPressed){ this.start(); }
+      return;
+    }
+
+
+    if(this.state === 'transition'){
+      if(this.timeInState > 0.55){ this.loadLevel(this._nextLevel); this.state = STATE.PLAYING; this.timeInState = 0; }
+      return;
+    }
+
+    if(this.state === STATE.GAME_OVER){
+      if(this.timeInState > 0.45 && Input.jumpPressed){ this.retry(); }
+      return;
+    }
+
+    if(this.state === STATE.WIN){
+      if(Input.jumpPressed && this.timeInState > 0.6){
+        this.levelIndex = 0;
+        this.start();
+      }
+      return;
+    }
+
+    // ---- PLAYING --------------------------------------------
+    // Update entidades (con culling para estáticos)
+    for(const e of this.entities){
+      if(!e.alive) continue;
+      if(!e.dynamic && !inView(e, this.cam)) continue;
+      if(e.update) e.update(dt, this);
+    }
+    // Player siempre se actualiza
+    this.player.update(dt, this);
+
+    // Cámara: sigue al jugador
+    this.cam.follow(this.player, this.level.width, this.level.height);
+  }
+
+  /* ============================================================
+     8. FUNCIONES DE RENDERIZADO
+  ============================================================ */
+  render(){
+    const ctx = this.ctx;
+    ctx.fillStyle = COLORS.BG;
+    ctx.fillRect(0, 0, CFG.WIDTH, CFG.HEIGHT);
+
+    if(this.state === STATE.MENU){ this.renderMenu(ctx); return; }
+
+    // World transform
+    ctx.save();
+    const [sx, sy] = this.cam.shakeOffset(0); // se actualizó en update
+    ctx.translate(-Math.round(this.cam.x + sx), -Math.round(this.cam.y + sy));
+
+    // Cuadrícula sutil de fondo (decorativa, ayuda a leer movimiento)
+    this.renderBgGrid(ctx);
+
+
+    // Entidades (culling: sólo las que se ven)
+    for(const e of this.entities){
+      if(!e.alive) continue;
+      if(!inView(e, this.cam)) continue;
+      e.render(ctx);
+    }
+    // Player encima
+    this.player.render(ctx);
+
+    ctx.restore();
+
+    // HUD
+    this.renderHUD(ctx);
+
+    // Overlays según estado
+    if(this.state === STATE.GAME_OVER) this.renderGameOver(ctx);
+    if(this.state === STATE.WIN) this.renderWinScreen(ctx);
+    if(this.state === 'transition') this.renderTransition(ctx);
+  }
+
+  renderBgGrid(ctx){
+    const step = 64;
+    const x0 = Math.floor(this.cam.x / step) * step;
+    const y0 = Math.floor(this.cam.y / step) * step;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let x = x0; x < this.cam.x + this.cam.w + step; x += step){ ctx.moveTo(x, this.cam.y - step); ctx.lineTo(x, this.cam.y + this.cam.h + step); }
+    for(let y = y0; y < this.cam.y + this.cam.h + step; y += step){ ctx.moveTo(this.cam.x - step, y); ctx.lineTo(this.cam.x + this.cam.w + step, y); }
+    ctx.stroke();
+  }
+
+  renderHUD(ctx){
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = 'bold 16px Courier New, monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('NIVEL ' + (this.levelIndex+1) + ' / ' + LEVELS.length, 14, 12);
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '12px Courier New, monospace';
+    ctx.fillText(this.level.name.toUpperCase(), 14, 32);
+    // Contador de muertes (grande, viral)
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COLORS.BAD;
+    ctx.font = 'bold 22px Courier New, monospace';
+    ctx.fillText('☠ ' + this.deaths, CFG.WIDTH - 14, 12);
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '12px Courier New, monospace';
+    ctx.fillText('NIVEL: ' + this.levelDeaths, CFG.WIDTH - 14, 38);
+    ctx.fillText('T: ' + this.totalTime.toFixed(1) + 's', CFG.WIDTH - 14, 54);
+  }
+
+
+  renderMenu(ctx){
+    ctx.fillStyle = COLORS.BG; ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
+    // Título
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = COLORS.PLAYER;
+    ctx.font = 'bold 56px Courier New, monospace';
+    ctx.fillText('MÁTAME OTRA VEZ', CFG.WIDTH/2, 130);
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '16px Courier New, monospace';
+    ctx.fillText('un troll platformer · vanilla js · sin asco', CFG.WIDTH/2, 175);
+
+    // Caja central
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(CFG.WIDTH/2 - 280, 220, 560, 220);
+
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = 'bold 18px Courier New, monospace';
+    ctx.fillText('PC: ← → / A D · ESPACIO o W para saltar', CFG.WIDTH/2, 255);
+    ctx.fillText('Móvil: usa los botones de pantalla', CFG.WIDTH/2, 285);
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText('R reinicia el nivel · M silencia · 3 niveles, infinitas muertes.', CFG.WIDTH/2, 320);
+
+    ctx.fillStyle = COLORS.BAD;
+    ctx.font = 'italic 13px Courier New, monospace';
+    ctx.fillText('regla nº 1: no confíes en nada que parezca seguro.', CFG.WIDTH/2, 360);
+    ctx.fillText('regla nº 2: cuando mueras, mira dónde lo hiciste. luego repite.', CFG.WIDTH/2, 380);
+
+    // Prompt parpadeante
+    if(Math.floor(performance.now()/500) % 2 === 0){
+      ctx.fillStyle = COLORS.ACCENT;
+      ctx.font = 'bold 22px Courier New, monospace';
+      ctx.fillText('▶ PULSA ESPACIO O TOCA LA PANTALLA ◀', CFG.WIDTH/2, 480);
+    }
+  }
+
+  renderGameOver(ctx){
+    ctx.fillStyle = COLORS.UI_BG; ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = COLORS.BAD;
+    ctx.font = 'bold 72px Courier New, monospace';
+    ctx.fillText('HAS MUERTO', CFG.WIDTH/2, 180);
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = '20px Courier New, monospace';
+    ctx.fillText('"' + TAUNTS[this.tauntIdx] + '"', CFG.WIDTH/2, 240);
+
+
+    // Contador de muertes ENORME (viral)
+    ctx.fillStyle = COLORS.PLAYER;
+    ctx.font = 'bold 120px Courier New, monospace';
+    ctx.fillText(this.deaths.toString(), CFG.WIDTH/2, 340);
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText('MUERTES TOTALES', CFG.WIDTH/2, 410);
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText('en este nivel: ' + this.levelDeaths, CFG.WIDTH/2, 432);
+
+    if(this.timeInState > 0.45 && Math.floor(performance.now()/450) % 2 === 0){
+      ctx.fillStyle = COLORS.ACCENT;
+      ctx.font = 'bold 20px Courier New, monospace';
+      ctx.fillText('▶ ESPACIO / TAP para reintentar  ·  R para reiniciar', CFG.WIDTH/2, 490);
+    }
+  }
+
+  renderTransition(ctx){
+    ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.85, this.timeInState*2) + ')';
+    ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = COLORS.GOAL_LIGHT;
+    ctx.font = 'bold 56px Courier New, monospace';
+    ctx.fillText('NIVEL ' + (this.levelIndex+1) + ' COMPLETADO', CFG.WIDTH/2, 220);
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = '20px Courier New, monospace';
+    ctx.fillText('"' + LEVEL_WIN_MSGS[this.winMsgIdx] + '"', CFG.WIDTH/2, 270);
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText('muertes en este nivel: ' + this.levelDeaths + ' · totales: ' + this.deaths, CFG.WIDTH/2, 310);
+  }
+
+  renderWinScreen(ctx){
+    ctx.fillStyle = COLORS.UI_BG; ctx.fillRect(0,0,CFG.WIDTH,CFG.HEIGHT);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = COLORS.PLAYER;
+    ctx.font = 'bold 72px Courier New, monospace';
+    ctx.fillText('LO LOGRASTE', CFG.WIDTH/2, 170);
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = '18px Courier New, monospace';
+    ctx.fillText('Eres masoquista, pero respetable.', CFG.WIDTH/2, 220);
+
+    // Stats viralizables
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText('TIEMPO TOTAL', CFG.WIDTH/2, 280);
+    ctx.fillStyle = COLORS.TEXT;
+    ctx.font = 'bold 36px Courier New, monospace';
+    ctx.fillText(this.totalTime.toFixed(2) + 's', CFG.WIDTH/2, 312);
+
+
+    ctx.fillStyle = COLORS.SUB;
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText('MUERTES', CFG.WIDTH/2, 360);
+    ctx.fillStyle = COLORS.BAD;
+    ctx.font = 'bold 64px Courier New, monospace';
+    ctx.fillText(this.deaths.toString(), CFG.WIDTH/2, 408);
+
+    if(Math.floor(performance.now()/500) % 2 === 0){
+      ctx.fillStyle = COLORS.ACCENT;
+      ctx.font = 'bold 18px Courier New, monospace';
+      ctx.fillText('▶ ESPACIO para volver a jugar', CFG.WIDTH/2, 480);
+    }
+  }
+}
+
+/* ============================================================
+   6. SISTEMA DE NIVELES — el "Troll Engine"
+   Cada nivel es JSON puro: plataformas, pinchos, trampas, meta.
+   Coordenadas en píxeles del MUNDO (no del viewport).
+============================================================ */
+const LEVELS = [
+
+/* ─────────────────────────────────────────────────────────────
+   NIVEL 1 — LA FALSA SEGURIDAD
+   Layout horizontal de manual. Saltos sobre fosos vacíos.
+   El troll: el ÚLTIMO salto tiene un Pincho Troll oculto que
+   sale del suelo justo donde el jugador suele aterrizar.
+   La meta es real (no se mueve). Se trata de enseñar al jugador
+   que "incluso lo obvio te puede matar".
+───────────────────────────────────────────────────────────── */
+{
+  name: '1. La falsa seguridad',
+  width: 2400, height: 540,
+  spawn: { x: 60, y: 440 },
+  platforms: [
+    // suelo de inicio
+    { x:    0, y: 496, w: 460, h: 44 },
+    // 3 islas con fosos entre ellas (los 3 saltos "obvios")
+    { x:  600, y: 496, w: 320, h: 44 },
+    { x: 1080, y: 496, w: 320, h: 44 },
+    { x: 1560, y: 496, w: 360, h: 44 }, // la última: la trampa está aquí
+    // suelo final con la meta
+    { x: 2060, y: 496, w: 340, h: 44 },
+  ],
+  spikes: [
+    // pinchos visibles dentro de los fosos (refuerzan la regla del juego)
+    { x:  470, y: 520, w: 120, h: 20 },
+    { x:  930, y: 520, w: 140, h: 20 },
+    { x: 1410, y: 520, w: 140, h: 20 },
+    { x: 1930, y: 520, w: 120, h: 20 },
+  ],
+
+
+  traps: [
+    // EL pincho troll: oculto en el borde de la última isla,
+    // donde el jugador siempre aterriza tras el salto largo.
+    { type: TRAP.TRIGGERED_SPIKE, x: 1576, y: 480, w: 28, h: 16, popHeight: 22, triggerDist: 110 },
+  ],
+  goal: { x: 2330, y: 440, w: 24, h: 56 },
+},
+
+/* ─────────────────────────────────────────────────────────────
+   NIVEL 2 — LA DECEPCIÓN
+   Layout vertical. El jugador sube por una escalera de
+   plataformas. La 3ª es FALSA: cae al pisarla.
+   El truco: hay una plataforma OCULTA debajo que captura al
+   jugador y lleva a la meta REAL por la izquierda.
+   Mientras tanto, la "ruta obvia" hacia arriba a la derecha
+   está plagada de bloques de techo que caen y aplastan.
+───────────────────────────────────────────────────────────── */
+{
+  name: '2. La decepción',
+  width: 720, height: 1240,
+  spawn: { x: 340, y: 1110 },
+  platforms: [
+    // pequeña isla de SPAWN: única zona "segura" en el suelo del pozo
+    { x: 260, y: 1140, w: 200, h: 40 },
+    // muros laterales
+    { x:   0, y:    0, w:  20, h: 1180 },
+    { x: 700, y:    0, w:  20, h: 1180 },
+
+    // ── Escalera "obvia" (zigzag a la derecha) ──
+    { x: 220, y: 1050, w: 110, h: 16 },                  // P1 (segura)
+    { x: 410, y:  960, w: 110, h: 16 },                  // P2 (segura)
+    // P3 va en TRAPS (es la FALSA)
+    { x: 410, y:  780, w: 110, h: 16 },                  // P4 — bajo un bloque
+    { x: 220, y:  690, w: 110, h: 16 },                  // P5 — bajo otro bloque
+    { x: 410, y:  580, w: 110, h: 16 },                  // P6 — final del señuelo
+
+    // ── Plataforma OCULTA (la salida real, por la izquierda) ──
+    { x:  40, y:  920, w: 220, h: 16 },                  // ancha: captura tras la caída de P3
+    { x:  40, y:  790, w:  90, h: 16 },                  // sube por la izquierda
+    { x: 160, y:  670, w:  90, h: 16 },
+    { x:  40, y:  560, w:  90, h: 16 },
+    { x: 160, y:  450, w:  90, h: 16 },
+    { x:  40, y:  340, w:  90, h: 16 },
+    { x:  40, y:  240, w: 140, h: 16 },                  // pedestal de la meta real
+  ],
+  spikes: [
+    // Pinchos del fondo del pozo: TODO lo que no sea la isla = muerte
+    { x:  20, y: 1196, w: 240, h: 24 },                  // pozo izquierdo
+    { x: 460, y: 1196, w: 240, h: 24 },                  // pozo derecho
+    // Pincho final sobre P6: si el jugador esquivó los bloques que caen,
+    // la "ruta obvia" remata con un pincho en su última plataforma.
+    { x: 420, y:  564, w:  90, h: 16 },
+  ],
+
+  traps: [
+    // P3 — la PLATAFORMA FALSA, idéntica a las demás
+    { type: TRAP.FAKE_PLATFORM, x: 220, y: 870, w: 110, h: 16, delay: 0.20 },
+    // Bloques de techo cayendo sobre cada plataforma del señuelo:
+    // se sueltan cuando el jugador está justo debajo, aplastándolo.
+    { type: TRAP.FALLING_BLOCK, x: 410, y: 670, w: 110, h: 30, fallReach: 220 },  // sobre P4
+    { type: TRAP.FALLING_BLOCK, x: 220, y: 580, w: 110, h: 30, fallReach: 220 },  // sobre P5
+    { type: TRAP.FALLING_BLOCK, x: 410, y: 490, w: 110, h: 30, fallReach: 220 },  // sobre P6
+  ],
+  goal: { x:  90, y: 184, w: 24, h: 56 },                // arriba a la izquierda
+},
+
+/* ─────────────────────────────────────────────────────────────
+   NIVEL 3 — EL CAOS MECÁNICO
+   Mezcla horizontal con secciones verticales. Introduce dos
+   trampas nuevas: la zona de GRAVEDAD INVERTIDA (justo antes
+   de un foso de pinchos amplio que es imposible saltar) y la
+   META FALSA al final, que se mueve 50 px revelando un foso
+   de pinchos en el sitio donde el jugador iba a aterrizar.
+───────────────────────────────────────────────────────────── */
+{
+  name: '3. El caos mecánico',
+  width: 2820, height: 600,
+  spawn: { x: 60, y: 460 },
+  platforms: [
+    // ── Sección 1: Calentamiento ──
+    { x:    0, y: 504, w: 320, h: 36 },                  // Floor 1
+    { x:  420, y: 504, w: 220, h: 36 },                  // Floor 2
+
+    // ── Sección 3: Suelos tras el puente falso ──
+    { x: 1060, y: 504, w: 280, h: 36 },                  // Floor 3
+    { x: 1420, y: 504, w: 320, h: 36 },                  // Floor 4
+
+    // ── Sección 4: Aterrizaje tras gravedad invertida ──
+    // Suelos partidos por el foso enorme: no se puede saltar.
+    { x: 2100, y: 504, w: 250, h: 36 },                  // Floor 5
+    { x: 2400, y: 504, w: 380, h: 36 },                  // Floor 6 (final, con la meta falsa)
+
+    // Techo bajo encima del foso enorme (donde la gravedad
+    // invertida pega al jugador). Esencial para que la trampa
+    // funcione: el jugador "vuela" y se pega al techo.
+    { x: 1680, y:  90, w: 620, h: 30 },
+  ],
+  spikes: [
+    // Pinchos visibles entre Floor 1 y Floor 2 (salto fácil)
+    { x:  320, y: 524, w: 100, h: 16 },
+    // Pinchos del foso bajo el puente falso (sección 2)
+    { x:  640, y: 524, w: 420, h: 16 },
+    // Pinchos pequeños entre Floor 3 y Floor 4
+    { x: 1340, y: 524, w:  80, h: 16 },
+    // Foso ENORME que la gravedad invertida obliga a sobrevolar
+    { x: 1740, y: 524, w: 360, h: 16 },
+  ],
+
+  traps: [
+    // ── Sección 2: Puente de plataformas falsas sobre foso ──
+    // 4 piezas. Cada una cae 0.18 s tras pisarla: el jugador
+    // tiene que cruzar SIN PARARSE.
+    { type: TRAP.FAKE_PLATFORM, x:  670, y: 504, w: 80, h: 16, delay: 0.18 },
+    { type: TRAP.FAKE_PLATFORM, x:  790, y: 504, w: 80, h: 16, delay: 0.18 },
+    { type: TRAP.FAKE_PLATFORM, x:  910, y: 504, w: 80, h: 16, delay: 0.18 },
+    { type: TRAP.FAKE_PLATFORM, x: 1030, y: 504, w: 30, h: 16, delay: 0.20 }, // pieza pequeña final
+
+    // Pincho troll cerca del centro de Floor 4 — refuerzo del nivel 1
+    { type: TRAP.TRIGGERED_SPIKE, x: 1620, y: 488, w: 28, h: 16, popHeight: 22, triggerDist: 100 },
+
+    // ── Sección 4: Zona INVISIBLE de gravedad invertida ──
+    // Cuando el jugador entra, su gravedad se invierte 2 s.
+    // Es la única forma de cruzar el foso enorme sin morir.
+    { type: TRAP.INVERTED_GRAV, x: 1700, y: 130, w: 60, h: 380, duration: 2.0 },
+
+    // ── Sección 5: META FALSA ──
+    // Se desliza 50 px a la derecha cuando el jugador está
+    // a 130 px. Al hacerlo, REVELA un foso de pinchos justo
+    // donde el jugador iba a aterrizar.
+    {
+      type: TRAP.FAKE_GOAL, x: 2660, y: 448, w: 24, h: 56, shift: 60, triggerDist: 140,
+      linkedSpikes: [
+        // Pinchos que aparecen sobre Floor 6 en la posición original de la meta:
+        { x: 2640, y: 478, w: 64, h: 26 },
+      ],
+    },
+  ],
+  // Sin meta real "fija": la fake_goal cuenta como meta válida.
+  goal: null,
+},
+
+];
+
+/* ============================================================
+   7. BUCLE PRINCIPAL — requestAnimationFrame con DELTA TIME
+   El delta se clampea a 1/30 s para evitar túneles si la
+   pestaña pierde foco. Las físicas se procesan en sub-steps
+   si el dt es alto, manteniendo determinismo a alta velocidad.
+============================================================ */
+let game = null;
+let lastT = 0;
+
+function frame(now){
+  if(!lastT) lastT = now;
+  let dt = (now - lastT) / 1000;
+  lastT = now;
+  if(dt > 1/30) dt = 1/30;          // clamp anti-tunneling
+
+
+  // Resolver edges de input ANTES de update
+  Input.pollEdges();
+  game.update(dt);
+  game.render();
+  requestAnimationFrame(frame);
+}
+
+/* ============================================================
+   AJUSTE DEL CANVAS — escala lógica fija (960×540), CSS lo
+   estira manteniendo aspect ratio. Esto da pixel-perfect
+   determinista en cualquier pantalla.
+============================================================ */
+function fitCanvas(){
+  const cv = document.getElementById('game');
+  const w = window.innerWidth, h = window.innerHeight;
+  const ratio = CFG.WIDTH / CFG.HEIGHT;
+  let cw, ch;
+  if(w / h > ratio){ ch = h; cw = h * ratio; }
+  else            { cw = w; ch = w / ratio; }
+  cv.style.width  = cw + 'px';
+  cv.style.height = ch + 'px';
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+window.addEventListener('load', () => {
+  Input.init();
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
+  const cv = document.getElementById('game');
+  game = new Game(cv);
+  requestAnimationFrame(frame);
+});
+
+</script>
 </body>
 </html>
