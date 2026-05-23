@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="screen-orientation" content="landscape"/>
+<title>NEO GRAVITY</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;user-select:none;-webkit-user-select:none;font-family:'Segoe UI',system-ui,sans-serif}
+body{display:flex;align-items:center;justify-content:center;position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%;image-rendering:optimizeSpeed}
+#ui{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .3s}
+#ui.show{opacity:1;pointer-events:auto}
+#ui .panel{background:rgba(8,4,20,.92);border:1px solid rgba(108,240,255,.3);border-radius:14px;padding:28px 32px;max-width:520px;width:90%;text-align:center;color:#f4eefb}
+#ui h1{font-size:clamp(22px,4vw,36px);background:linear-gradient(90deg,#ff4fa3,#6cf0ff);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
+#ui p{color:#b3a8d1;font-size:14px;margin:6px 0}
+#ui button{display:inline-block;padding:12px 24px;margin:12px 6px 0;font-size:15px;font-weight:700;color:#0e0b1f;background:linear-gradient(90deg,#ff4fa3,#6cf0ff);border:none;border-radius:8px;cursor:pointer;transition:transform .1s,filter .2s}
+#ui button:active{transform:scale(.95)}
+.credits{font-size:11px;color:#6a5f8a;margin-top:14px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui" class="show">
+<div class="panel">
+<h1>NEO GRAVITY</h1>
+<p>Guide the orb through gravitational fields, wormholes and cosmic hazards.</p>
+<button id="btnPlay">PLAY</button>
+<button id="btnVault">VAULT</button>
+<p class="credits">Developed by KXR.AE</p>
+</div>
+</div>
+<script>
+"use strict";
+
+// ============================================================
+// NEO GRAVITY - Complete Game Engine
+// Architecture: Object Pooling, DPR-limited Canvas, 60FPS target
+// ============================================================
+
+// --- GLOBAL CONFIG ---
+const CFG = {
+  MAX_PARTICLES: 300,
+  MAX_TRAIL: 30,
+  MAX_CONFETTI: 80,
+  DPR: Math.min(window.devicePixelRatio || 1, 2),
+  GRAVITY_CONST: 2800,
+  FRICTION: 0.997,
+  BOUNCE: 0.75,
+  MAX_SPEED: 1400,
+  DRAG_SCALE: 6,
+  STAR_COLLECT_DIST: 28,
+  WORMHOLE_RADIUS: 26,
+  ZONE_COLORS: [
+    ['#0a0e2a','#1a1040','#ff4fa3','#6cf0ff'],
+    ['#0c1a0a','#1a3020','#a3ff4f','#4fc8ff'],
+    ['#1a0a0a','#301020','#ff6040','#ffd14f']
+  ]
+};
+
+// --- CANVAS SETUP (DPR limited to 2) ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+let W, H;
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * CFG.DPR;
+  canvas.height = H * CFG.DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(CFG.DPR, 0, 0, CFG.DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+
+// ============================================================
+// OBJECT POOL SYSTEM
+// No splice/shift/new in game loop. Pre-allocate and reuse.
+// ============================================================
+function createPool(size, factory) {
+  const pool = [];
+  for (let i = 0; i < size; i++) {
+    const obj = factory();
+    obj._active = false;
+    pool.push(obj);
+  }
+  return {
+    items: pool,
+    acquire() {
+      for (let i = 0; i < pool.length; i++) {
+        if (!pool[i]._active) { pool[i]._active = true; return pool[i]; }
+      }
+      return null; // pool exhausted
+    },
+    release(obj) { obj._active = false; },
+    releaseAll() { for (let i = 0; i < pool.length; i++) pool[i]._active = false; },
+    forEach(fn) { for (let i = 0; i < pool.length; i++) if (pool[i]._active) fn(pool[i]); },
+    count() { let n = 0; for (let i = 0; i < pool.length; i++) if (pool[i]._active) n++; return n; }
+  };
+}
+
+const particlePool = createPool(CFG.MAX_PARTICLES, () => ({
+  x:0,y:0,vx:0,vy:0,life:0,maxLife:1,r:3,color:'#fff',type:'circle'
+}));
+const trailPool = createPool(CFG.MAX_TRAIL, () => ({
+  x:0,y:0,alpha:1,r:5,color:'#fff'
+}));
+const confettiPool = createPool(CFG.MAX_CONFETTI, () => ({
+  x:0,y:0,vx:0,vy:0,life:0,rot:0,w:4,h:8,color:'#fff'
+}));
+
+
+// ============================================================
+// WEB AUDIO ENGINE - FM Synthesis, pitch sweeps, arcade impacts
+// ============================================================
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) audioCtx = new AC();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// FM Blip: carrier + modulator for richer arcade sound
+function fmBlip(opts) {
+  const c = ensureAudio(); if (!c) return;
+  const t0 = c.currentTime;
+  const {freq=440,dur=0.12,type='square',vol=0.15,slide=0,modFreq=0,modDepth=0} = opts;
+  // Modulator oscillator for FM
+  const mod = c.createOscillator();
+  const modGain = c.createGain();
+  mod.frequency.setValueAtTime(modFreq || freq * 2, t0);
+  modGain.gain.setValueAtTime(modDepth || 0, t0);
+  modGain.gain.linearRampToValueAtTime(0, t0 + dur);
+  mod.connect(modGain);
+  // Carrier
+  const osc = c.createOscillator();
+  const gain = c.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), t0 + dur);
+  modGain.connect(osc.frequency); // FM connection
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  osc.connect(gain).connect(c.destination);
+  mod.start(t0); osc.start(t0);
+  mod.stop(t0 + dur + 0.05); osc.stop(t0 + dur + 0.05);
+}
+
+const SFX = {
+  launch() { fmBlip({freq:320,dur:0.15,type:'sawtooth',slide:400,modFreq:640,modDepth:200}); },
+  star() {
+    fmBlip({freq:880,dur:0.08,type:'square',modFreq:1760,modDepth:300});
+    setTimeout(()=>fmBlip({freq:1320,dur:0.12,type:'square',slide:200,modFreq:2640,modDepth:150}),60);
+  },
+  bounce() { fmBlip({freq:260,dur:0.1,type:'triangle',slide:-120,modFreq:520,modDepth:180}); },
+  wormhole() { fmBlip({freq:180,dur:0.3,type:'sine',slide:600,vol:0.12,modFreq:90,modDepth:400}); },
+  speedGate() { fmBlip({freq:600,dur:0.08,type:'sawtooth',slide:300,modFreq:1200,modDepth:100}); },
+  levelWin() {
+    [523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>fmBlip({freq:f,dur:0.16,type:'square',vol:0.18,modFreq:f*2,modDepth:100}),i*120));
+  },
+  fail() { fmBlip({freq:300,dur:0.25,type:'sawtooth',slide:-260,vol:0.12,modFreq:150,modDepth:200}); },
+  blackhole() { fmBlip({freq:60,dur:0.4,type:'sine',slide:-30,vol:0.08,modFreq:30,modDepth:80}); }
+};
+
+
+// ============================================================
+// GAME STATE & PERSISTENCE
+// ============================================================
+const STORE_KEY = 'neogravity_save';
+let save = loadSave();
+function loadSave() {
+  try { const d = JSON.parse(localStorage.getItem(STORE_KEY)); if (d && d.v === 2) return d; } catch(e){}
+  return { v:2, stardust:0, unlockedLevels:1, unlockedSkins:['default'], activeSkin:'default', stats:{shots:0,stars:0,levels:0} };
+}
+function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); } catch(e){} }
+
+// ============================================================
+// SKINS CATALOGUE (12 unique skins with rendering configs)
+// ============================================================
+const SKINS = [
+  {id:'default',name:'Nova',price:0,color:'#6cf0ff',trail:'circle',chargeEffect:'rings',desc:'Classic cyan orb'},
+  {id:'plasma',name:'Plasma',price:50,color:'#ff4fa3',trail:'square',chargeEffect:'electric',desc:'Pink plasma core'},
+  {id:'solar',name:'Solar Flare',price:80,color:'#ffd14f',trail:'fire',chargeEffect:'rings',desc:'Golden sun energy'},
+  {id:'void',name:'Void Walker',price:120,color:'#a855f7',trail:'smoke',chargeEffect:'magnetic',desc:'Dark matter entity'},
+  {id:'matrix',name:'Matrix',price:150,color:'#00ff41',trail:'binary',chargeEffect:'electric',desc:'Digital consciousness'},
+  {id:'ice',name:'Cryo Shard',price:180,color:'#88e8ff',trail:'crystal',chargeEffect:'rings',desc:'Frozen quantum state'},
+  {id:'blood',name:'Red Giant',price:220,color:'#ff3030',trail:'fire',chargeEffect:'magnetic',desc:'Dying star remnant'},
+  {id:'ghost',name:'Phantom',price:280,color:'#e0e0ff',trail:'smoke',chargeEffect:'rings',desc:'Spectral presence'},
+  {id:'neon',name:'Neon Pulse',price:350,color:'#39ff14',trail:'square',chargeEffect:'electric',desc:'Electric lifeform'},
+  {id:'cosmic',name:'Cosmic Dust',price:450,color:'#ff8c00',trail:'crystal',chargeEffect:'magnetic',desc:'Ancient stardust'},
+  {id:'quantum',name:'Quantum Shift',price:550,color:'#ff00ff',trail:'binary',chargeEffect:'electric',desc:'Probability wave'},
+  {id:'omega',name:'Omega Core',price:700,color:'#fff',trail:'fire',chargeEffect:'magnetic',desc:'Ultimate energy form',unlock:'Complete level 5 in 2 shots'}
+];
+
+function getSkin() { return SKINS.find(s=>s.id===save.activeSkin) || SKINS[0]; }
+
+
+// ============================================================
+// LEVEL DATA - 15 Levels in 3 Cosmic Zones
+// Coordinates normalized to % of W and H for responsive design
+// ============================================================
+const LEVELS = [
+  // === ZONE 1: NEON SECTOR (Levels 1-5) ===
+  {zone:0,name:'First Contact',par:3,stars:[{x:.75,y:.5}],
+   blackholes:[{x:.5,y:.5,mass:1.0,r:18}],
+   walls:[{x1:.35,y1:0,x2:.35,y2:.4},{x1:.35,y1:.6,x2:.35,y2:1}],
+   spawn:{x:.12,y:.5},goal:{x:.88,y:.5},
+   wormholes:[],barriers:[],speedGates:[],invertZones:[]},
+
+  {zone:0,name:'Double Pull',par:3,stars:[{x:.5,y:.3},{x:.5,y:.7}],
+   blackholes:[{x:.35,y:.5,mass:0.8,r:15},{x:.65,y:.5,mass:0.8,r:15}],
+   walls:[{x1:0,y1:.45,x2:.15,y2:.45},{x1:0,y1:.55,x2:.15,y2:.55},{x1:.85,y1:.45,x2:1,y2:.45},{x1:.85,y1:.55,x2:1,y2:.55}],
+   spawn:{x:.08,y:.5},goal:{x:.92,y:.5},
+   wormholes:[],barriers:[],speedGates:[],invertZones:[]},
+
+  {zone:0,name:'Ricochet',par:4,stars:[{x:.3,y:.2},{x:.7,y:.8}],
+   blackholes:[{x:.5,y:.5,mass:1.2,r:20}],
+   walls:[{x1:.2,y1:.35,x2:.8,y2:.35},{x1:.2,y1:.65,x2:.8,y2:.65},{x1:.2,y1:.35,x2:.2,y2:.65},{x1:.8,y1:.35,x2:.8,y2:.65}],
+   spawn:{x:.08,y:.15},goal:{x:.92,y:.85},
+   wormholes:[],barriers:[],speedGates:[],invertZones:[]},
+
+  {zone:0,name:'Gravity Well',par:4,stars:[{x:.4,y:.25},{x:.6,y:.75},{x:.8,y:.4}],
+   blackholes:[{x:.5,y:.5,mass:1.5,r:22},{x:.2,y:.8,mass:0.6,r:12}],
+   walls:[{x1:.3,y1:0,x2:.3,y2:.3},{x1:.7,y1:.7,x2:.7,y2:1}],
+   spawn:{x:.08,y:.12},goal:{x:.92,y:.88},
+   wormholes:[],barriers:[],speedGates:[],invertZones:[]},
+
+  {zone:0,name:'Neon Gauntlet',par:5,stars:[{x:.25,y:.5},{x:.5,y:.2},{x:.75,y:.5}],
+   blackholes:[{x:.4,y:.7,mass:1.0,r:16},{x:.6,y:.3,mass:1.0,r:16}],
+   walls:[{x1:.3,y1:.1,x2:.3,y2:.4},{x1:.7,y1:.6,x2:.7,y2:.9},{x1:.45,y1:.45,x2:.55,y2:.45},{x1:.45,y1:.55,x2:.55,y2:.55}],
+   spawn:{x:.06,y:.5},goal:{x:.94,y:.5},
+   wormholes:[],barriers:[],speedGates:[],invertZones:[]},
+
+  // === ZONE 2: QUANTUM ANOMALY (Levels 6-10) ===
+  {zone:1,name:'Portal Jump',par:3,stars:[{x:.5,y:.2}],
+   blackholes:[{x:.5,y:.7,mass:1.2,r:18}],
+   walls:[{x1:.35,y1:.3,x2:.65,y2:.3},{x1:.35,y1:.3,x2:.35,y2:.9},{x1:.65,y1:.3,x2:.65,y2:.9}],
+   spawn:{x:.1,y:.8},goal:{x:.9,y:.2},
+   wormholes:[{ax:.2,ay:.5,bx:.8,by:.15,r:20}],barriers:[],speedGates:[],invertZones:[]},
+
+  {zone:1,name:'Sliding Walls',par:4,stars:[{x:.35,y:.3},{x:.65,y:.7}],
+   blackholes:[{x:.5,y:.5,mass:1.0,r:16}],
+   walls:[],
+   spawn:{x:.08,y:.5},goal:{x:.92,y:.5},
+   wormholes:[],
+   barriers:[{x:.3,y:.2,w:.03,h:.3,axis:'y',range:.25,speed:1.5},{x:.67,y:.5,w:.03,h:.3,axis:'y',range:.25,speed:1.2}],
+   speedGates:[],invertZones:[]},
+
+  {zone:1,name:'Accelerator',par:3,stars:[{x:.7,y:.3},{x:.3,y:.7}],
+   blackholes:[{x:.5,y:.5,mass:0.8,r:14}],
+   walls:[{x1:.15,y1:.4,x2:.15,y2:.6},{x1:.85,y1:.4,x2:.85,y2:.6}],
+   spawn:{x:.08,y:.85},goal:{x:.92,y:.15},
+   wormholes:[],barriers:[],
+   speedGates:[{x:.4,y:.4,dir:'up',force:500},{x:.6,y:.6,dir:'left',force:400}],invertZones:[]},
+
+  {zone:1,name:'Quantum Maze',par:5,stars:[{x:.25,y:.25},{x:.75,y:.75},{x:.5,y:.5}],
+   blackholes:[{x:.35,y:.35,mass:0.9,r:14},{x:.65,y:.65,mass:0.9,r:14}],
+   walls:[{x1:.2,y1:.5,x2:.5,y2:.5},{x1:.5,y1:.5,x2:.5,y2:.2},{x1:.5,y1:.8,x2:.8,y2:.8}],
+   spawn:{x:.06,y:.9},goal:{x:.94,y:.1},
+   wormholes:[{ax:.15,ay:.15,bx:.85,by:.5,r:18}],
+   barriers:[{x:.5,y:.6,w:.25,h:.025,axis:'x',range:.15,speed:1.0}],
+   speedGates:[],invertZones:[]},
+
+  {zone:1,name:'Anomaly Core',par:5,stars:[{x:.2,y:.3},{x:.8,y:.3},{x:.5,y:.8}],
+   blackholes:[{x:.5,y:.45,mass:1.8,r:24}],
+   walls:[{x1:.3,y1:.15,x2:.7,y2:.15},{x1:.3,y1:.75,x2:.7,y2:.75}],
+   spawn:{x:.06,y:.5},goal:{x:.94,y:.5},
+   wormholes:[{ax:.15,ay:.85,bx:.85,by:.85,r:18}],
+   barriers:[{x:.2,y:.35,w:.02,h:.25,axis:'y',range:.2,speed:2.0}],
+   speedGates:[{x:.75,y:.5,dir:'right',force:350}],invertZones:[]},
+
+
+  // === ZONE 3: EVENT HORIZON (Levels 11-15) ===
+  {zone:2,name:'Inverse Field',par:4,stars:[{x:.3,y:.3},{x:.7,y:.7}],
+   blackholes:[{x:.5,y:.5,mass:1.5,r:20},{x:.2,y:.2,mass:0.7,r:12}],
+   walls:[{x1:.4,y1:.35,x2:.6,y2:.35},{x1:.4,y1:.65,x2:.6,y2:.65}],
+   spawn:{x:.08,y:.88},goal:{x:.92,y:.12},
+   wormholes:[],barriers:[],speedGates:[],
+   invertZones:[{x:.35,y:.35,w:.3,h:.3}]},
+
+  {zone:2,name:'Chaos Drift',par:5,stars:[{x:.2,y:.5},{x:.5,y:.2},{x:.8,y:.5}],
+   blackholes:[{x:.35,y:.35,mass:1.2,r:18},{x:.65,y:.65,mass:1.2,r:18},{x:.5,y:.5,mass:0.6,r:10}],
+   walls:[{x1:.1,y1:.3,x2:.3,y2:.3},{x1:.7,y1:.7,x2:.9,y2:.7}],
+   spawn:{x:.06,y:.85},goal:{x:.94,y:.15},
+   wormholes:[{ax:.1,ay:.15,bx:.9,by:.85,r:16}],
+   barriers:[{x:.45,y:.1,w:.1,h:.025,axis:'x',range:.2,speed:1.8}],
+   speedGates:[{x:.3,y:.7,dir:'up',force:450}],
+   invertZones:[{x:.6,y:.1,w:.25,h:.25}]},
+
+  {zone:2,name:'Supermassive',par:5,stars:[{x:.15,y:.5},{x:.85,y:.5},{x:.5,y:.15}],
+   blackholes:[{x:.5,y:.5,mass:2.5,r:30},{x:.2,y:.3,mass:1.0,r:14},{x:.8,y:.7,mass:1.0,r:14}],
+   walls:[{x1:.35,y1:.2,x2:.35,y2:.4},{x1:.65,y1:.6,x2:.65,y2:.8}],
+   spawn:{x:.06,y:.92},goal:{x:.94,y:.08},
+   wormholes:[],
+   barriers:[{x:.15,y:.6,w:.02,h:.2,axis:'y',range:.15,speed:2.2},{x:.82,y:.2,w:.02,h:.2,axis:'y',range:.15,speed:2.0}],
+   speedGates:[{x:.5,y:.8,dir:'up',force:550},{x:.5,y:.2,dir:'down',force:350}],
+   invertZones:[{x:.4,y:.4,w:.2,h:.2}]},
+
+  {zone:2,name:'Vector Storm',par:6,stars:[{x:.25,y:.25},{x:.75,y:.25},{x:.25,y:.75},{x:.75,y:.75}],
+   blackholes:[{x:.5,y:.5,mass:2.0,r:26},{x:.25,y:.5,mass:0.8,r:12},{x:.75,y:.5,mass:0.8,r:12}],
+   walls:[{x1:.15,y1:.15,x2:.85,y2:.15},{x1:.15,y1:.85,x2:.85,y2:.85},{x1:.15,y1:.15,x2:.15,y2:.85},{x1:.85,y1:.15,x2:.85,y2:.85}],
+   spawn:{x:.08,y:.5},goal:{x:.92,y:.5},
+   wormholes:[{ax:.12,ay:.12,bx:.88,by:.88,r:15},{ax:.88,ay:.12,bx:.12,by:.88,r:15}],
+   barriers:[{x:.35,y:.3,w:.3,h:.02,axis:'y',range:.12,speed:2.5}],
+   speedGates:[{x:.35,y:.7,dir:'right',force:400},{x:.65,y:.3,dir:'left',force:400}],
+   invertZones:[{x:.4,y:.4,w:.2,h:.2}]},
+
+  {zone:2,name:'Event Horizon',par:7,stars:[{x:.2,y:.2},{x:.8,y:.2},{x:.2,y:.8},{x:.8,y:.8},{x:.5,y:.5}],
+   blackholes:[{x:.5,y:.5,mass:3.0,r:34},{x:.25,y:.25,mass:1.2,r:16},{x:.75,y:.75,mass:1.2,r:16},{x:.25,y:.75,mass:0.8,r:12},{x:.75,y:.25,mass:0.8,r:12}],
+   walls:[{x1:.3,y1:.3,x2:.7,y2:.3},{x1:.3,y1:.7,x2:.7,y2:.7},{x1:.3,y1:.3,x2:.3,y2:.7},{x1:.7,y1:.3,x2:.7,y2:.7}],
+   spawn:{x:.06,y:.06},goal:{x:.94,y:.94},
+   wormholes:[{ax:.1,ay:.9,bx:.9,by:.1,r:18}],
+   barriers:[{x:.4,y:.25,w:.2,h:.02,axis:'x',range:.1,speed:3.0},{x:.4,y:.75,w:.2,h:.02,axis:'x',range:.1,speed:2.5}],
+   speedGates:[{x:.15,y:.5,dir:'right',force:500},{x:.85,y:.5,dir:'left',force:500}],
+   invertZones:[{x:.35,y:.35,w:.3,h:.3}]}
+];
+
+
+// ============================================================
+// GAME ENGINE CORE
+// ============================================================
+const G = {
+  state: 'menu', // menu | playing | won | lost | vault
+  level: 0,
+  orb: {x:0,y:0,vx:0,vy:0,r:12,launched:false,dead:false},
+  drag: {active:false,sx:0,sy:0,cx:0,cy:0},
+  shots: 0,
+  starsCollected: 0,
+  totalStars: 0,
+  time: 0,
+  levelTime: 0,
+  animFrame: 0,
+  // Precomputed level geometry (absolute px coords)
+  lWalls: [],
+  lBlackholes: [],
+  lStars: [],
+  lGoal: {x:0,y:0},
+  lSpawn: {x:0,y:0},
+  lWormholes: [],
+  lBarriers: [],
+  lSpeedGates: [],
+  lInvertZones: [],
+  // HUD state tracking to avoid layout thrashing
+  hudDirty: true,
+  lastHudShots: -1,
+  lastHudStars: -1,
+  lastHudLevel: -1,
+  // Background ambient particles (pre-allocated)
+  bgParticles: [],
+  trailIdx: 0
+};
+
+// Pre-allocate ambient background particles (never GC'd)
+for (let i = 0; i < 60; i++) {
+  G.bgParticles.push({x:Math.random(),y:Math.random(),s:Math.random()*2+0.5,sp:Math.random()*0.02+0.005,a:Math.random()});
+}
+
+// ============================================================
+// LEVEL LOADER - Convert normalized coords to pixel positions
+// ============================================================
+function loadLevel(idx) {
+  const lv = LEVELS[idx];
+  G.level = idx;
+  G.state = 'playing';
+  G.shots = 0;
+  G.starsCollected = 0;
+  G.totalStars = lv.stars.length;
+  G.orb.launched = false;
+  G.orb.dead = false;
+  G.orb.vx = 0; G.orb.vy = 0;
+  G.levelTime = 0;
+  G.hudDirty = true;
+
+  // Convert spawn/goal
+  G.lSpawn = {x: lv.spawn.x * W, y: lv.spawn.y * H};
+  G.lGoal = {x: lv.goal.x * W, y: lv.goal.y * H};
+  G.orb.x = G.lSpawn.x; G.orb.y = G.lSpawn.y;
+
+  // Walls
+  G.lWalls = lv.walls.map(w => ({x1:w.x1*W, y1:w.y1*H, x2:w.x2*W, y2:w.y2*H}));
+
+  // Black holes
+  G.lBlackholes = lv.blackholes.map(b => ({x:b.x*W, y:b.y*H, mass:b.mass, r:b.r}));
+
+  // Stars (collectibles)
+  G.lStars = lv.stars.map(s => ({x:s.x*W, y:s.y*H, collected:false, pulse:Math.random()*6.28}));
+
+  // Wormholes
+  G.lWormholes = lv.wormholes.map(wh => ({ax:wh.ax*W,ay:wh.ay*H,bx:wh.bx*W,by:wh.by*H,r:wh.r,cooldown:0}));
+
+  // Barriers (moving walls)
+  G.lBarriers = lv.barriers.map(b => ({
+    baseX:b.x*W, baseY:b.y*H, w:b.w*W, h:b.h*H,
+    axis:b.axis, range:b.range*(b.axis==='x'?W:H), speed:b.speed,
+    phase:0, x:b.x*W, y:b.y*H
+  }));
+
+  // Speed Gates
+  G.lSpeedGates = lv.speedGates.map(sg => ({x:sg.x*W, y:sg.y*H, dir:sg.dir, force:sg.force, r:22, cooldown:0}));
+
+  // Inverse Gravity Zones
+  G.lInvertZones = lv.invertZones.map(iz => ({x:iz.x*W, y:iz.y*H, w:iz.w*W, h:iz.h*H}));
+
+  // Reset pools
+  particlePool.releaseAll();
+  trailPool.releaseAll();
+  confettiPool.releaseAll();
+}
+
+
+// ============================================================
+// PHYSICS UPDATE - Gravity, collisions, wormholes, speed gates
+// ============================================================
+function updatePhysics(dt) {
+  const orb = G.orb;
+  if (!orb.launched || orb.dead) return;
+
+  G.levelTime += dt;
+
+  // --- Black hole gravitational attraction ---
+  for (let i = 0; i < G.lBlackholes.length; i++) {
+    const bh = G.lBlackholes[i];
+    const dx = bh.x - orb.x;
+    const dy = bh.y - orb.y;
+    const distSq = dx * dx + dy * dy;
+    const dist = Math.sqrt(distSq);
+
+    // Check if orb is inside an invert zone
+    let inverted = false;
+    for (let iz = 0; iz < G.lInvertZones.length; iz++) {
+      const zone = G.lInvertZones[iz];
+      if (orb.x >= zone.x && orb.x <= zone.x + zone.w &&
+          orb.y >= zone.y && orb.y <= zone.y + zone.h) {
+        inverted = true; break;
+      }
+    }
+
+    if (dist > bh.r + orb.r) {
+      // Gravitational force: F = G * mass / dist^2
+      const force = CFG.GRAVITY_CONST * bh.mass / Math.max(distSq, 2500);
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const sign = inverted ? -1 : 1;
+      orb.vx += nx * force * dt * sign;
+      orb.vy += ny * force * dt * sign;
+    } else {
+      // Sucked into black hole - death
+      orb.dead = true;
+      SFX.blackhole();
+      spawnDeathParticles(orb.x, orb.y);
+      return;
+    }
+  }
+
+  // --- Apply friction ---
+  orb.vx *= CFG.FRICTION;
+  orb.vy *= CFG.FRICTION;
+
+  // --- Clamp speed ---
+  const speed = Math.sqrt(orb.vx * orb.vx + orb.vy * orb.vy);
+  if (speed > CFG.MAX_SPEED) {
+    const ratio = CFG.MAX_SPEED / speed;
+    orb.vx *= ratio; orb.vy *= ratio;
+  }
+
+  // --- Move orb ---
+  orb.x += orb.vx * dt;
+  orb.y += orb.vy * dt;
+
+  // --- Wall collisions (elastic bounce) ---
+  // Screen bounds
+  if (orb.x - orb.r < 0) { orb.x = orb.r; orb.vx = Math.abs(orb.vx) * CFG.BOUNCE; SFX.bounce(); }
+  if (orb.x + orb.r > W) { orb.x = W - orb.r; orb.vx = -Math.abs(orb.vx) * CFG.BOUNCE; SFX.bounce(); }
+  if (orb.y - orb.r < 0) { orb.y = orb.r; orb.vy = Math.abs(orb.vy) * CFG.BOUNCE; SFX.bounce(); }
+  if (orb.y + orb.r > H) { orb.y = H - orb.r; orb.vy = -Math.abs(orb.vy) * CFG.BOUNCE; SFX.bounce(); }
+
+  // Level walls (line segments)
+  for (let i = 0; i < G.lWalls.length; i++) {
+    const wall = G.lWalls[i];
+    collideOrbWall(orb, wall);
+  }
+
+  // Moving barriers
+  for (let i = 0; i < G.lBarriers.length; i++) {
+    const b = G.lBarriers[i];
+    collideOrbRect(orb, b.x, b.y, b.w, b.h);
+  }
+}
+
+
+// --- Wall collision: orb vs line segment ---
+function collideOrbWall(orb, wall) {
+  const wx = wall.x2 - wall.x1;
+  const wy = wall.y2 - wall.y1;
+  const wlenSq = wx * wx + wy * wy;
+  if (wlenSq < 1) return;
+
+  // Project orb center onto wall line segment
+  let t = ((orb.x - wall.x1) * wx + (orb.y - wall.y1) * wy) / wlenSq;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = wall.x1 + t * wx;
+  const closestY = wall.y1 + t * wy;
+
+  const dx = orb.x - closestX;
+  const dy = orb.y - closestY;
+  const distSq = dx * dx + dy * dy;
+  const minDist = orb.r + 3; // wall thickness 3px
+
+  if (distSq < minDist * minDist && distSq > 0.01) {
+    const dist = Math.sqrt(distSq);
+    const nx = dx / dist;
+    const ny = dy / dist;
+    // Push orb out
+    orb.x = closestX + nx * minDist;
+    orb.y = closestY + ny * minDist;
+    // Reflect velocity
+    const dot = orb.vx * nx + orb.vy * ny;
+    if (dot < 0) {
+      orb.vx -= 2 * dot * nx * (1 - (1 - CFG.BOUNCE) * 0.5);
+      orb.vy -= 2 * dot * ny * (1 - (1 - CFG.BOUNCE) * 0.5);
+      SFX.bounce();
+    }
+  }
+}
+
+// --- Rect collision (for barriers) ---
+function collideOrbRect(orb, rx, ry, rw, rh) {
+  // Find closest point on rect to orb
+  const cx = Math.max(rx, Math.min(orb.x, rx + rw));
+  const cy = Math.max(ry, Math.min(orb.y, ry + rh));
+  const dx = orb.x - cx;
+  const dy = orb.y - cy;
+  const distSq = dx * dx + dy * dy;
+  if (distSq < orb.r * orb.r && distSq > 0.01) {
+    const dist = Math.sqrt(distSq);
+    const nx = dx / dist;
+    const ny = dy / dist;
+    orb.x = cx + nx * orb.r;
+    orb.y = cy + ny * orb.r;
+    const dot = orb.vx * nx + orb.vy * ny;
+    if (dot < 0) {
+      orb.vx -= 2 * dot * nx * CFG.BOUNCE;
+      orb.vy -= 2 * dot * ny * CFG.BOUNCE;
+      SFX.bounce();
+    }
+  }
+}
+
+
+// ============================================================
+// WORMHOLES, SPEED GATES, BARRIERS UPDATE
+// ============================================================
+function updateMechanics(dt) {
+  const orb = G.orb;
+  if (!orb.launched || orb.dead) return;
+
+  // --- Wormhole teleportation ---
+  for (let i = 0; i < G.lWormholes.length; i++) {
+    const wh = G.lWormholes[i];
+    if (wh.cooldown > 0) { wh.cooldown -= dt; continue; }
+
+    const dxa = orb.x - wh.ax, dya = orb.y - wh.ay;
+    const distA = Math.sqrt(dxa*dxa + dya*dya);
+    const dxb = orb.x - wh.bx, dyb = orb.y - wh.by;
+    const distB = Math.sqrt(dxb*dxb + dyb*dyb);
+
+    if (distA < wh.r) {
+      // Teleport to B, keep velocity magnitude, adjust angle by portal offset
+      const speed = Math.sqrt(orb.vx*orb.vx + orb.vy*orb.vy);
+      const angle = Math.atan2(orb.vy, orb.vx);
+      orb.x = wh.bx; orb.y = wh.by;
+      orb.vx = Math.cos(angle) * speed;
+      orb.vy = Math.sin(angle) * speed;
+      wh.cooldown = 0.5;
+      SFX.wormhole();
+      spawnWormholeParticles(wh.bx, wh.by);
+    } else if (distB < wh.r) {
+      const speed = Math.sqrt(orb.vx*orb.vx + orb.vy*orb.vy);
+      const angle = Math.atan2(orb.vy, orb.vx);
+      orb.x = wh.ax; orb.y = wh.ay;
+      orb.vx = Math.cos(angle) * speed;
+      orb.vy = Math.sin(angle) * speed;
+      wh.cooldown = 0.5;
+      SFX.wormhole();
+      spawnWormholeParticles(wh.ax, wh.ay);
+    }
+  }
+
+  // --- Speed Gates: apply directional force ---
+  for (let i = 0; i < G.lSpeedGates.length; i++) {
+    const sg = G.lSpeedGates[i];
+    if (sg.cooldown > 0) { sg.cooldown -= dt; continue; }
+    const dx = orb.x - sg.x, dy = orb.y - sg.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < sg.r + orb.r) {
+      switch(sg.dir) {
+        case 'up': orb.vy -= sg.force; break;
+        case 'down': orb.vy += sg.force; break;
+        case 'left': orb.vx -= sg.force; break;
+        case 'right': orb.vx += sg.force; break;
+      }
+      sg.cooldown = 0.4;
+      SFX.speedGate();
+      spawnSpeedParticles(sg.x, sg.y, sg.dir);
+    }
+  }
+
+  // --- Moving barriers: sinusoidal oscillation ---
+  for (let i = 0; i < G.lBarriers.length; i++) {
+    const b = G.lBarriers[i];
+    b.phase += b.speed * dt;
+    const offset = Math.sin(b.phase) * b.range;
+    if (b.axis === 'x') { b.x = b.baseX + offset; }
+    else { b.y = b.baseY + offset; }
+  }
+
+  // --- Star collection ---
+  for (let i = 0; i < G.lStars.length; i++) {
+    const s = G.lStars[i];
+    if (s.collected) continue;
+    const dx = orb.x - s.x, dy = orb.y - s.y;
+    if (dx*dx + dy*dy < CFG.STAR_COLLECT_DIST * CFG.STAR_COLLECT_DIST) {
+      s.collected = true;
+      G.starsCollected++;
+      save.stardust += 10;
+      save.stats.stars++;
+      G.hudDirty = true;
+      SFX.star();
+      spawnStarParticles(s.x, s.y);
+    }
+  }
+
+  // --- Goal detection ---
+  const gdx = orb.x - G.lGoal.x, gdy = orb.y - G.lGoal.y;
+  if (gdx*gdx + gdy*gdy < 30*30) {
+    winLevel();
+  }
+}
+
+
+// ============================================================
+// WIN / LOSE / RESET LOGIC
+// ============================================================
+function winLevel() {
+  G.state = 'won';
+  save.stardust += 25;
+  save.stats.levels++;
+  const lv = LEVELS[G.level];
+  // Bonus stardust for par or better
+  if (G.shots <= lv.par) save.stardust += 30;
+  // Unlock next level
+  if (G.level + 1 >= save.unlockedLevels) {
+    save.unlockedLevels = Math.min(LEVELS.length, G.level + 2);
+  }
+  // Check omega skin unlock condition
+  if (G.level === 4 && G.shots <= 2 && !save.unlockedSkins.includes('omega')) {
+    save.unlockedSkins.push('omega');
+  }
+  persist();
+  SFX.levelWin();
+  spawnConfetti();
+}
+
+function loseShot() {
+  G.orb.dead = false;
+  G.orb.launched = false;
+  G.orb.x = G.lSpawn.x;
+  G.orb.y = G.lSpawn.y;
+  G.orb.vx = 0; G.orb.vy = 0;
+  // Check if orb stopped (below threshold) — auto-reset
+}
+
+function checkOrbStopped() {
+  const orb = G.orb;
+  if (!orb.launched || orb.dead) return;
+  const speed = orb.vx*orb.vx + orb.vy*orb.vy;
+  if (speed < 4 && G.levelTime > 0.5) {
+    // Orb stopped — reset position for next shot
+    loseShot();
+  }
+}
+
+function resetOrb() {
+  G.orb.x = G.lSpawn.x;
+  G.orb.y = G.lSpawn.y;
+  G.orb.vx = 0; G.orb.vy = 0;
+  G.orb.launched = false;
+  G.orb.dead = false;
+  G.levelTime = 0;
+}
+
+
+// ============================================================
+// PARTICLE SPAWNERS (using object pool - no allocations)
+// ============================================================
+function spawnDeathParticles(x, y) {
+  for (let i = 0; i < 20; i++) {
+    const p = particlePool.acquire(); if (!p) break;
+    const angle = (i / 20) * Math.PI * 2;
+    const speed = 80 + Math.random() * 160;
+    p.x = x; p.y = y;
+    p.vx = Math.cos(angle) * speed;
+    p.vy = Math.sin(angle) * speed;
+    p.life = 0.6 + Math.random() * 0.4;
+    p.maxLife = p.life;
+    p.r = 3 + Math.random() * 3;
+    p.color = getSkin().color;
+    p.type = 'circle';
+  }
+}
+
+function spawnStarParticles(x, y) {
+  for (let i = 0; i < 12; i++) {
+    const p = particlePool.acquire(); if (!p) break;
+    const angle = (i / 12) * Math.PI * 2;
+    const speed = 60 + Math.random() * 120;
+    p.x = x; p.y = y;
+    p.vx = Math.cos(angle) * speed;
+    p.vy = Math.sin(angle) * speed;
+    p.life = 0.4 + Math.random() * 0.3;
+    p.maxLife = p.life;
+    p.r = 2 + Math.random() * 2;
+    p.color = '#ffd14f';
+    p.type = 'circle';
+  }
+}
+
+function spawnWormholeParticles(x, y) {
+  for (let i = 0; i < 10; i++) {
+    const p = particlePool.acquire(); if (!p) break;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * 80;
+    p.x = x; p.y = y;
+    p.vx = Math.cos(angle) * speed;
+    p.vy = Math.sin(angle) * speed;
+    p.life = 0.5; p.maxLife = 0.5;
+    p.r = 4; p.color = '#a855f7'; p.type = 'circle';
+  }
+}
+
+function spawnSpeedParticles(x, y, dir) {
+  for (let i = 0; i < 6; i++) {
+    const p = particlePool.acquire(); if (!p) break;
+    p.x = x; p.y = y;
+    const spread = (Math.random() - 0.5) * 60;
+    switch(dir) {
+      case 'up': p.vx = spread; p.vy = -100 - Math.random()*100; break;
+      case 'down': p.vx = spread; p.vy = 100 + Math.random()*100; break;
+      case 'left': p.vx = -100 - Math.random()*100; p.vy = spread; break;
+      case 'right': p.vx = 100 + Math.random()*100; p.vy = spread; break;
+    }
+    p.life = 0.3; p.maxLife = 0.3;
+    p.r = 3; p.color = '#39ff14'; p.type = 'circle';
+  }
+}
+
+function spawnConfetti() {
+  for (let i = 0; i < CFG.MAX_CONFETTI; i++) {
+    const c = confettiPool.acquire(); if (!c) break;
+    c.x = W * 0.3 + Math.random() * W * 0.4;
+    c.y = -20 - Math.random() * 60;
+    c.vx = (Math.random() - 0.5) * 200;
+    c.vy = 100 + Math.random() * 200;
+    c.life = 2 + Math.random();
+    c.rot = Math.random() * 6.28;
+    c.w = 4 + Math.random() * 4;
+    c.h = 8 + Math.random() * 6;
+    c.color = ['#ff4fa3','#6cf0ff','#ffd14f','#39ff14','#a855f7'][i % 5];
+  }
+}
+
+
+// ============================================================
+// TRAIL SYSTEM - Skin-dependent geometric trails
+// ============================================================
+function updateTrail() {
+  const orb = G.orb;
+  if (!orb.launched || orb.dead) return;
+  const skin = getSkin();
+  // Emit trail element every other frame
+  if (G.animFrame % 2 !== 0) return;
+  const t = trailPool.acquire();
+  if (!t) {
+    // Pool full — recycle oldest by cycling index
+    const oldest = trailPool.items[G.trailIdx % CFG.MAX_TRAIL];
+    if (oldest._active) trailPool.release(oldest);
+    G.trailIdx++;
+    return;
+  }
+  t.x = orb.x; t.y = orb.y;
+  t.alpha = 1.0; t.r = orb.r * 0.8;
+  t.color = skin.color;
+}
+
+// ============================================================
+// PARTICLE & CONFETTI UPDATE (pool-friendly)
+// ============================================================
+function updateParticles(dt) {
+  particlePool.forEach(p => {
+    p.life -= dt;
+    if (p.life <= 0) { particlePool.release(p); return; }
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 200 * dt; // slight gravity on particles
+  });
+  // Trail fade
+  trailPool.forEach(t => {
+    t.alpha -= dt * 3.5;
+    if (t.alpha <= 0) trailPool.release(t);
+  });
+  // Confetti
+  confettiPool.forEach(c => {
+    c.life -= dt;
+    if (c.life <= 0) { confettiPool.release(c); return; }
+    c.x += c.vx * dt;
+    c.y += c.vy * dt;
+    c.vy += 150 * dt;
+    c.rot += 4 * dt;
+  });
+}
+
+
+// ============================================================
+// RENDERING ENGINE - Optimized 2D Canvas (no shadowBlur)
+// ============================================================
+function render() {
+  const lv = LEVELS[G.level];
+  const zc = CFG.ZONE_COLORS[lv.zone];
+
+  // --- Background gradient ---
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, zc[0]);
+  grad.addColorStop(1, zc[1]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // --- Ambient particles (zone-specific) ---
+  ctx.globalAlpha = 0.4;
+  for (let i = 0; i < G.bgParticles.length; i++) {
+    const bp = G.bgParticles[i];
+    bp.y -= bp.sp;
+    if (bp.y < -0.02) { bp.y = 1.02; bp.x = Math.random(); }
+    bp.a += 0.02;
+    const alpha = 0.3 + 0.3 * Math.sin(bp.a);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = zc[2];
+    ctx.fillRect(bp.x * W, bp.y * H, bp.s, bp.s);
+  }
+  ctx.globalAlpha = 1;
+
+  // --- Inverse Gravity Zones ---
+  for (let i = 0; i < G.lInvertZones.length; i++) {
+    const iz = G.lInvertZones[i];
+    ctx.fillStyle = 'rgba(168,85,247,0.08)';
+    ctx.fillRect(iz.x, iz.y, iz.w, iz.h);
+    ctx.strokeStyle = 'rgba(168,85,247,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(iz.x, iz.y, iz.w, iz.h);
+    ctx.setLineDash([]);
+    // Draw repulsion arrows inside
+    ctx.fillStyle = 'rgba(168,85,247,0.5)';
+    const cx = iz.x + iz.w/2, cy = iz.y + iz.h/2;
+    for (let a = 0; a < 4; a++) {
+      const ang = a * Math.PI/2;
+      const ax = cx + Math.cos(ang) * iz.w * 0.25;
+      const ay = cy + Math.sin(ang) * iz.h * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(ax + Math.cos(ang)*8, ay + Math.sin(ang)*8);
+      ctx.lineTo(ax + Math.cos(ang+2.5)*5, ay + Math.sin(ang+2.5)*5);
+      ctx.lineTo(ax + Math.cos(ang-2.5)*5, ay + Math.sin(ang-2.5)*5);
+      ctx.fill();
+    }
+  }
+
+  // --- Walls ---
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < G.lWalls.length; i++) {
+    const w = G.lWalls[i];
+    ctx.beginPath();
+    ctx.moveTo(w.x1, w.y1);
+    ctx.lineTo(w.x2, w.y2);
+    ctx.stroke();
+  }
+
+  // --- Moving Barriers ---
+  ctx.fillStyle = 'rgba(255,100,64,0.8)';
+  for (let i = 0; i < G.lBarriers.length; i++) {
+    const b = G.lBarriers[i];
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = 'rgba(255,200,150,0.6)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+  }
+
+
+  // --- Black Holes ---
+  for (let i = 0; i < G.lBlackholes.length; i++) {
+    const bh = G.lBlackholes[i];
+    // Distortion rings (no shadowBlur - use concentric circles)
+    for (let ring = 3; ring >= 0; ring--) {
+      const rr = bh.r + ring * 8 + Math.sin(G.time * 3 + ring) * 2;
+      ctx.beginPath();
+      ctx.arc(bh.x, bh.y, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(108,240,255,${0.1 - ring*0.02})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    // Core
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, bh.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#0a0015';
+    ctx.fill();
+    ctx.strokeStyle = zc[3];
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Mass indicator (inner glow)
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, bh.r * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = zc[3];
+    ctx.globalAlpha = 0.3 + 0.1 * Math.sin(G.time * 5);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // --- Wormholes ---
+  for (let i = 0; i < G.lWormholes.length; i++) {
+    const wh = G.lWormholes[i];
+    // Portal A
+    drawPortal(wh.ax, wh.ay, wh.r, '#a855f7', G.time);
+    // Portal B
+    drawPortal(wh.bx, wh.by, wh.r, '#f59e0b', G.time + 1.5);
+    // Connecting line (dashed)
+    ctx.strokeStyle = 'rgba(168,85,247,0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 8]);
+    ctx.beginPath(); ctx.moveTo(wh.ax, wh.ay); ctx.lineTo(wh.bx, wh.by); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // --- Speed Gates ---
+  for (let i = 0; i < G.lSpeedGates.length; i++) {
+    const sg = G.lSpeedGates[i];
+    drawSpeedGate(sg.x, sg.y, sg.r, sg.dir, G.time);
+  }
+
+  // --- Stars ---
+  for (let i = 0; i < G.lStars.length; i++) {
+    const s = G.lStars[i];
+    if (s.collected) continue;
+    s.pulse += 0.05;
+    const scale = 1 + 0.15 * Math.sin(s.pulse);
+    drawStar(s.x, s.y, 10 * scale, '#ffd14f');
+  }
+
+  // --- Goal ---
+  const goalPulse = 1 + 0.1 * Math.sin(G.time * 4);
+  ctx.beginPath();
+  ctx.arc(G.lGoal.x, G.lGoal.y, 16 * goalPulse, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(57,255,20,0.2)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(G.lGoal.x, G.lGoal.y, 10 * goalPulse, 0, Math.PI * 2);
+  ctx.fillStyle = '#39ff14';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+
+  // --- Trail rendering (skin-dependent) ---
+  const skin = getSkin();
+  trailPool.forEach(t => {
+    ctx.globalAlpha = t.alpha * 0.6;
+    switch(skin.trail) {
+      case 'circle':
+        ctx.beginPath(); ctx.arc(t.x, t.y, t.r * t.alpha, 0, Math.PI*2);
+        ctx.fillStyle = t.color; ctx.fill(); break;
+      case 'square':
+        const sz = t.r * 2 * t.alpha;
+        ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.alpha * 3);
+        ctx.fillStyle = t.color; ctx.fillRect(-sz/2,-sz/2,sz,sz);
+        ctx.restore(); break;
+      case 'fire':
+        ctx.beginPath(); ctx.arc(t.x, t.y, t.r * t.alpha * 1.3, 0, Math.PI*2);
+        ctx.fillStyle = t.alpha > 0.5 ? '#ffd14f' : '#ff6040'; ctx.fill(); break;
+      case 'smoke':
+        ctx.beginPath(); ctx.arc(t.x + (Math.random()-0.5)*2, t.y, t.r * (1.2 - t.alpha*0.4), 0, Math.PI*2);
+        ctx.fillStyle = `rgba(200,200,220,${t.alpha*0.4})`; ctx.fill(); break;
+      case 'binary':
+        ctx.font = `${8+t.r}px monospace`; ctx.fillStyle = t.color;
+        ctx.fillText(Math.random()>0.5?'1':'0', t.x-3, t.y+3); break;
+      case 'crystal':
+        ctx.beginPath();
+        const cr = t.r * t.alpha;
+        ctx.moveTo(t.x, t.y-cr); ctx.lineTo(t.x+cr*0.7, t.y);
+        ctx.lineTo(t.x, t.y+cr); ctx.lineTo(t.x-cr*0.7, t.y);
+        ctx.closePath(); ctx.fillStyle = t.color; ctx.fill(); break;
+    }
+  });
+  ctx.globalAlpha = 1;
+
+  // --- Particles ---
+  particlePool.forEach(p => {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // --- Confetti ---
+  confettiPool.forEach(c => {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    ctx.globalAlpha = Math.min(1, c.life);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h);
+    ctx.restore();
+  });
+  ctx.globalAlpha = 1;
+
+  // --- Orb ---
+  if (!G.orb.dead) {
+    drawOrb(G.orb.x, G.orb.y, G.orb.r, skin);
+  }
+
+  // --- Drag aim line ---
+  if (G.drag.active) {
+    const dx = G.drag.sx - G.drag.cx;
+    const dy = G.drag.sy - G.drag.cy;
+    // Aim line
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(G.orb.x, G.orb.y);
+    ctx.lineTo(G.orb.x + dx * CFG.DRAG_SCALE * 0.3, G.orb.y + dy * CFG.DRAG_SCALE * 0.3);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Charge effect (skin-dependent)
+    drawChargeEffect(G.orb.x, G.orb.y, Math.sqrt(dx*dx+dy*dy), skin, G.time);
+  }
+
+  // --- HUD (only render when state changes) ---
+  renderHUD();
+}
+
+
+// ============================================================
+// HELPER DRAW FUNCTIONS
+// ============================================================
+function drawPortal(x, y, r, color, t) {
+  for (let ring = 2; ring >= 0; ring--) {
+    const rr = r + ring * 5 + Math.sin(t * 4 + ring * 2) * 3;
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.3 - ring * 0.08;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, Math.PI*2);
+  ctx.fillStyle = color; ctx.globalAlpha = 0.4 + 0.2*Math.sin(t*3); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawSpeedGate(x, y, r, dir, t) {
+  ctx.fillStyle = 'rgba(57,255,20,0.15)';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  // Arrow
+  ctx.fillStyle = '#39ff14';
+  ctx.globalAlpha = 0.6 + 0.3 * Math.sin(t * 6);
+  ctx.beginPath();
+  const aLen = 10;
+  let ax=0,ay=0;
+  switch(dir) {
+    case 'up': ax=x;ay=y-aLen; ctx.moveTo(ax,ay-6);ctx.lineTo(ax-6,ay+4);ctx.lineTo(ax+6,ay+4);break;
+    case 'down': ax=x;ay=y+aLen; ctx.moveTo(ax,ay+6);ctx.lineTo(ax-6,ay-4);ctx.lineTo(ax+6,ay-4);break;
+    case 'left': ax=x-aLen;ay=y; ctx.moveTo(ax-6,ay);ctx.lineTo(ax+4,ay-6);ctx.lineTo(ax+4,ay+6);break;
+    case 'right': ax=x+aLen;ay=y; ctx.moveTo(ax+6,ay);ctx.lineTo(ax-4,ay-6);ctx.lineTo(ax-4,ay+6);break;
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawStar(x, y, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const angle = -Math.PI/2 + i * Math.PI*2/5;
+    const angleInner = angle + Math.PI/5;
+    ctx.lineTo(x + Math.cos(angle)*r, y + Math.sin(angle)*r);
+    ctx.lineTo(x + Math.cos(angleInner)*r*0.4, y + Math.sin(angleInner)*r*0.4);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawOrb(x, y, r, skin) {
+  // Outer glow (2 layers, no shadowBlur)
+  ctx.beginPath(); ctx.arc(x, y, r * 1.8, 0, Math.PI*2);
+  ctx.fillStyle = skin.color + '15'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, Math.PI*2);
+  ctx.fillStyle = skin.color + '30'; ctx.fill();
+  // Main orb
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+  ctx.fillStyle = skin.color; ctx.fill();
+  // Inner highlight
+  ctx.beginPath(); ctx.arc(x - r*0.3, y - r*0.3, r*0.35, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+}
+
+function drawChargeEffect(x, y, power, skin, t) {
+  const intensity = Math.min(1, power / 120);
+  ctx.globalAlpha = intensity * 0.6;
+  switch(skin.chargeEffect) {
+    case 'rings':
+      for (let i = 0; i < 3; i++) {
+        const rr = 18 + i * 10 + Math.sin(t * 8 + i*2) * 4;
+        ctx.beginPath(); ctx.arc(x, y, rr * intensity, 0, Math.PI*2);
+        ctx.strokeStyle = skin.color; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      break;
+    case 'electric':
+      for (let i = 0; i < 5; i++) {
+        const ang = t * 10 + i * 1.26;
+        const ex = x + Math.cos(ang) * 20 * intensity;
+        const ey = y + Math.sin(ang) * 20 * intensity;
+        ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(ex,ey);
+        ctx.strokeStyle = skin.color; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      break;
+    case 'magnetic':
+      for (let i = 0; i < 8; i++) {
+        const ang = t * 4 + i * 0.785;
+        const dist = 15 + intensity * 15;
+        const px = x + Math.cos(ang) * dist;
+        const py = y + Math.sin(ang) * dist;
+        ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI*2);
+        ctx.fillStyle = skin.color; ctx.fill();
+      }
+      break;
+  }
+  ctx.globalAlpha = 1;
+}
+
+
+// ============================================================
+// HUD RENDERING (reactive - only updates on state change)
+// ============================================================
+function renderHUD() {
+  const lv = LEVELS[G.level];
+  // Top bar
+  ctx.fillStyle = 'rgba(8,4,20,0.6)';
+  ctx.fillRect(0, 0, W, 36);
+
+  ctx.fillStyle = '#f4eefb';
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  // Zone + Level name
+  const zoneNames = ['NEON SECTOR','QUANTUM ANOMALY','EVENT HORIZON'];
+  ctx.fillText(`${zoneNames[lv.zone]} | Lv.${G.level+1}: ${lv.name}`, 12, 18);
+
+  // Shots
+  ctx.textAlign = 'center';
+  ctx.fillText(`Shots: ${G.shots} / Par: ${lv.par}`, W*0.5, 18);
+
+  // Stars + Stardust
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ffd14f';
+  ctx.fillText(`Stars: ${G.starsCollected}/${G.totalStars}  |  Stardust: ${save.stardust}`, W - 12, 18);
+
+  ctx.textAlign = 'left';
+
+  // Win/Lose overlays
+  if (G.state === 'won') {
+    ctx.fillStyle = 'rgba(8,4,20,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#39ff14';
+    ctx.font = 'bold 32px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('LEVEL COMPLETE!', W/2, H*0.35);
+    ctx.fillStyle = '#ffd14f';
+    ctx.font = '18px system-ui';
+    ctx.fillText(`Stars: ${G.starsCollected}/${G.totalStars}  |  Shots: ${G.shots}  |  Par: ${lv.par}`, W/2, H*0.45);
+    ctx.fillStyle = '#fff';
+    ctx.font = '15px system-ui';
+    if (G.level < LEVELS.length - 1) {
+      ctx.fillText('Tap to continue', W/2, H*0.58);
+    } else {
+      ctx.fillText('ALL ZONES COMPLETE! You mastered the cosmos!', W/2, H*0.55);
+      ctx.fillText('Tap to return to menu', W/2, H*0.63);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  if (G.orb.dead && G.state === 'playing') {
+    ctx.fillStyle = 'rgba(255,40,40,0.12)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Absorbed! Tap to retry shot.', W/2, H*0.92);
+    ctx.textAlign = 'left';
+  }
+}
+
+
+// ============================================================
+// VAULT (Skin Shop) RENDERING
+// ============================================================
+function renderVault() {
+  ctx.fillStyle = '#0a0e2a';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#f4eefb';
+  ctx.font = 'bold 24px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('COSMETIC VAULT', W/2, 40);
+
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#ffd14f';
+  ctx.fillText(`Stardust: ${save.stardust}`, W/2, 62);
+
+  const cols = Math.min(6, Math.floor(W / 140));
+  const startX = (W - cols * 130) / 2;
+  let row = 0, col = 0;
+
+  for (let i = 0; i < SKINS.length; i++) {
+    const s = SKINS[i];
+    const bx = startX + col * 130;
+    const by = 85 + row * 110;
+    const owned = save.unlockedSkins.includes(s.id);
+    const active = save.activeSkin === s.id;
+
+    // Card background
+    ctx.fillStyle = active ? 'rgba(108,240,255,0.15)' : 'rgba(28,19,56,0.7)';
+    ctx.fillRect(bx, by, 120, 95);
+    ctx.strokeStyle = active ? '#6cf0ff' : 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.strokeRect(bx, by, 120, 95);
+
+    // Orb preview
+    ctx.beginPath(); ctx.arc(bx+60, by+30, 12, 0, Math.PI*2);
+    ctx.fillStyle = s.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(bx+55, by+26, 4, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
+
+    // Name
+    ctx.fillStyle = '#f4eefb';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.name, bx+60, by+55);
+
+    // Status
+    ctx.font = '10px system-ui';
+    if (active) {
+      ctx.fillStyle = '#6cf0ff';
+      ctx.fillText('EQUIPPED', bx+60, by+70);
+    } else if (owned) {
+      ctx.fillStyle = '#39ff14';
+      ctx.fillText('OWNED', bx+60, by+70);
+    } else if (s.unlock && !save.unlockedSkins.includes(s.id)) {
+      ctx.fillStyle = '#ff4fa3';
+      ctx.fillText(s.unlock, bx+60, by+70);
+      ctx.fillText(`(${s.price} SD)`, bx+60, by+83);
+    } else {
+      ctx.fillStyle = '#ffd14f';
+      ctx.fillText(`${s.price} Stardust`, bx+60, by+70);
+    }
+
+    // Store click region data
+    s._bx = bx; s._by = by;
+
+    col++;
+    if (col >= cols) { col = 0; row++; }
+  }
+
+  // Back button
+  ctx.fillStyle = 'rgba(255,79,163,0.8)';
+  ctx.fillRect(W/2 - 50, H - 50, 100, 32);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px system-ui';
+  ctx.fillText('BACK', W/2, H - 30);
+  ctx.textAlign = 'left';
+}
+
+
+// ============================================================
+// LEVEL SELECT RENDERING
+// ============================================================
+function renderLevelSelect() {
+  ctx.fillStyle = '#0a0e2a';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#f4eefb';
+  ctx.font = 'bold 22px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('SELECT LEVEL', W/2, 38);
+
+  const zoneNames = ['NEON SECTOR','QUANTUM ANOMALY','EVENT HORIZON'];
+  const zoneRanges = [[0,4],[5,9],[10,14]];
+  let y = 65;
+
+  for (let z = 0; z < 3; z++) {
+    const zc = CFG.ZONE_COLORS[z];
+    ctx.fillStyle = zc[2];
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Zone ${z+1}: ${zoneNames[z]}`, 20, y);
+    y += 5;
+
+    const [start, end] = zoneRanges[z];
+    for (let i = start; i <= end; i++) {
+      const lv = LEVELS[i];
+      const bx = 20 + (i - start) * (Math.min(140, (W-40)/5));
+      const by = y;
+      const unlocked = i < save.unlockedLevels;
+
+      ctx.fillStyle = unlocked ? 'rgba(28,19,56,0.8)' : 'rgba(20,15,40,0.5)';
+      ctx.fillRect(bx, by, Math.min(130,(W-60)/5), 55);
+      ctx.strokeStyle = unlocked ? zc[3] : 'rgba(100,100,100,0.3)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, Math.min(130,(W-60)/5), 55);
+
+      ctx.textAlign = 'center';
+      const cx = bx + Math.min(130,(W-60)/5)/2;
+      ctx.fillStyle = unlocked ? '#f4eefb' : '#555';
+      ctx.font = 'bold 12px system-ui';
+      ctx.fillText(`${i+1}`, cx, by + 20);
+      ctx.font = '9px system-ui';
+      ctx.fillText(unlocked ? lv.name : 'LOCKED', cx, by + 35);
+      if (unlocked) {
+        ctx.fillStyle = '#ffd14f';
+        ctx.fillText(`Par: ${lv.par}`, cx, by + 48);
+      }
+
+      // Store for click detection
+      lv._bx = bx; lv._by = by;
+      lv._bw = Math.min(130,(W-60)/5); lv._bh = 55;
+    }
+    y += 72;
+  }
+
+  // Back button
+  ctx.fillStyle = 'rgba(255,79,163,0.8)';
+  ctx.fillRect(W/2 - 50, H - 45, 100, 30);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('BACK', W/2, H - 26);
+  ctx.textAlign = 'left';
+}
+
+
+// ============================================================
+// INPUT HANDLING - Touch + Mouse (optimized for mobile landscape)
+// ============================================================
+let touchId = null;
+
+function getXY(e) {
+  if (e.touches && e.touches.length > 0) {
+    return {x: e.touches[0].clientX, y: e.touches[0].clientY};
+  }
+  if (e.changedTouches && e.changedTouches.length > 0) {
+    return {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY};
+  }
+  return {x: e.clientX, y: e.clientY};
+}
+
+function onPointerDown(e) {
+  e.preventDefault();
+  ensureAudio();
+  const {x, y} = getXY(e);
+
+  if (G.state === 'menu') {
+    // Handled by UI buttons
+    return;
+  }
+
+  if (G.state === 'levelselect') {
+    handleLevelSelectClick(x, y);
+    return;
+  }
+
+  if (G.state === 'vault') {
+    handleVaultClick(x, y);
+    return;
+  }
+
+  if (G.state === 'won') {
+    if (G.level < LEVELS.length - 1) {
+      loadLevel(G.level + 1);
+    } else {
+      G.state = 'menu';
+      showUI();
+    }
+    return;
+  }
+
+  if (G.state === 'playing') {
+    if (G.orb.dead) {
+      loseShot();
+      return;
+    }
+    if (!G.orb.launched) {
+      G.drag.active = true;
+      G.drag.sx = x; G.drag.sy = y;
+      G.drag.cx = x; G.drag.cy = y;
+    }
+  }
+}
+
+function onPointerMove(e) {
+  e.preventDefault();
+  if (!G.drag.active) return;
+  const {x, y} = getXY(e);
+  G.drag.cx = x; G.drag.cy = y;
+}
+
+function onPointerUp(e) {
+  e.preventDefault();
+  if (!G.drag.active) return;
+  G.drag.active = false;
+
+  const dx = G.drag.sx - G.drag.cx;
+  const dy = G.drag.sy - G.drag.cy;
+  const power = Math.sqrt(dx*dx + dy*dy);
+
+  if (power > 10) {
+    // Launch orb
+    G.orb.vx = dx * CFG.DRAG_SCALE;
+    G.orb.vy = dy * CFG.DRAG_SCALE;
+    G.orb.launched = true;
+    G.shots++;
+    save.stats.shots++;
+    G.hudDirty = true;
+    G.levelTime = 0;
+    SFX.launch();
+  }
+}
+
+// Register events for both touch and mouse
+canvas.addEventListener('touchstart', onPointerDown, {passive:false});
+canvas.addEventListener('touchmove', onPointerMove, {passive:false});
+canvas.addEventListener('touchend', onPointerUp, {passive:false});
+canvas.addEventListener('mousedown', onPointerDown);
+canvas.addEventListener('mousemove', onPointerMove);
+canvas.addEventListener('mouseup', onPointerUp);
+
+
+// ============================================================
+// VAULT CLICK HANDLING
+// ============================================================
+function handleVaultClick(x, y) {
+  // Back button
+  if (x > W/2-50 && x < W/2+50 && y > H-50 && y < H-18) {
+    G.state = 'menu'; showUI(); return;
+  }
+  // Skin cards
+  for (let i = 0; i < SKINS.length; i++) {
+    const s = SKINS[i];
+    if (!s._bx) continue;
+    if (x >= s._bx && x <= s._bx+120 && y >= s._by && y <= s._by+95) {
+      const owned = save.unlockedSkins.includes(s.id);
+      if (owned) {
+        save.activeSkin = s.id;
+        persist();
+      } else if (save.stardust >= s.price) {
+        // Check special unlock conditions
+        if (s.unlock && s.id === 'omega') {
+          // Must be unlocked by achievement, not purchase alone
+          // But if they have stardust AND achievement, allow
+          if (!save.unlockedSkins.includes('omega')) return;
+        }
+        save.stardust -= s.price;
+        save.unlockedSkins.push(s.id);
+        save.activeSkin = s.id;
+        persist();
+      }
+      return;
+    }
+  }
+}
+
+// ============================================================
+// LEVEL SELECT CLICK HANDLING
+// ============================================================
+function handleLevelSelectClick(x, y) {
+  // Back button
+  if (x > W/2-50 && x < W/2+50 && y > H-45 && y < H-15) {
+    G.state = 'menu'; showUI(); return;
+  }
+  // Level buttons
+  for (let i = 0; i < LEVELS.length; i++) {
+    const lv = LEVELS[i];
+    if (!lv._bx) continue;
+    if (i >= save.unlockedLevels) continue;
+    if (x >= lv._bx && x <= lv._bx + lv._bw && y >= lv._by && y <= lv._by + lv._bh) {
+      loadLevel(i);
+      return;
+    }
+  }
+}
+
+// ============================================================
+// UI MANAGEMENT
+// ============================================================
+const uiEl = document.getElementById('ui');
+function showUI() { uiEl.classList.add('show'); }
+function hideUI() { uiEl.classList.remove('show'); }
+
+document.getElementById('btnPlay').addEventListener('click', () => {
+  ensureAudio();
+  hideUI();
+  G.state = 'levelselect';
+});
+
+document.getElementById('btnVault').addEventListener('click', () => {
+  ensureAudio();
+  hideUI();
+  G.state = 'vault';
+});
+
+
+// ============================================================
+// MAIN GAME LOOP - Fixed timestep, 60 FPS target
+// ============================================================
+let lastTime = 0;
+const FIXED_DT = 1/60;
+let accumulator = 0;
+
+function gameLoop(now) {
+  const rawDt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  G.time += rawDt;
+  G.animFrame++;
+
+  if (G.state === 'playing' || G.state === 'won') {
+    // Fixed timestep physics for determinism
+    accumulator += rawDt;
+    while (accumulator >= FIXED_DT) {
+      if (G.state === 'playing') {
+        updatePhysics(FIXED_DT);
+        updateMechanics(FIXED_DT);
+        checkOrbStopped();
+      }
+      updateParticles(FIXED_DT);
+      accumulator -= FIXED_DT;
+    }
+    updateTrail();
+    render();
+  } else if (G.state === 'vault') {
+    renderVault();
+  } else if (G.state === 'levelselect') {
+    renderLevelSelect();
+  } else if (G.state === 'menu') {
+    // Render idle background animation
+    renderMenuBg();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+function renderMenuBg() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a0e2a');
+  grad.addColorStop(1, '#1a1040');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Floating particles
+  ctx.globalAlpha = 0.3;
+  for (let i = 0; i < G.bgParticles.length; i++) {
+    const bp = G.bgParticles[i];
+    bp.y -= bp.sp * 0.5;
+    if (bp.y < -0.02) { bp.y = 1.02; bp.x = Math.random(); }
+    ctx.fillStyle = i % 2 === 0 ? '#ff4fa3' : '#6cf0ff';
+    ctx.fillRect(bp.x * W, bp.y * H, bp.s, bp.s);
+  }
+  ctx.globalAlpha = 1;
+
+  // Orbiting demo orb
+  const ox = W/2 + Math.cos(G.time * 0.8) * W * 0.15;
+  const oy = H/2 + Math.sin(G.time * 1.2) * H * 0.1;
+  drawOrb(ox, oy, 14, getSkin());
+
+  // Demo black hole
+  ctx.beginPath(); ctx.arc(W/2, H/2, 22, 0, Math.PI*2);
+  ctx.fillStyle = '#0a0015'; ctx.fill();
+  ctx.strokeStyle = '#6cf0ff'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+// Kick off
+requestAnimationFrame(gameLoop);
+
+
+// ============================================================
+// KEYBOARD SUPPORT (for desktop testing)
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyR' && G.state === 'playing') {
+    resetOrb();
+    G.shots = 0; G.starsCollected = 0;
+    for (let i = 0; i < G.lStars.length; i++) G.lStars[i].collected = false;
+    particlePool.releaseAll(); trailPool.releaseAll();
+  }
+  if (e.code === 'Escape') {
+    if (G.state === 'playing' || G.state === 'won') {
+      G.state = 'levelselect';
+    } else if (G.state === 'vault' || G.state === 'levelselect') {
+      G.state = 'menu'; showUI();
+    }
+  }
+});
+
+// ============================================================
+// ORIENTATION LOCK HINT (CSS handles it but we add a reminder)
+// ============================================================
+function checkOrientation() {
+  if (window.innerHeight > window.innerWidth) {
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Please rotate to landscape mode', W/2, H/2);
+    ctx.font = '13px system-ui';
+    ctx.fillStyle = '#b3a8d1';
+    ctx.fillText('NEO GRAVITY is optimized for horizontal play', W/2, H/2 + 28);
+    ctx.textAlign = 'left';
+  }
+}
+window.addEventListener('orientationchange', () => { setTimeout(resize, 200); });
+
+// ============================================================
+// PREVENT CONTEXT MENU AND DOUBLE TAP ZOOM
+// ============================================================
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+</script>
+</body>
+</html>
