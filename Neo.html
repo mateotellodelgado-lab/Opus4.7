@@ -1,0 +1,2143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05050b">
+<title>NEO GRAVITY</title>
+<style>
+/* ============================================================================
+ * NEO GRAVITY · Estilos
+ * Glassmorphism contenido. Tipografía limpia. Sin animaciones costosas
+ * en paneles que no necesitan moverse. Todo el "wow" lo aporta el canvas.
+ * ============================================================================ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:#05050b;color:#e8ecf5;
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  font-feature-settings:'ss01','cv11';
+  touch-action:none;user-select:none;-webkit-user-select:none
+}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+/* Paneles */
+.panel{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(5,5,11,.86);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;
+  transition:opacity .28s cubic-bezier(.2,.7,.3,1);
+  z-index:100;padding:18px
+}
+.panel.active{opacity:1;pointer-events:all}
+
+/* Títulos */
+.title{
+  font-weight:900;letter-spacing:.32em;text-transform:uppercase;
+  text-align:center;font-size:clamp(34px,7vw,68px);
+  margin-bottom:6px;color:#e7faff;
+  text-shadow:0 0 24px rgba(124,225,255,.45)
+}
+.title .accent{ color:#7df9ff }
+.tagline{
+  text-align:center;font-size:clamp(11px,1.6vw,13px);
+  letter-spacing:.42em;text-transform:uppercase;
+  color:rgba(170,210,235,.55);margin-bottom:42px;font-weight:600
+}
+
+
+/* Botones */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:200px;min-height:48px;padding:13px 28px;margin:6px;
+  border:1.5px solid;border-radius:9px;
+  background:rgba(10,12,22,.55);color:inherit;
+  font-size:13px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  cursor:pointer;font-family:inherit;
+  transition:transform .12s ease,background .2s ease,box-shadow .2s ease
+}
+.btn:active{transform:scale(.97)}
+.btn-cyan  {border-color:#7df9ff;color:#7df9ff}
+.btn-cyan:hover  {background:rgba(125,249,255,.10);box-shadow:0 0 22px rgba(125,249,255,.35)}
+.btn-pink  {border-color:#ff5fb0;color:#ff5fb0}
+.btn-pink:hover  {background:rgba(255,95,176,.10);box-shadow:0 0 22px rgba(255,95,176,.35)}
+.btn-gold  {border-color:#ffd770;color:#ffd770}
+.btn-gold:hover  {background:rgba(255,215,112,.10);box-shadow:0 0 22px rgba(255,215,112,.35)}
+.btn-green {border-color:#5dffa8;color:#5dffa8}
+.btn-green:hover {background:rgba(93,255,168,.10);box-shadow:0 0 22px rgba(93,255,168,.35)}
+.btn-red   {border-color:#ff6868;color:#ff6868}
+.btn-red:hover   {background:rgba(255,104,104,.10);box-shadow:0 0 22px rgba(255,104,104,.35)}
+.btn-purple{border-color:#b58fff;color:#b58fff}
+.btn-purple:hover{background:rgba(181,143,255,.10);box-shadow:0 0 22px rgba(181,143,255,.35)}
+.btn-large {min-width:240px;min-height:56px;font-size:15px;padding:16px 38px}
+.back-btn  {position:absolute;top:18px;left:18px;min-width:auto;padding:9px 16px;font-size:11px;z-index:110}
+
+/* Meta strip (tira de polvo estelar) */
+.meta-strip{
+  position:absolute;top:18px;right:18px;
+  display:flex;align-items:center;gap:14px;
+  font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;
+  color:#ffd770
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
+::-webkit-scrollbar-thumb{background:rgba(125,249,255,.22);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(125,249,255,.5)}
+
+
+/* Grid de tarjetas */
+.grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:10px;width:92%;max-width:760px;
+  max-height:64vh;overflow-y:auto;padding:12px 6px
+}
+
+/* Tarjeta de nivel */
+.level-card{
+  position:relative;
+  background:linear-gradient(180deg,rgba(20,24,42,.75),rgba(12,14,26,.78));
+  border:1.5px solid rgba(125,249,255,.18);
+  border-radius:12px;padding:14px 8px;
+  text-align:center;cursor:pointer;
+  transition:transform .15s ease,border-color .2s ease,box-shadow .2s ease;
+  display:flex;flex-direction:column;align-items:center;gap:4px
+}
+.level-card:hover{
+  border-color:#7df9ff;box-shadow:0 6px 18px rgba(125,249,255,.18);
+  transform:translateY(-3px)
+}
+.level-card.locked{opacity:.32;pointer-events:none;border-color:rgba(255,255,255,.04)}
+.level-card .lnum{font-size:26px;font-weight:900;color:rgba(125,249,255,.32);line-height:1}
+.level-card .lname{
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:#9ce6ff;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%
+}
+.level-card .lstars{font-size:13px;color:#ffd770;letter-spacing:.18em}
+
+/* Tarjeta de skin */
+.skin-card{
+  background:linear-gradient(180deg,rgba(22,24,40,.72),rgba(12,14,26,.78));
+  border:1.5px solid rgba(255,255,255,.07);
+  border-radius:14px;padding:14px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:border-color .2s ease,box-shadow .2s ease,transform .15s ease
+}
+.skin-card.owned   {border-color:rgba(125,249,255,.30)}
+.skin-card.equipped{border-color:#5dffa8;box-shadow:0 0 18px rgba(93,255,168,.18)}
+.skin-card.locked  {opacity:.7}
+.skin-preview{
+  width:54px;height:54px;border-radius:50%;--glow:#7df9ff;
+  box-shadow:0 0 12px var(--glow), inset 0 -6px 12px rgba(0,0,0,.35), inset 0 4px 8px rgba(255,255,255,.18)
+}
+.skin-name   {font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:#fff;text-align:center}
+.skin-ability{
+  font-size:9.5px;color:#9ce6ff;letter-spacing:.04em;line-height:1.35;text-align:center;
+  background:rgba(125,249,255,.06);padding:4px 7px;border-radius:6px;
+  border:1px solid rgba(125,249,255,.14);font-style:italic
+}
+.skin-price {font-size:11px;color:#ffd770;letter-spacing:.18em;font-weight:800}
+.skin-status{font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:800}
+
+
+/* Glass panel para victoria/derrota */
+.glass-panel{
+  background:linear-gradient(180deg,rgba(14,16,30,.82),rgba(8,10,20,.86));
+  border:1.5px solid rgba(255,255,255,.06);
+  border-radius:18px;padding:32px 30px;
+  width:90%;max-width:520px;
+  display:flex;flex-direction:column;align-items:center;
+  box-shadow:0 24px 60px rgba(0,0,0,.6)
+}
+.star-row{display:flex;gap:14px;margin:20px 0 12px;justify-content:center}
+.s-star{font-size:38px;line-height:1;opacity:0;transform:scale(.4) rotate(-90deg)}
+.s-star.in{animation:starIn .55s cubic-bezier(.18,1.2,.4,1.3) forwards}
+
+/* Settings cards */
+.settings-card{
+  background:linear-gradient(180deg,rgba(18,20,36,.78),rgba(10,12,24,.82));
+  border:1.5px solid rgba(125,249,255,.16);
+  border-radius:13px;padding:16px 20px;width:92%;max-width:520px;
+  display:flex;flex-direction:column;gap:12px;margin-bottom:12px
+}
+.settings-row{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.settings-label{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#dbeaf6;font-weight:800}
+.settings-desc {font-size:10.5px;color:rgba(220,232,245,.46);letter-spacing:.05em;line-height:1.45;margin-top:3px}
+
+/* Toggle (2 valores) */
+.toggle{
+  display:inline-flex;background:rgba(0,0,0,.4);
+  border:1.5px solid rgba(125,249,255,.22);border-radius:10px;overflow:hidden
+}
+.toggle .opt{
+  padding:8px 18px;font-size:11px;font-weight:800;letter-spacing:.18em;
+  text-transform:uppercase;cursor:pointer;
+  color:rgba(220,232,245,.55);background:transparent;border:none;
+  font-family:inherit;transition:background .2s ease,color .2s ease;min-width:74px
+}
+.toggle .opt.active{
+  background:linear-gradient(135deg,rgba(125,249,255,.18),rgba(155,89,255,.13));
+  color:#7df9ff;text-shadow:0 0 8px rgba(125,249,255,.55)
+}
+.toggle .opt:active{transform:scale(.96)}
+.help{font-size:10px;color:rgba(220,232,245,.46);letter-spacing:.06em;line-height:1.4;text-align:center;margin-top:2px}
+
+/* HUD */
+#hud{position:absolute;inset:0;pointer-events:none;z-index:50;display:none}
+.hud-tl{position:absolute;top:12px;left:12px}
+.hud-tr{position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:10px;pointer-events:auto}
+.hud-bl{position:absolute;bottom:12px;left:12px}
+.hud-stat{font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#9ce6ff}
+.hud-stat.sm{font-size:11px;font-weight:700;letter-spacing:.12em;color:rgba(220,232,245,.7);margin-top:3px}
+.hud-stat.dust{color:#ffd770}
+.hud-stat.shield{color:#5dffa8;display:none;margin-top:3px;font-weight:800}
+.pause-btn{
+  width:38px;height:38px;border-radius:8px;
+  border:1.5px solid rgba(125,249,255,.45);background:rgba(10,12,22,.82);
+  color:#7df9ff;font-weight:900;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-family:inherit
+}
+.fps{
+  position:absolute;bottom:8px;right:10px;font-size:10px;
+  color:rgba(125,249,255,.45);letter-spacing:.1em;font-family:ui-monospace,monospace;
+  pointer-events:none
+}
+
+/* Animaciones */
+@keyframes starIn{0%{opacity:0;transform:scale(.3) rotate(-120deg)}75%{opacity:1;transform:scale(1.18) rotate(8deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes float {0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.title.float{animation:float 4s ease-in-out infinite}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+
+
+<!-- ============== MENÚ PRINCIPAL ============== -->
+<div id="menuPanel" class="panel active">
+  <div class="meta-strip">Polvo Estelar: <span id="menuStardustVal">0</span></div>
+  <div class="title float"><span class="accent">NEO</span> GRAVITY</div>
+  <div class="tagline">Un puzzle orbital de gravedad y precisión</div>
+  <button class="btn btn-cyan btn-large" onclick="G.showLevelSelect()">Jugar</button>
+  <button class="btn btn-pink"           onclick="G.setState('SHOP')">Bóveda de Skins</button>
+  <button class="btn btn-purple"         onclick="G.setState('SETTINGS')">Ajustes</button>
+  <div style="position:absolute;bottom:18px;font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:rgba(220,232,245,.32);text-align:center;width:100%;padding:0 14px">
+    Arrastra · Lanza · Curva la gravedad
+  </div>
+</div>
+
+<!-- ============== AJUSTES ============== -->
+<div id="settingsPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">‹ Atrás</button>
+  <div class="title" style="font-size:clamp(28px,5vw,42px);margin-top:40px;margin-bottom:24px"><span class="accent">AJUSTES</span></div>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#7df9ff">Calidad gráfica</div>
+        <div class="settings-desc">Suave: máximo rendimiento, fluido en cualquier dispositivo. Alto: efectos completos y texturas con detalle, sin exagerar.</div>
+      </div>
+      <div class="toggle" id="qualityToggle">
+        <button class="opt" data-q="soft" onclick="G.setQuality('soft')">Suave</button>
+        <button class="opt" data-q="high" onclick="G.setQuality('high')">Alto</button>
+      </div>
+    </div>
+    <div class="help" id="qualityInfo"></div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#5dffa8">Sonido</div>
+        <div class="settings-desc">Activa o silencia los efectos sonoros sintetizados.</div>
+      </div>
+      <div class="toggle">
+        <button class="opt" id="sndOff" onclick="G.setSound(false)">Off</button>
+        <button class="opt" id="sndOn"  onclick="G.setSound(true)">On</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#9ce6ff">Mostrar FPS</div>
+        <div class="settings-desc">Muestra el contador de cuadros por segundo en la esquina inferior.</div>
+      </div>
+      <div class="toggle">
+        <button class="opt" id="fpsOff" onclick="G.setShowFps(false)">Off</button>
+        <button class="opt" id="fpsOn"  onclick="G.setShowFps(true)">On</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="border-color:rgba(255,104,104,.22)">
+    <div class="settings-row">
+      <div>
+        <div class="settings-label" style="color:#ff8b8b">Reiniciar progreso</div>
+        <div class="settings-desc">Borra todo tu progreso, polvo estelar y skins desbloqueadas. No se puede deshacer.</div>
+      </div>
+      <button class="btn btn-red" style="min-width:auto;padding:8px 16px;font-size:11px;min-height:auto" onclick="G.resetProgress()">Borrar</button>
+    </div>
+  </div>
+
+  <div style="font-size:9.5px;color:rgba(220,232,245,.22);letter-spacing:.32em;margin-top:8px;text-transform:uppercase">Construido con física real · Pixel pulido a mano</div>
+</div>
+
+
+<!-- ============== SELECCIÓN DE NIVEL ============== -->
+<div id="levelPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">‹ Atrás</button>
+  <div class="title" style="font-size:clamp(26px,5vw,40px);margin-top:40px;margin-bottom:14px"><span class="accent">MISIONES</span></div>
+  <div id="levelGrid" class="grid"></div>
+</div>
+
+<!-- ============== TIENDA DE SKINS ============== -->
+<div id="shopPanel" class="panel">
+  <button class="btn btn-cyan back-btn" onclick="G.setState('MENU')">‹ Atrás</button>
+  <div class="meta-strip">Polvo: <span id="shopStardustVal">0</span></div>
+  <div class="title" style="font-size:clamp(26px,5vw,40px);margin-top:40px;margin-bottom:14px"><span class="accent" style="color:#ff5fb0">BÓVEDA</span></div>
+  <div id="skinGrid" class="grid"></div>
+</div>
+
+<!-- ============== PAUSA ============== -->
+<div id="pausePanel" class="panel">
+  <div class="title" style="font-size:clamp(28px,5vw,46px)"><span class="accent">PAUSA</span></div>
+  <div style="font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:rgba(170,210,235,.5);margin-bottom:30px">Transmisión suspendida</div>
+  <button class="btn btn-cyan btn-large" onclick="G.resume()">Reanudar</button>
+  <button class="btn btn-gold"           onclick="G.restartLevel()">Reiniciar</button>
+  <button class="btn btn-red"            onclick="G.setState('MENU')">Menú principal</button>
+</div>
+
+<!-- ============== VICTORIA ============== -->
+<div id="victoryPanel" class="panel">
+  <div class="glass-panel" style="border-color:rgba(93,255,168,.30)">
+    <div class="title" style="color:#5dffa8;font-size:clamp(22px,4vw,32px);text-shadow:0 0 22px rgba(93,255,168,.55);margin-bottom:4px">Órbita establecida</div>
+    <div style="font-size:10.5px;letter-spacing:.36em;color:rgba(220,232,245,.42);text-transform:uppercase">Misión completada</div>
+    <div class="star-row" id="victoryStarsContainer"></div>
+    <div id="victoryScore" style="font-size:13px;color:rgba(220,232,245,.85);letter-spacing:.04em;margin-bottom:22px;text-align:center;line-height:1.7"></div>
+    <button class="btn btn-green btn-large" id="nextLevelBtn" onclick="G.nextLevel()">Siguiente misión</button>
+    <button class="btn btn-cyan" onclick="G.setState('MENU')" style="min-width:240px">Volver al menú</button>
+  </div>
+</div>
+
+<!-- ============== DERROTA ============== -->
+<div id="gameoverPanel" class="panel">
+  <div class="glass-panel" style="border-color:rgba(255,104,104,.30)">
+    <div class="title" style="color:#ff8b8b;font-size:clamp(22px,4vw,32px);text-shadow:0 0 22px rgba(255,104,104,.55);margin-bottom:4px">Señal perdida</div>
+    <div id="gameoverSubtitle" style="font-size:10.5px;letter-spacing:.36em;color:rgba(220,232,245,.42);text-transform:uppercase;margin-bottom:18px">El orbe fue destruido</div>
+    <div id="gameoverQuote" style="font-size:13px;color:#ff8b8b;line-height:1.6;text-align:center;margin-bottom:26px;padding:0 12px;font-style:italic;border-left:3px solid #ff6868"></div>
+    <button class="btn btn-red btn-large" onclick="G.restartLevel()">Reintentar</button>
+    <button class="btn btn-cyan" onclick="G.setState('MENU')" style="min-width:240px">Volver al menú</button>
+  </div>
+</div>
+
+<!-- ============== HUD EN PARTIDA ============== -->
+<div id="hud">
+  <div class="hud-tl">
+    <div class="hud-stat" id="hudLevel">Nivel 1</div>
+    <div class="hud-stat sm" id="hudShots">Lanzamientos: 0</div>
+    <div class="hud-stat shield" id="hudShield">Escudo activo</div>
+  </div>
+  <div class="hud-tr">
+    <div class="hud-stat" id="hudStars" style="color:#ffd770;letter-spacing:.32em;font-size:16px"></div>
+    <button class="pause-btn" onclick="G.pause()">II</button>
+  </div>
+  <div class="hud-bl">
+    <div class="hud-stat sm dust" id="hudDust">Polvo: 0</div>
+  </div>
+  <div class="fps" id="fpsBadge" style="display:none">FPS 60</div>
+</div>
+
+
+<script>
+'use strict';
+
+/* ============================================================================
+ * NEO GRAVITY · MOTOR
+ * ----------------------------------------------------------------------------
+ * Arquitectura:
+ *   · Loop con timestep fijo (60Hz) y acumulador. La física es independiente
+ *     del refresh del navegador.
+ *   · Render por capas. La mayor parte del trabajo se hace UNA vez:
+ *       - bgLayer:     fondo nebular + estrellas. Solo se redibuja al
+ *                      cambiar tamaño/calidad.
+ *       - staticLayer: geometría del nivel (paredes, kill zones, discos
+ *                      de acreción de los agujeros negros, base de los
+ *                      bumpers). Solo al cargar un nivel.
+ *       - dinámico:    orbe, rastro, partículas, animaciones suaves
+ *                      (rotación, pulsos, flashes). Es lo único por frame.
+ *   · 2 modos de calidad: 'soft' (rendimiento) y 'high' (visual completo).
+ *     El sistema 'auto' se eliminó deliberadamente: el usuario elige.
+ *   · Pool de partículas con cursor circular: 0 alocaciones en runtime.
+ *   · Sin shadowBlur en el hot path: es el mayor killer de FPS de canvas 2D.
+ *   · Gradientes radiales pre-construidos donde se reutilizan (orbe, halos).
+ * ============================================================================ */
+
+const G = {
+  // ===== Refs DOM =====
+  canvas: null, ctx: null,
+  W: 0, H: 0, dpr: 1,
+
+  // ===== Capas pre-renderizadas =====
+  bgLayer: null,     bgCtx: null,
+  staticLayer: null, staticCtx: null,
+  bgDirty: true,
+  staticDirty: true,
+
+  // ===== Estado global =====
+  state: 'MENU', prevState: 'MENU',
+  currentLevel: 0,
+  shots: 0, starsCollected: 0,
+  stardust: 0,
+  unlockedLevels: Array(14).fill(false),
+  bestScores: Array(14).fill(0),
+  unlockedSkins: ['default'],
+  equippedSkin: 'default',
+
+
+  // ===== Configuración de calidad: SUAVE vs ALTO =====
+  // Los dos modos están calibrados para sentirse pulidos. 'soft' no es feo,
+  // simplemente recorta los efectos más caros (gradientes en runtime,
+  // halos, parallax) preservando la legibilidad.
+  quality: 'soft',          // valor por defecto seguro
+  qSettings: {
+    soft: {
+      dprMax: 1.0,
+      bgStars: 60,           // estrellas estáticas pintadas en bgLayer
+      bgNebula: false,       // sin manchas nebulosas
+      bgTwinkle: 0,          // estrellas que parpadean (overlay dinámico)
+      bgParallax: 0,         // capa parallax adicional
+      maxParticles: 80,
+      maxConfetti: 50,
+      trailMax: 5,
+      bhRings: 1,
+      bhArms: 1, bhPoints: 14,
+      useGradients: false,
+      useStripes: false,
+      orbHalo: false,
+      goalHalo: false,
+      bumperGlow: false,
+      starGlow: false,
+      wallTexture: 'flat'    // base sin textura interior
+    },
+    high: {
+      dprMax: 1.5,
+      bgStars: 140,
+      bgNebula: true,
+      bgTwinkle: 18,
+      bgParallax: 14,
+      maxParticles: 180,
+      maxConfetti: 120,
+      trailMax: 12,
+      bhRings: 3,
+      bhArms: 2, bhPoints: 22,
+      useGradients: true,
+      useStripes: true,
+      orbHalo: true,
+      goalHalo: true,
+      bumperGlow: true,
+      starGlow: true,
+      wallTexture: 'bevel'   // bisel interior + scanline sutil
+    }
+  },
+
+  soundEnabled: true,
+  showFps: false,
+
+  // ===== FPS tracking =====
+  fpsAvg: 60, fpsAccum: 0, fpsFrames: 0,
+
+  // ===== Pools y cursores O(1) =====
+  particlesPool: [], maxParticles: 80, particleCursor: 0,
+  confettiPool: [],  maxConfetti: 50,  confettiCursor: 0,
+
+  // ===== Mundo activo =====
+  orb: null,
+  trail: [],
+  walls: [], bumpers: [], blackHoles: [], killZones: [], stars: [], goal: null,
+  bgTwinkles: [],   // overlays animados sobre bgLayer (modo 'high')
+  bgParallax: [],   // puntos brillantes lentos (modo 'high')
+
+  // ===== Loop =====
+  lastTime: 0, accumulator: 0, dt: 1/60, frameCount: 0,
+
+  // ===== Input =====
+  aiming: false, aimStart: { x:0, y:0 }, aimEnd: { x:0, y:0 },
+
+  // ===== Audio =====
+  audioCtx: null,
+
+  // ===== Mensajes (rachas de derrota) =====
+  loseStreak: 0, lastLevelDied: -1,
+
+
+  // ===== Frases motivacionales =====
+  victoryQuotes: [
+    '"Las leyes de la gravedad se rinden ante tu precisión cósmica."',
+    '"Magistral. La galaxia ha tomado nota de tu nombre."',
+    '"Eso fue arte orbital puro. Sigue así."',
+    '"Otro sistema solar conquistado."',
+    '"La física llora de envidia ante tu trayectoria."',
+    '"Newton estaría orgulloso. Einstein, también."',
+    '"Tu polvo estelar se duplica, igual que tu leyenda."',
+    '"La órbita perfecta no existe... excepto cuando tú lanzas."',
+    '"Brillas más que el agujero negro al que acabas de esquivar."',
+    '"Misión completada. El cosmos te debe una."'
+  ],
+  motivationQuotes: [
+    '"Quizás en tu siguiente lanzamiento. El cosmos premia la persistencia."',
+    '"El fracaso es solo una corrección de órbita hacia la perfección."',
+    '"La gravedad es implacable, pero tu determinación lo es aún más."',
+    '"Cada choque te enseña una nueva trayectoria."',
+    '"Incluso las estrellas colapsan antes de brillar al máximo."',
+    '"La precisión orbital requiere paciencia. Tu próximo cálculo será el bueno."'
+  ],
+  toughQuotes: [
+    '"Tres intentos y la nave sigue hecha pedazos. Respira, calcula, vuelve a lanzar."',
+    '"La gravedad gana otra batalla. Pero la guerra... aún es tuya."',
+    '"Empezamos a sospechar que el agujero negro tiene tu número."',
+    '"Tu trayectoria está siendo creativa. Demasiado creativa."',
+    '"El cosmos no es paciente, pero te da otra oportunidad. No la desperdicies."'
+  ],
+  savageQuotes: [
+    '"¿OTRA VEZ? Mi abuela esquiva mejor obstáculos con los ojos cerrados."',
+    '"He visto cometas con mejor puntería, y eso que no tienen cerebro."',
+    '"La definición de locura: repetir lo mismo esperando un resultado distinto."',
+    '"El polvo estelar te tiene miedo. Sinceramente, no le culpo."',
+    '"Una piedra rebotando al azar tendría más éxito que tú ahora mismo."',
+    '"¿Estás jugando con los pies? Es la única explicación racional."',
+    '"REVISA TU ÁNGULO. Por amor a la galaxia."',
+    '"Newton se está revolcando en su tumba. Y no de risa."',
+    '"A este ritmo, las estrellas se apagarán antes que termines este nivel."',
+    '"Respira. Cuenta hasta diez. Y AJUSTA LA POTENCIA."'
+  ],
+
+
+  // ===== Skins (16) =====
+  skins: [
+    { id:'default',       name:'Cian Estándar',     price:0,    colorCore:'#7df9ff', colorGlow:'rgba(125,249,255,0.42)', colorTrail:'rgba(125,249,255,', ability:'none',                abilityDesc:'Estabilizador básico (sin habilidad)' },
+    { id:'neon-lime',     name:'Lima Neón',         price:30,   colorCore:'#39ff14', colorGlow:'rgba(57,255,20,0.42)',   colorTrail:'rgba(57,255,20,',   ability:'elasticity',          abilityDesc:'Superelasticidad: +12% rebote en muros' },
+    { id:'hot-pink',      name:'Rosa Eléctrico',    price:80,   colorCore:'#ff1493', colorGlow:'rgba(255,20,147,0.42)',  colorTrail:'rgba(255,20,147,',  ability:'magnet',              abilityDesc:'Atracción: imán de estrellas a +18% de rango' },
+    { id:'electric-blue', name:'Azul Eléctrico',    price:140,  colorCore:'#0066ff', colorGlow:'rgba(0,102,255,0.42)',   colorTrail:'rgba(0,102,255,',   ability:'gravity_res',         abilityDesc:'Escudo gravitacional: -22% atracción de agujeros' },
+    { id:'vortex-edge',   name:'Vórtice Púrpura',   price:200,  colorCore:'#9b59ff', colorGlow:'rgba(155,89,255,0.42)',  colorTrail:'rgba(155,89,255,',  ability:'mini',                abilityDesc:'Micro-tamaño: -15% radio (huecos estrechos)' },
+    { id:'solar-flare',   name:'Fuego Solar',       price:320,  colorCore:'#ffd700', colorGlow:'rgba(255,215,0,0.42)',   colorTrail:'rgba(255,215,0,',   ability:'low_friction',        abilityDesc:'Inercia solar: -30% rozamiento' },
+    { id:'singularity',   name:'Singularidad Roja', price:500,  colorCore:'#ff0044', colorGlow:'rgba(255,0,68,0.42)',    colorTrail:'rgba(255,0,68,',    ability:'shield_1',            abilityDesc:'Escudo vital: sobrevive 1 impacto mortal' },
+    { id:'aurora',        name:'Aurora Verde',      price:650,  colorCore:'#00ffaa', colorGlow:'rgba(0,255,170,0.42)',   colorTrail:'rgba(0,255,170,',   ability:'super_magnet',        abilityDesc:'Magnetismo aurora: +38% rango de imán' },
+    { id:'supernova',     name:'Supernova',         price:850,  colorCore:'#ff5500', colorGlow:'rgba(255,85,0,0.46)',    colorTrail:'rgba(255,85,0,',    ability:'hyper_power',         abilityDesc:'Impulso supernova: +12% potencia de lanzamiento' },
+    { id:'stardust-skin', name:'Polvo Astral',      price:1000, colorCore:'#ffffff', colorGlow:'rgba(255,255,255,0.46)', colorTrail:'rgba(255,255,255,', ability:'goal_suction',        abilityDesc:'Sintonía astral: la meta atrae desde +20% más lejos' },
+    { id:'exotic-matter', name:'Materia Exótica',   price:1300, colorCore:'#e0115f', colorGlow:'rgba(224,17,95,0.42)',   colorTrail:'rgba(224,17,95,',   ability:'quantum_break',       abilityDesc:'Activa: salto cuántico (frenado en aire, 1/lanzamiento)' },
+    { id:'absolute-zero', name:'Cero Absoluto',     price:1600, colorCore:'#00f3ff', colorGlow:'rgba(0,243,255,0.42)',   colorTrail:'rgba(0,243,255,',   ability:'cold_inertia',        abilityDesc:'Cero inercia: te detienes antes al ir despacio' },
+    { id:'hiperespacio',  name:'Hiperespacio',      price:2000, colorCore:'#ff00ff', colorGlow:'rgba(255,0,255,0.50)',   colorTrail:'rgba(255,255,255,', ability:'midair_launch',       abilityDesc:'Activa: doble órbita (relanzar en aire, -20% potencia)' },
+    { id:'wormhole',      name:'Agujero Gusano',    price:2400, colorCore:'#0c0c17', colorGlow:'rgba(255,216,77,0.60)',  colorTrail:'rgba(255,216,77,',  ability:'anti_grav',           abilityDesc:'Singularidad pura: -65% atracción gravitatoria' },
+    { id:'orion-nebula',  name:'Orión Nebulosa',    price:2800, colorCore:'#8a2be2', colorGlow:'rgba(138,43,226,0.55)',  colorTrail:'rgba(138,43,226,',  ability:'shield_2',            abilityDesc:'Hiper-escudo: sobrevive 2 impactos mortales' },
+    { id:'zero-gravity',  name:'Gravedad Cero',     price:3500, colorCore:'#a9a9a9', colorGlow:'rgba(169,169,169,0.42)', colorTrail:'rgba(169,169,169,', ability:'frictionless_predict',abilityDesc:'Vacío absoluto: -40% fricción y predictor extendido' }
+  ],
+  getSkin: function(){ return this.skins.find(function(s){ return s.id === G.equippedSkin; }) || this.skins[0]; },
+
+
+  // ===== Niveles (14) =====
+  // Coordenadas normalizadas [0..1]. Se escalan al cargar el nivel.
+  // Para no inflar el archivo, la lista se compacta en una línea por entidad.
+  levels: [
+    { name:'Primer Destello', par:2, spawn:{x:.15,y:.75}, goal:{x:.85,y:.25,r:.035},
+      stars:[{x:.4,y:.55},{x:.6,y:.65},{x:.75,y:.4}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.3,y:.35,w:.03,h:.3}],
+      bumpers:[{x:.55,y:.45,r:.03}], blackHoles:[], killZones:[] },
+    { name:'Bulevar Rebotes', par:3, spawn:{x:.1,y:.85}, goal:{x:.9,y:.15,r:.033},
+      stars:[{x:.3,y:.7},{x:.5,y:.5},{x:.72,y:.3}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.22,y:.55,w:.2,h:.025},{x:.58,y:.4,w:.2,h:.025}],
+      bumpers:[{x:.35,y:.75,r:.035},{x:.5,y:.32,r:.03},{x:.78,y:.55,r:.03}], blackHoles:[], killZones:[] },
+    { name:'El Desafío', par:3, spawn:{x:.1,y:.5}, goal:{x:.9,y:.5,r:.03},
+      stars:[{x:.35,y:.28},{x:.55,y:.72},{x:.78,y:.35}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.25,y:.18,w:.025,h:.35},{x:.45,y:.48,w:.025,h:.38},{x:.65,y:.12,w:.025,h:.42}],
+      bumpers:[{x:.35,y:.62,r:.025},{x:.55,y:.32,r:.025}],
+      blackHoles:[{x:.5,y:.5,r:.045,strength:.35}],
+      killZones:[{x:.42,y:.87,w:.14,h:.025}] },
+    { name:'Pozo Gravitatorio', par:4, spawn:{x:.1,y:.9}, goal:{x:.9,y:.1,r:.03},
+      stars:[{x:.5,y:.58},{x:.28,y:.3},{x:.82,y:.52}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.3,y:.62,w:.4,h:.022}],
+      bumpers:[{x:.2,y:.45,r:.03},{x:.82,y:.72,r:.03}],
+      blackHoles:[{x:.5,y:.4,r:.06,strength:.52},{x:.72,y:.25,r:.045,strength:.3}],
+      killZones:[{x:0,y:.44,w:.12,h:.022}] },
+    { name:'Laberinto de Neón', par:5, spawn:{x:.08,y:.92}, goal:{x:.92,y:.08,r:.028},
+      stars:[{x:.22,y:.72},{x:.5,y:.5},{x:.78,y:.28}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.16,y:.28,w:.02,h:.5},{x:.32,y:.22,w:.02,h:.5},{x:.48,y:.32,w:.02,h:.5},{x:.64,y:.18,w:.02,h:.5},{x:.8,y:.28,w:.02,h:.5}],
+      bumpers:[{x:.24,y:.22,r:.02},{x:.4,y:.78,r:.02},{x:.56,y:.28,r:.02},{x:.72,y:.72,r:.02}],
+      blackHoles:[{x:.4,y:.45,r:.035,strength:.25}],
+      killZones:[{x:.56,y:.88,w:.14,h:.022},{x:.22,y:.14,w:.1,h:.022}] },
+    { name:'Materia Oscura', par:4, spawn:{x:.5,y:.92}, goal:{x:.5,y:.08,r:.028},
+      stars:[{x:.22,y:.5},{x:.78,y:.5},{x:.5,y:.3}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.2,y:.65,w:.25,h:.02},{x:.55,y:.65,w:.25,h:.02},{x:.35,y:.38,w:.3,h:.02},{x:.1,y:.2,w:.2,h:.02},{x:.7,y:.2,w:.2,h:.02}],
+      bumpers:[{x:.5,y:.78,r:.03},{x:.15,y:.45,r:.025},{x:.85,y:.45,r:.025}],
+      blackHoles:[{x:.32,y:.52,r:.045,strength:.4},{x:.68,y:.52,r:.045,strength:.4}],
+      killZones:[{x:.42,y:.52,w:.16,h:.02},{x:0,y:.78,w:.08,h:.02},{x:.92,y:.78,w:.08,h:.02}] },
+
+
+    { name:'Singularidad', par:5, spawn:{x:.08,y:.08}, goal:{x:.92,y:.92,r:.025},
+      stars:[{x:.5,y:.18},{x:.18,y:.72},{x:.82,y:.5}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.2,y:.2,w:.15,h:.02},{x:.65,y:.2,w:.15,h:.02},{x:.2,y:.8,w:.15,h:.02},{x:.65,y:.8,w:.15,h:.02},{x:.38,y:.38,w:.24,h:.02},{x:.38,y:.6,w:.24,h:.02},{x:.38,y:.38,w:.02,h:.24},{x:.6,y:.38,w:.02,h:.24}],
+      bumpers:[{x:.15,y:.5,r:.025},{x:.85,y:.5,r:.025},{x:.5,y:.88,r:.03}],
+      blackHoles:[{x:.5,y:.5,r:.055,strength:.6},{x:.28,y:.35,r:.03,strength:.25},{x:.72,y:.65,r:.03,strength:.25}],
+      killZones:[{x:.35,y:.26,w:.3,h:.02},{x:.35,y:.74,w:.3,h:.02}] },
+    { name:'Cinturón de Asteroides', par:4, spawn:{x:.15,y:.5}, goal:{x:.85,y:.5,r:.03},
+      stars:[{x:.5,y:.2},{x:.5,y:.5},{x:.5,y:.8}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.45,y:.25,w:.1,h:.02},{x:.45,y:.73,w:.1,h:.02}],
+      bumpers:[{x:.38,y:.35,r:.032},{x:.38,y:.65,r:.032},{x:.62,y:.35,r:.032},{x:.62,y:.65,r:.032},{x:.5,y:.35,r:.025},{x:.5,y:.65,r:.025}],
+      blackHoles:[],
+      killZones:[{x:.48,y:.02,w:.04,h:.15},{x:.48,y:.83,w:.04,h:.15}] },
+    { name:'Órbitas Binarias', par:3, spawn:{x:.1,y:.5}, goal:{x:.9,y:.5,r:.03},
+      stars:[{x:.4,y:.72},{x:.6,y:.28},{x:.5,y:.5}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1}],
+      bumpers:[{x:.25,y:.25,r:.03},{x:.25,y:.75,r:.03},{x:.75,y:.25,r:.03},{x:.75,y:.75,r:.03}],
+      blackHoles:[{x:.4,y:.32,r:.045,strength:.35},{x:.6,y:.68,r:.045,strength:.35}],
+      killZones:[{x:.48,y:.35,w:.04,h:.3}] },
+    { name:'Frenesí de Rebote', par:4, spawn:{x:.5,y:.15}, goal:{x:.5,y:.85,r:.028},
+      stars:[{x:.2,y:.5},{x:.5,y:.5},{x:.8,y:.5}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.3,y:.45,w:.4,h:.022}],
+      bumpers:[{x:.15,y:.35,r:.035},{x:.35,y:.25,r:.03},{x:.65,y:.25,r:.03},{x:.85,y:.35,r:.035},{x:.3,y:.65,r:.028},{x:.7,y:.65,r:.028}],
+      blackHoles:[{x:.5,y:.35,r:.04,strength:.25}],
+      killZones:[{x:.02,y:.48,w:.12,h:.04},{x:.86,y:.48,w:.12,h:.04}] },
+    { name:'Vórtice Inverso', par:5, spawn:{x:.1,y:.1}, goal:{x:.9,y:.9,r:.026},
+      stars:[{x:.4,y:.2},{x:.5,y:.5},{x:.6,y:.8}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.3,y:.35,w:.03,h:.4},{x:.67,y:.25,w:.03,h:.4}],
+      bumpers:[{x:.5,y:.25,r:.025},{x:.5,y:.75,r:.025}],
+      blackHoles:[{x:.2,y:.6,r:.05,strength:-.4},{x:.8,y:.4,r:.05,strength:.45}],
+      killZones:[{x:.33,y:.02,w:.34,h:.022}] },
+
+
+    { name:'Laberinto de Gravedad', par:6, spawn:{x:.1,y:.9}, goal:{x:.9,y:.1,r:.025},
+      stars:[{x:.15,y:.3},{x:.5,y:.55},{x:.85,y:.7}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.28,y:.3,w:.02,h:.7},{x:.7,y:0,w:.02,h:.7}],
+      bumpers:[{x:.15,y:.5,r:.03},{x:.5,y:.2,r:.028},{x:.5,y:.8,r:.028},{x:.85,y:.5,r:.03}],
+      blackHoles:[{x:.5,y:.5,r:.04,strength:.3},{x:.85,y:.3,r:.035,strength:-.2}],
+      killZones:[{x:.42,y:.48,w:.16,h:.025}] },
+    { name:'La Tempestad Cósmica', par:5, spawn:{x:.5,y:.9}, goal:{x:.5,y:.1,r:.024},
+      stars:[{x:.32,y:.42},{x:.68,y:.42},{x:.5,y:.65}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.4,y:.28,w:.2,h:.022}],
+      bumpers:[{x:.22,y:.25,r:.032},{x:.78,y:.25,r:.032},{x:.25,y:.7,r:.025},{x:.75,y:.7,r:.025}],
+      blackHoles:[{x:.2,y:.45,r:.045,strength:.32},{x:.5,y:.45,r:.05,strength:-.35},{x:.8,y:.45,r:.045,strength:.32}],
+      killZones:[{x:.12,y:.55,w:.1,h:.025},{x:.78,y:.55,w:.1,h:.025}] },
+    { name:'Singularidad Suprema', par:6, spawn:{x:.1,y:.5}, goal:{x:.9,y:.5,r:.022},
+      stars:[{x:.3,y:.55},{x:.5,y:.25},{x:.7,y:.55}],
+      walls:[{x:0,y:0,w:1,h:.02},{x:0,y:.98,w:1,h:.02},{x:0,y:0,w:.02,h:1},{x:.98,y:0,w:.02,h:1},{x:.4,y:.15,w:.2,h:.02},{x:.4,y:.83,w:.2,h:.02}],
+      bumpers:[{x:.35,y:.3,r:.026},{x:.35,y:.7,r:.026},{x:.65,y:.3,r:.026},{x:.65,y:.7,r:.026}],
+      blackHoles:[{x:.5,y:.5,r:.062,strength:.6},{x:.25,y:.22,r:.03,strength:.25},{x:.75,y:.78,r:.03,strength:.25}],
+      killZones:[{x:.45,y:.35,w:.1,h:.022},{x:.45,y:.62,w:.1,h:.022}] }
+  ],
+
+
+  /* ==========================================================================
+   * AUDIO · WebAudio sintetizado (sin assets)
+   * ========================================================================== */
+  initAudio: function(){
+    if (this.audioCtx) return;
+    try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { /* silencio */ }
+  },
+  playTone: function(freq, dur, type, gain, delay){
+    if (!this.audioCtx || !this.soundEnabled) return;
+    var ctx = this.audioCtx, t = ctx.currentTime + (delay||0);
+    var osc = ctx.createOscillator(), gn = ctx.createGain(), master = ctx.createGain();
+    master.gain.value = 0.5;
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gn.gain.setValueAtTime(gain || 0.4, t);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gn); gn.connect(master); master.connect(ctx.destination);
+    osc.start(t); osc.stop(t + dur);
+  },
+  sfx: {
+    launch:      function(){ G.playTone(90,.14,'square',.45);    G.playTone(140,.10,'sawtooth',.35,.02); },
+    bounce:      function(){ G.playTone(800,.04,'square',.40);   G.playTone(1200,.03,'sine',.30,.01); },
+    star:        function(){ G.playTone(523,.10,'sine',.40);     G.playTone(659,.10,'sine',.40,.06); G.playTone(784,.10,'sine',.40,.12); G.playTone(1047,.18,'sine',.45,.18); },
+    victory:     function(){ G.playTone(523,.10,'sine',.45);     G.playTone(659,.10,'sine',.45,.08); G.playTone(784,.10,'sine',.45,.16); G.playTone(1047,.20,'sine',.50,.24); G.playTone(1319,.25,'sine',.40,.32); },
+    death:       function(){ G.playTone(350,.15,'sawtooth',.50); G.playTone(250,.15,'sawtooth',.45,.06); G.playTone(150,.20,'sawtooth',.45,.14); G.playTone(80,.30,'square',.50,.25); },
+    shieldBreak: function(){ G.playTone(300,.08,'sawtooth',.50); G.playTone(600,.12,'square',.50,.04); G.playTone(900,.15,'sine',.40,.08); },
+    bumper:      function(){ G.playTone(420,.08,'square',.45);   G.playTone(650,.05,'sawtooth',.35,.01); },
+    buy:         function(){ G.playTone(600,.08,'sine',.40);     G.playTone(800,.10,'sine',.40,.05); G.playTone(1100,.12,'sine',.35,.10); }
+  },
+
+  /* ==========================================================================
+   * SAVE / LOAD · clave nueva ('v3') para no chocar con datos legacy
+   * ========================================================================== */
+  save: function(){
+    var data = {
+      stardust:this.stardust, unlockedLevels:this.unlockedLevels, bestScores:this.bestScores,
+      unlockedSkins:this.unlockedSkins, equippedSkin:this.equippedSkin,
+      quality:this.quality, soundEnabled:this.soundEnabled, showFps:this.showFps
+    };
+    try { localStorage.setItem('neogravity_save_v3', JSON.stringify(data)); } catch(e){}
+  },
+  load: function(){
+    try {
+      var raw = localStorage.getItem('neogravity_save_v3'); if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.stardust !== undefined) this.stardust = d.stardust;
+      if (d.unlockedLevels) this.unlockedLevels = d.unlockedLevels;
+      if (d.bestScores)    this.bestScores    = d.bestScores;
+      if (d.unlockedSkins) this.unlockedSkins = d.unlockedSkins;
+      if (d.equippedSkin)  this.equippedSkin  = d.equippedSkin;
+      // Migración: 'auto' / 'low' / valores antiguos -> 'soft'
+      if (d.quality === 'high') this.quality = 'high';
+      else this.quality = 'soft';
+      if (d.soundEnabled !== undefined) this.soundEnabled = !!d.soundEnabled;
+      if (d.showFps !== undefined) this.showFps = !!d.showFps;
+      while (this.unlockedLevels.length < 14) this.unlockedLevels.push(false);
+      while (this.bestScores.length    < 14) this.bestScores.push(0);
+    } catch(e){}
+  },
+  resetProgress: function(){
+    if (typeof window.confirm === 'function' && !window.confirm('¿Seguro que quieres BORRAR todo tu progreso? Esto no se puede deshacer.')) return;
+    try { localStorage.removeItem('neogravity_save_v3'); } catch(e){}
+    this.stardust = 0;
+    this.unlockedLevels = Array(14).fill(false); this.unlockedLevels[0] = true;
+    this.bestScores = Array(14).fill(0);
+    this.unlockedSkins = ['default']; this.equippedSkin = 'default';
+    this.loseStreak = 0; this.lastLevelDied = -1;
+    this.save(); this.updateMenuUI(); this.setState('MENU');
+  },
+
+
+  /* ==========================================================================
+   * CALIDAD GRÁFICA · API
+   * ========================================================================== */
+  applyQuality: function(){
+    var q = this.qSettings[this.quality] || this.qSettings.soft;
+    this.maxParticles = q.maxParticles;
+    this.maxConfetti  = q.maxConfetti;
+    if (!this.particlesPool || this.particlesPool.length !== this.maxParticles) {
+      this.initPools();
+    }
+    if (this.canvas) this.resize();
+    // Ambas capas se invalidan al cambiar calidad: la cantidad de detalle cambia.
+    this.bgDirty = true;
+    this.staticDirty = true;
+    this.updateQualityUI();
+  },
+  setQuality: function(q){
+    if (q !== 'soft' && q !== 'high') q = 'soft';
+    this.quality = q;
+    this.save();
+    this.applyQuality();
+  },
+  setSound:    function(on){ this.soundEnabled = !!on; this.save(); this.updateQualityUI(); },
+  setShowFps:  function(on){
+    this.showFps = !!on; this.save();
+    var badge = document.getElementById('fpsBadge');
+    if (badge) badge.style.display = on ? 'block' : 'none';
+    this.updateQualityUI();
+  },
+  updateQualityUI: function(){
+    // Calidad
+    var btns = document.querySelectorAll('#qualityToggle .opt');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].getAttribute('data-q') === this.quality);
+    }
+    var info = document.getElementById('qualityInfo');
+    if (info) {
+      info.textContent = this.quality === 'high'
+        ? 'Modo activo: Alto · texturas, halos y nebulosa de fondo'
+        : 'Modo activo: Suave · sin halos ni gradientes en runtime, fluido en gama baja';
+    }
+    var on  = document.getElementById('sndOn');
+    var off = document.getElementById('sndOff');
+    if (on)  on.classList.toggle('active',  this.soundEnabled);
+    if (off) off.classList.toggle('active', !this.soundEnabled);
+    var fpsOn  = document.getElementById('fpsOn');
+    var fpsOff = document.getElementById('fpsOff');
+    if (fpsOn)  fpsOn.classList.toggle('active',  this.showFps);
+    if (fpsOff) fpsOff.classList.toggle('active', !this.showFps);
+  },
+
+
+  /* ==========================================================================
+   * MÁQUINA DE ESTADOS Y UI
+   * ========================================================================== */
+  setState: function(s){
+    this.prevState = this.state;
+    this.state = s;
+    document.getElementById('menuPanel'    ).classList.toggle('active', s === 'MENU');
+    document.getElementById('levelPanel'   ).classList.toggle('active', s === 'LEVEL_SELECT');
+    document.getElementById('shopPanel'    ).classList.toggle('active', s === 'SHOP');
+    document.getElementById('settingsPanel').classList.toggle('active', s === 'SETTINGS');
+    document.getElementById('pausePanel'   ).classList.toggle('active', s === 'PAUSED');
+    document.getElementById('victoryPanel' ).classList.toggle('active', s === 'VICTORY');
+    document.getElementById('gameoverPanel').classList.toggle('active', s === 'GAME_OVER');
+    document.getElementById('hud').style.display = (s === 'PLAYING' || s === 'PAUSED') ? 'block' : 'none';
+    if (s === 'MENU')         this.updateMenuUI();
+    if (s === 'SHOP')         this.updateShopUI();
+    if (s === 'SETTINGS')     this.updateQualityUI();
+    if (s === 'LEVEL_SELECT') this.updateLevelSelectUI();
+  },
+  showLevelSelect: function(){ this.setState('LEVEL_SELECT'); },
+  updateMenuUI:    function(){ document.getElementById('menuStardustVal').textContent = this.stardust; },
+
+  updateLevelSelectUI: function(){
+    var grid = document.getElementById('levelGrid'); grid.innerHTML = '';
+    for (var i = 0; i < this.levels.length; i++) {
+      var lv = this.levels[i], unlocked = this.unlockedLevels[i], best = this.bestScores[i];
+      var card = document.createElement('div');
+      card.className = 'level-card' + (unlocked ? '' : ' locked');
+      var stars = '';
+      for (var j = 0; j < 3; j++) {
+        stars += (unlocked && j < best)
+          ? '<span style="color:#ffd770">★</span>'
+          : '<span style="color:rgba(255,255,255,.12)">☆</span>';
+      }
+      card.innerHTML = '<div class="lnum">' + (i+1) + '</div><div class="lname">' + lv.name + '</div><div class="lstars">' + stars + '</div>';
+      if (unlocked) {
+        (function(idx){ card.onclick = function(){ G.startLevel(idx); }; })(i);
+      }
+      grid.appendChild(card);
+    }
+  },
+
+  updateShopUI: function(){
+    document.getElementById('shopStardustVal').textContent = this.stardust;
+    var grid = document.getElementById('skinGrid'); grid.innerHTML = '';
+    for (var i = 0; i < this.skins.length; i++) {
+      var skin = this.skins[i];
+      var owned    = this.unlockedSkins.indexOf(skin.id) >= 0;
+      var equipped = this.equippedSkin === skin.id;
+      var card = document.createElement('div');
+      card.className = 'skin-card' + (equipped ? ' equipped' : owned ? ' owned' : ' locked');
+
+      var preview = document.createElement('div'); preview.className = 'skin-preview';
+      if (skin.id === 'hiperespacio') {
+        preview.style.background = 'linear-gradient(135deg, #ff00ff, #00ffff, #ffff00)';
+      } else if (skin.id === 'wormhole') {
+        preview.style.background = 'radial-gradient(circle, #000 35%, #ffd770 75%)';
+      } else {
+        preview.style.background = 'radial-gradient(circle at 35% 35%, rgba(255,255,255,.95), ' + skin.colorCore + ' 55%, rgba(0,0,0,.6))';
+      }
+      preview.style.setProperty('--glow', skin.id === 'wormhole' ? '#ffd770' : skin.colorCore);
+      card.appendChild(preview);
+
+      var nm = document.createElement('div'); nm.className = 'skin-name'; nm.textContent = skin.name; card.appendChild(nm);
+      var ab = document.createElement('div'); ab.className = 'skin-ability'; ab.textContent = skin.abilityDesc; card.appendChild(ab);
+
+
+      if (equipped) {
+        var st = document.createElement('div');
+        st.className = 'skin-status'; st.style.color = '#5dffa8'; st.textContent = 'Activo';
+        card.appendChild(st);
+      } else if (owned) {
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-cyan';
+        btn.style.cssText = 'min-width:auto;padding:6px 14px;font-size:11px;margin-top:4px;min-height:auto';
+        btn.textContent = 'Equipar';
+        (function(id){ btn.onclick = function(){ G.equippedSkin = id; G.save(); G.updateShopUI(); }; })(skin.id);
+        card.appendChild(btn);
+      } else {
+        var pr = document.createElement('div'); pr.className = 'skin-price'; pr.textContent = skin.price + ' POLVO'; card.appendChild(pr);
+        var bb = document.createElement('button');
+        bb.className = 'btn btn-gold';
+        bb.style.cssText = 'min-width:auto;padding:6px 14px;font-size:11px;margin-top:4px;min-height:auto';
+        bb.textContent = 'Comprar';
+        if (this.stardust < skin.price) { bb.style.opacity = '.35'; bb.style.pointerEvents = 'none'; }
+        (function(s){
+          bb.onclick = function(){
+            if (G.stardust >= s.price) {
+              G.stardust -= s.price;
+              G.unlockedSkins.push(s.id);
+              G.equippedSkin = s.id;
+              G.save(); G.sfx.buy(); G.updateShopUI();
+            }
+          };
+        })(skin);
+        card.appendChild(bb);
+      }
+      grid.appendChild(card);
+    }
+  },
+
+
+  /* ==========================================================================
+   * GESTIÓN DE NIVEL
+   * ========================================================================== */
+  startLevel: function(idx){
+    this.initAudio();
+    this.currentLevel = idx;
+    this.shots = 0; this.starsCollected = 0;
+    this.trail = [];
+    this.clearParticles();
+
+    var lv = this.levels[idx];
+    var minDim = Math.min(this.W, this.H);
+    var skin = this.getSkin();
+
+    var customRadius = minDim * 0.017;
+    if (skin.ability === 'mini') customRadius *= 0.85;
+
+    this.orb = {
+      x: lv.spawn.x * this.W, y: lv.spawn.y * this.H,
+      vx: 0, vy: 0, r: customRadius,
+      alive: true, launched: false, grounded: true,
+      midAirLaunched: false, shieldCharges: 0
+    };
+    if (skin.ability === 'shield_1') this.orb.shieldCharges = 1;
+    if (skin.ability === 'shield_2') this.orb.shieldCharges = 2;
+    this.updateShieldHUD();
+
+    this.walls = lv.walls.map(function(w){ return { x:w.x*G.W, y:w.y*G.H, w:w.w*G.W, h:w.h*G.H }; });
+    this.bumpers = lv.bumpers.map(function(b){ return { x:b.x*G.W, y:b.y*G.H, r:b.r*minDim, flash:0 }; });
+
+    // Dificultad progresiva: +3% gravedad por nivel
+    var diffScale = 1 + idx * 0.03;
+    this.blackHoles = lv.blackHoles.map(function(b){
+      return { x:b.x*G.W, y:b.y*G.H, r:b.r*minDim, strength:b.strength*diffScale, angle:0 };
+    });
+
+    this.killZones = lv.killZones.map(function(k){ return { x:k.x*G.W, y:k.y*G.H, w:k.w*G.W, h:k.h*G.H }; });
+    this.stars     = lv.stars    .map(function(s){ return { x:s.x*G.W, y:s.y*G.H, r:minDim*0.015, collected:false, angle:0, pulse:0 }; });
+    this.goal = { x: lv.goal.x*this.W, y: lv.goal.y*this.H, r: lv.goal.r*minDim, pulse:0 };
+
+    // La capa estática debe re-renderizarse al cambiar de nivel.
+    this.staticDirty = true;
+
+    this.aiming = false;
+    this.updateHUD();
+    this.setState('PLAYING');
+  },
+  restartLevel: function(){ this.startLevel(this.currentLevel); },
+  nextLevel:    function(){ if (this.currentLevel < this.levels.length-1) this.startLevel(this.currentLevel+1); else this.setState('MENU'); },
+  pause:        function(){ if (this.state === 'PLAYING') this.setState('PAUSED'); },
+  resume:       function(){ if (this.state === 'PAUSED')  { this.setState('PLAYING'); this.lastTime = 0; } },
+
+  updateShieldHUD: function(){
+    var el = document.getElementById('hudShield');
+    if (this.orb && this.orb.shieldCharges > 0) {
+      el.style.display = 'block';
+      el.textContent = 'Escudo activo (' + this.orb.shieldCharges + ')';
+    } else {
+      el.style.display = 'none';
+    }
+  },
+
+  updateHUD: function(){
+    var lv = this.levels[this.currentLevel];
+    document.getElementById('hudLevel').textContent = (this.currentLevel+1) + '. ' + lv.name;
+    document.getElementById('hudShots').textContent = 'Lanzamientos ' + this.shots + ' / par ' + lv.par;
+    var sh = '';
+    for (var i = 0; i < 3; i++) {
+      sh += (i < this.starsCollected)
+        ? '<span style="color:#ffd770">★</span>'
+        : '<span style="color:rgba(255,255,255,.22)">☆</span>';
+    }
+    document.getElementById('hudStars').innerHTML = sh;
+    document.getElementById('hudDust').textContent = 'Polvo ' + this.stardust;
+  },
+
+
+  /* ==========================================================================
+   * POOLS DE PARTÍCULAS · 0 alocaciones en runtime
+   * ========================================================================== */
+  initPools: function(){
+    this.particlesPool = new Array(this.maxParticles);
+    for (var i = 0; i < this.maxParticles; i++) this.particlesPool[i] = { x:0,y:0,vx:0,vy:0,life:0,color:'',size:0,active:false };
+    this.confettiPool = new Array(this.maxConfetti);
+    for (var j = 0; j < this.maxConfetti; j++)  this.confettiPool[j]  = { x:0,y:0,vx:0,vy:0,color:'',life:0,size:0,rot:0,active:false };
+    this.particleCursor = 0; this.confettiCursor = 0;
+  },
+  clearParticles: function(){
+    for (var i = 0; i < this.particlesPool.length; i++) this.particlesPool[i].active = false;
+    for (var j = 0; j < this.confettiPool.length;  j++) this.confettiPool[j] .active = false;
+    this.particleCursor = 0; this.confettiCursor = 0;
+  },
+  spawnParticle: function(x, y, vx, vy, color, size, life){
+    var pool = this.particlesPool, len = pool.length; if (!len) return;
+    var cur = this.particleCursor, p;
+    for (var k = 0; k < 8; k++) { p = pool[cur]; cur = (cur+1) % len; if (!p.active) break; }
+    this.particleCursor = cur;
+    p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+    p.color = color; p.size = size; p.life = life || 1.0; p.active = true;
+  },
+  spawnConfetti: function(x, y, vx, vy, color, size, life){
+    var pool = this.confettiPool, len = pool.length; if (!len) return;
+    var cur = this.confettiCursor, c;
+    for (var k = 0; k < 8; k++) { c = pool[cur]; cur = (cur+1) % len; if (!c.active) break; }
+    this.confettiCursor = cur;
+    c.x = x; c.y = y; c.vx = vx; c.vy = vy;
+    c.color = color; c.size = size; c.life = life || 1.0;
+    c.rot = Math.random() * 360; c.active = true;
+  },
+  spawnShieldBurst: function(x, y){
+    this.sfx.shieldBreak();
+    for (var i = 0; i < 30; i++) {
+      var a = (i / 30) * Math.PI * 2, sp = Math.random() * 4 + 3;
+      this.spawnParticle(x, y, Math.cos(a)*sp, Math.sin(a)*sp, '#00ffff', Math.random()*4+3, 1.0);
+    }
+  },
+
+
+  /* ==========================================================================
+   * VICTORIA · economía equilibrada (polvo escasea para alargar progresión)
+   * ========================================================================== */
+  completeLevel: function(){
+    var lv = this.levels[this.currentLevel];
+    var starReward     = this.starsCollected * 5;
+    var perfect        = (this.shots <= lv.par) ? 10 : 0;
+    var difficultyBonus = Math.floor(this.currentLevel * 0.9);
+    var base           = 4;
+    var total = base + starReward + perfect + difficultyBonus;
+    this.stardust += total;
+
+    this.loseStreak = 0; this.lastLevelDied = -1;
+    if (this.starsCollected > this.bestScores[this.currentLevel]) this.bestScores[this.currentLevel] = this.starsCollected;
+    if (this.currentLevel < this.levels.length - 1) {
+      this.unlockedLevels[this.currentLevel + 1] = true;
+      document.getElementById('nextLevelBtn').style.display = 'inline-flex';
+    } else {
+      document.getElementById('nextLevelBtn').style.display = 'none';
+    }
+    this.save();
+    this.sfx.victory();
+
+    var container = document.getElementById('victoryStarsContainer'); container.innerHTML = '';
+    for (var i = 0; i < 3; i++) {
+      var s = document.createElement('span');
+      s.className = 's-star';
+      if (i < this.starsCollected) {
+        s.style.color = '#ffd770'; s.style.textShadow = '0 0 18px rgba(255,215,112,.7)'; s.textContent = '★';
+      } else {
+        s.style.color = 'rgba(255,255,255,.10)'; s.textContent = '☆';
+      }
+      container.appendChild(s);
+      (function(el, d){ setTimeout(function(){ el.classList.add('in'); }, d); })(s, i*220);
+    }
+
+    var quote = this.victoryQuotes[Math.floor(Math.random() * this.victoryQuotes.length)];
+    var perfectText = perfect ? '<br><span style="color:#5dffa8;font-weight:bold;letter-spacing:.2em">¡Tiro perfecto! +' + perfect + '</span>' : '';
+    var diffText    = difficultyBonus ? '<br><span style="color:#b58fff;font-size:11px">Bonus dificultad +' + difficultyBonus + '</span>' : '';
+    document.getElementById('victoryScore').innerHTML =
+      '<div style="font-size:13px;color:#a8ffce;font-style:italic;line-height:1.5;margin-bottom:14px;padding-left:12px;border-left:3px solid #5dffa8;text-align:left">' + quote + '</div>' +
+      'Estrellas: <span style="color:#ffd770;font-weight:bold">+' + starReward + '</span>' + perfectText + diffText +
+      '<br>Polvo estelar ganado: <span style="color:#7df9ff;font-weight:bold">+' + total + '</span>';
+
+    var confettiCount = (this.quality === 'soft') ? 35 : 70;
+    var pal = ['#7df9ff','#ff5fb0','#ffd770','#5dffa8','#b58fff','#ff6868'];
+    for (var c = 0; c < confettiCount; c++) {
+      this.spawnConfetti(this.W * 0.5, this.H * 0.4, (Math.random()-0.5)*10, (Math.random()-0.5)*10 - 4,
+                         pal[Math.floor(Math.random()*pal.length)], Math.random()*5+3, 1.0);
+    }
+    this.setState('VICTORY');
+  },
+
+
+  /* ==========================================================================
+   * DERROTA · mensaje escalado por racha
+   * ========================================================================== */
+  die: function(){
+    if (!this.orb || !this.orb.alive) return;
+
+    if (this.orb.shieldCharges > 0) {
+      this.orb.shieldCharges--;
+      this.updateShieldHUD();
+      this.spawnShieldBurst(this.orb.x, this.orb.y);
+      this.orb.vx = -this.orb.vx * 0.8 || (Math.random()-0.5) * 4;
+      this.orb.vy = -this.orb.vy * 0.8 || -4;
+      return;
+    }
+
+    this.orb.alive = false;
+    this.sfx.death();
+
+    if (this.lastLevelDied !== this.currentLevel) {
+      this.loseStreak = 1; this.lastLevelDied = this.currentLevel;
+    } else {
+      this.loseStreak++;
+    }
+
+    var skin = this.getSkin();
+    var pColor = skin.colorCore;
+    if (skin.id === 'hiperespacio') pColor = '#ff00ff';
+    var explosionCount = (this.quality === 'soft') ? 18 : 35;
+    for (var i = 0; i < explosionCount; i++) {
+      var a = (i / explosionCount) * Math.PI * 2, sp = Math.random() * 5 + 2;
+      this.spawnParticle(this.orb.x, this.orb.y,
+        Math.cos(a)*sp + (Math.random()-0.5),
+        Math.sin(a)*sp + (Math.random()-0.5),
+        pColor, Math.random()*4+2, 1.0);
+    }
+
+    var pool, label, color;
+    if (this.loseStreak >= 5)      { pool = this.savageQuotes;     label = 'Intento #' + this.loseStreak + ' · El cosmos se burla'; color = '#ff6868'; }
+    else if (this.loseStreak >= 3) { pool = this.toughQuotes;      label = 'Intento #' + this.loseStreak + ' · Recalcula';          color = '#ffaa55'; }
+    else                           { pool = this.motivationQuotes; label = this.loseStreak === 1 ? 'El orbe fue destruido' : 'Intento #' + this.loseStreak + ' · Sigue así'; color = '#ff8b8b'; }
+    var q = pool[Math.floor(Math.random() * pool.length)];
+
+    var qe = document.getElementById('gameoverQuote');
+    qe.textContent = q; qe.style.color = color; qe.style.borderLeftColor = color;
+    var sub = document.getElementById('gameoverSubtitle'); if (sub) sub.textContent = label;
+
+    var self = this;
+    setTimeout(function(){ self.setState('GAME_OVER'); }, 850);
+  },
+
+
+  /* ==========================================================================
+   * MOTOR DE FÍSICAS · timestep fijo, habilidades pasivas equilibradas
+   * ========================================================================== */
+  physicsStep: function(){
+    if (!this.orb || !this.orb.alive || !this.orb.launched) return;
+    var orb = this.orb, skin = this.getSkin();
+
+    var friction = 0.997;
+    if (skin.ability === 'low_friction')          friction = 0.9978;
+    if (skin.ability === 'frictionless_predict')  friction = 0.9988;
+
+    var i, dx, dy, dist, force, nx, ny, speed;
+
+    /* Atractores (agujeros negros) */
+    for (i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      dx = bh.x - orb.x; dy = bh.y - orb.y;
+      dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < bh.r * 0.38) { this.die(); return; }
+      var gMod = 1.0;
+      if (skin.ability === 'gravity_res') gMod = 0.78;
+      if (skin.ability === 'anti_grav')   gMod = 0.35;
+      if (dist < bh.r * 6 && gMod > 0) {
+        force = (bh.strength * gMod) * 180 / (dist*dist + 80);
+        orb.vx += (dx/dist) * force;
+        orb.vy += (dy/dist) * force;
+      }
+      bh.angle += 0.025;
+    }
+
+    orb.vx *= friction; orb.vy *= friction;
+    orb.x += orb.vx; orb.y += orb.vy;
+
+    /* Paredes */
+    for (i = 0; i < this.walls.length; i++) {
+      var w = this.walls[i];
+      if (orb.x + orb.r > w.x && orb.x - orb.r < w.x + w.w &&
+          orb.y + orb.r > w.y && orb.y - orb.r < w.y + w.h) {
+        var oL = (orb.x + orb.r) - w.x;
+        var oR = (w.x + w.w) - (orb.x - orb.r);
+        var oT = (orb.y + orb.r) - w.y;
+        var oB = (w.y + w.h) - (orb.y - orb.r);
+        var minO = Math.min(oL, oR, oT, oB);
+        var bf = (skin.ability === 'elasticity') ? 0.81 : 0.72;
+        if      (minO === oL) { orb.x = w.x - orb.r;            orb.vx = -Math.abs(orb.vx) * bf; }
+        else if (minO === oR) { orb.x = w.x + w.w + orb.r;      orb.vx =  Math.abs(orb.vx) * bf; }
+        else if (minO === oT) { orb.y = w.y - orb.r;            orb.vy = -Math.abs(orb.vy) * bf; }
+        else                  { orb.y = w.y + w.h + orb.r;      orb.vy =  Math.abs(orb.vy) * bf; }
+        this.sfx.bounce();
+        for (var wp = 0; wp < 3; wp++) {
+          this.spawnParticle(orb.x, orb.y, (Math.random()-0.5)*3, (Math.random()-0.5)*3,
+                             'rgba(125,249,255,0.7)', Math.random()*2+1, 0.6);
+        }
+      }
+    }
+
+
+    /* Bumpers */
+    for (i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      dx = orb.x - b.x; dy = orb.y - b.y;
+      dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < orb.r + b.r) {
+        nx = dx/dist; ny = dy/dist;
+        speed = Math.sqrt(orb.vx*orb.vx + orb.vy*orb.vy);
+        var bs = Math.max(speed * 1.25, 5.5);
+        orb.vx = nx * bs; orb.vy = ny * bs;
+        orb.x = b.x + nx * (orb.r + b.r + 1);
+        orb.y = b.y + ny * (orb.r + b.r + 1);
+        b.flash = 1.0;
+        this.sfx.bumper();
+        for (var bp = 0; bp < 6; bp++) {
+          this.spawnParticle(orb.x, orb.y,
+            nx * Math.random()*3 + (Math.random()-0.5)*2,
+            ny * Math.random()*3 + (Math.random()-0.5)*2,
+            '#ffd770', Math.random()*3+1, 0.8);
+        }
+      }
+    }
+
+    /* Kill zones */
+    for (i = 0; i < this.killZones.length; i++) {
+      var kz = this.killZones[i];
+      if (orb.x + orb.r > kz.x && orb.x - orb.r < kz.x + kz.w &&
+          orb.y + orb.r > kz.y && orb.y - orb.r < kz.y + kz.h) { this.die(); return; }
+    }
+
+    /* Estrellas + magnetismo */
+    for (i = 0; i < this.stars.length; i++) {
+      var star = this.stars[i]; if (star.collected) continue;
+      dx = orb.x - star.x; dy = orb.y - star.y;
+      dist = Math.sqrt(dx*dx + dy*dy);
+      var magD = orb.r + star.r;
+      if (skin.ability === 'magnet')        magD += this.W * 0.035;
+      if (skin.ability === 'super_magnet')  magD += this.W * 0.058;
+      if (dist < magD && dist > orb.r) {
+        var pf = 0.25;
+        star.x += (dx/dist) * pf; star.y += (dy/dist) * pf;
+      }
+      if (dist < orb.r + star.r) {
+        star.collected = true; this.starsCollected++; this.sfx.star();
+        for (var sp = 0; sp < 12; sp++) {
+          var aa = (sp/12) * Math.PI * 2;
+          this.spawnParticle(star.x, star.y,
+            Math.cos(aa)*(Math.random()*4+2),
+            Math.sin(aa)*(Math.random()*4+2),
+            '#ffd770', Math.random()*3+2, 0.9);
+        }
+        this.updateHUD();
+      }
+    }
+
+    /* Meta */
+    dx = orb.x - this.goal.x; dy = orb.y - this.goal.y;
+    dist = Math.sqrt(dx*dx + dy*dy);
+    var goalReach = this.goal.r + orb.r * 0.5;
+    if (skin.ability === 'goal_suction') {
+      var sucD = this.goal.r * 1.35;
+      if (dist < sucD) { orb.vx += (dx/dist) * 0.05; orb.vy += (dy/dist) * 0.05; }
+    }
+    if (dist < goalReach) { this.completeLevel(); return; }
+
+    /* Detención */
+    speed = Math.sqrt(orb.vx*orb.vx + orb.vy*orb.vy);
+    var stopT = (skin.ability === 'cold_inertia') ? 0.45 : 0.12;
+    if (speed < stopT) {
+      orb.vx = 0; orb.vy = 0;
+      orb.grounded = true; orb.launched = false; orb.midAirLaunched = false;
+    }
+
+    /* Rastro */
+    if (speed > 0.4) {
+      this.trail.push({ x:orb.x, y:orb.y, life:1 });
+      var tm = this.qSettings[this.quality].trailMax;
+      while (this.trail.length > tm) this.trail.shift();
+    }
+
+    /* Out of bounds */
+    if (orb.x < -60 || orb.x > this.W+60 || orb.y < -60 || orb.y > this.H+60) this.die();
+  },
+
+
+  /* ==========================================================================
+   * ACTUALIZACIÓN DE ANIMACIONES (no físicas)
+   * ========================================================================== */
+  updateParticles: function(){
+    var i;
+    var pLen = this.particlesPool.length, cLen = this.confettiPool.length;
+    for (i = 0; i < pLen; i++) {
+      var p = this.particlesPool[i]; if (!p.active) continue;
+      p.x += p.vx; p.y += p.vy; p.vy += 0.07; p.vx *= 0.98;
+      p.life -= 0.025; if (p.life <= 0) p.active = false;
+    }
+    for (i = this.trail.length - 1; i >= 0; i--) {
+      this.trail[i].life -= 0.085;
+      if (this.trail[i].life <= 0) this.trail.splice(i, 1);
+    }
+    for (i = 0; i < this.bumpers.length; i++) {
+      if (this.bumpers[i].flash > 0) {
+        this.bumpers[i].flash -= 0.045;
+        if (this.bumpers[i].flash < 0) this.bumpers[i].flash = 0;
+      }
+    }
+    for (i = 0; i < this.stars.length; i++) {
+      this.stars[i].angle += 0.035; this.stars[i].pulse += 0.055;
+    }
+    if (this.goal) {
+      this.goal.pulse += 0.045;
+      if (this.goal.pulse > Math.PI * 2) this.goal.pulse -= Math.PI * 2;
+    }
+    for (i = 0; i < cLen; i++) {
+      var c = this.confettiPool[i]; if (!c.active) continue;
+      c.x += c.vx; c.y += c.vy; c.vy += 0.11; c.vx *= 0.98;
+      c.rot += c.vx * 1.8;
+      c.life -= 0.012; if (c.life <= 0) c.active = false;
+    }
+    // Estrellas que parpadean
+    for (i = 0; i < this.bgTwinkles.length; i++) {
+      this.bgTwinkles[i].t += this.bgTwinkles[i].sp;
+    }
+    // Parallax
+    for (i = 0; i < this.bgParallax.length; i++) {
+      var pp = this.bgParallax[i];
+      pp.y -= pp.v;
+      if (pp.y < -10) { pp.y = this.H + 10; pp.x = Math.random() * this.W; }
+    }
+  },
+
+
+  /* ==========================================================================
+   * OFFSCREEN: BG LAYER (fondo nebular + estrellas)
+   * Solo se redibuja cuando cambia tamaño o calidad. Es el truco que mantiene
+   * estable el frame: el cosmos no se mueve cada frame porque ya está pintado.
+   * ========================================================================== */
+  buildBgLayer: function(){
+    if (!this.bgLayer) {
+      this.bgLayer = document.createElement('canvas');
+      this.bgCtx = this.bgLayer.getContext('2d', { alpha: false });
+    }
+    var W = this.W, H = this.H, q = this.qSettings[this.quality];
+    this.bgLayer.width = W; this.bgLayer.height = H;
+    var c = this.bgCtx;
+
+    // Base de espacio profundo (gradiente vertical sutil)
+    var deep = c.createLinearGradient(0, 0, 0, H);
+    deep.addColorStop(0,   '#04050b');
+    deep.addColorStop(0.55,'#070811');
+    deep.addColorStop(1,   '#0a0814');
+    c.fillStyle = deep;
+    c.fillRect(0, 0, W, H);
+
+    // Vignette suave (esquinas un poco más oscuras: da profundidad)
+    var vignette = c.createRadialGradient(W*0.5, H*0.5, Math.min(W,H)*0.3, W*0.5, H*0.5, Math.max(W,H)*0.7);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.55)');
+    c.fillStyle = vignette;
+    c.fillRect(0, 0, W, H);
+
+    // Manchas nebulosas (solo en 'high')
+    if (q.bgNebula) {
+      var nebPalette = [
+        { x:0.18, y:0.32, r:0.35, c1:'rgba(125,90,255,0.16)',  c2:'rgba(125,90,255,0)' },
+        { x:0.78, y:0.74, r:0.42, c1:'rgba(255,89,176,0.13)',  c2:'rgba(255,89,176,0)' },
+        { x:0.55, y:0.18, r:0.28, c1:'rgba(125,249,255,0.10)', c2:'rgba(125,249,255,0)' },
+        { x:0.34, y:0.82, r:0.30, c1:'rgba(93,255,168,0.08)',  c2:'rgba(93,255,168,0)' }
+      ];
+      for (var n = 0; n < nebPalette.length; n++) {
+        var nb = nebPalette[n];
+        var rad = Math.max(W,H) * nb.r;
+        var g = c.createRadialGradient(W*nb.x, H*nb.y, 0, W*nb.x, H*nb.y, rad);
+        g.addColorStop(0, nb.c1); g.addColorStop(1, nb.c2);
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+      }
+    }
+
+
+    // Estrellas estáticas (densidad y tamaño según calidad)
+    var rngSeed = 0x53f74a;
+    var rand = function(){ rngSeed = (rngSeed * 1103515245 + 12345) & 0x7fffffff; return (rngSeed % 1000) / 1000; };
+    for (var s = 0; s < q.bgStars; s++) {
+      var sx = rand() * W, sy = rand() * H;
+      var sr = rand() * 1.4 + 0.4;
+      var bright = rand();
+      var col;
+      if (bright > 0.92)      col = 'rgba(255,255,255,0.95)';
+      else if (bright > 0.75) col = 'rgba(220,235,255,0.78)';
+      else if (bright > 0.45) col = 'rgba(180,205,235,0.55)';
+      else                    col = 'rgba(140,170,210,0.35)';
+      c.fillStyle = col;
+      c.beginPath(); c.arc(sx, sy, sr, 0, Math.PI*2); c.fill();
+      // Cruz de difracción para las pocas más brillantes (estilo astro real)
+      if (q.bgNebula && bright > 0.95) {
+        c.fillStyle = 'rgba(255,255,255,0.45)';
+        c.fillRect(sx - sr*3, sy - 0.4, sr*6, 0.8);
+        c.fillRect(sx - 0.4, sy - sr*3, 0.8, sr*6);
+      }
+    }
+
+    // Grilla isométrica MUY sutil sobre la base (en 'high'): da textura cósmica
+    if (q.bgNebula) {
+      c.strokeStyle = 'rgba(125,249,255,0.025)';
+      c.lineWidth = 1;
+      var step = 64;
+      for (var gx = 0; gx < W; gx += step) {
+        c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx, H); c.stroke();
+      }
+      for (var gy = 0; gy < H; gy += step) {
+        c.beginPath(); c.moveTo(0, gy); c.lineTo(W, gy); c.stroke();
+      }
+    }
+
+    // Pre-calculamos overlays animados (twinkle + parallax)
+    this.bgTwinkles.length = 0;
+    for (var t = 0; t < q.bgTwinkle; t++) {
+      this.bgTwinkles.push({
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() * 1.6 + 0.8,
+        col: ['#ffffff', '#cfeaff', '#fff3a8'][Math.floor(Math.random()*3)],
+        t:  Math.random() * Math.PI * 2,
+        sp: 0.04 + Math.random() * 0.08
+      });
+    }
+    this.bgParallax.length = 0;
+    for (var pr = 0; pr < q.bgParallax; pr++) {
+      this.bgParallax.push({
+        x: Math.random() * W, y: Math.random() * H,
+        size: Math.random() * 1.3 + 0.6,
+        v: 0.06 + Math.random() * 0.10,
+        col: ['rgba(125,249,255,0.55)', 'rgba(255,95,176,0.45)', 'rgba(255,215,112,0.45)'][Math.floor(Math.random()*3)]
+      });
+    }
+
+    this.bgDirty = false;
+  },
+
+
+  /* ==========================================================================
+   * OFFSCREEN: STATIC LAYER (geometría del nivel)
+   * Se redibuja UNA vez al cargar el nivel. Lo que es animado (rotación de
+   * espirales, flash de bumpers, pulso de estrellas) NO va aquí.
+   * ========================================================================== */
+  buildStaticLayer: function(){
+    if (!this.staticLayer) {
+      this.staticLayer = document.createElement('canvas');
+      this.staticCtx = this.staticLayer.getContext('2d');
+    }
+    var W = this.W, H = this.H, q = this.qSettings[this.quality];
+    this.staticLayer.width = W; this.staticLayer.height = H;
+    var c = this.staticCtx;
+    c.clearRect(0, 0, W, H);
+    if (this.state !== 'PLAYING' && this.state !== 'PAUSED') {
+      this.staticDirty = false;
+      return; // no hay nivel cargado
+    }
+
+    var i, w;
+
+    /* --- Kill zones (zonas rojas de muerte): patrón legible y sin lag --- */
+    for (i = 0; i < this.killZones.length; i++) {
+      var kz = this.killZones[i];
+      // Fondo translúcido
+      c.fillStyle = 'rgba(255,80,80,0.16)';
+      c.fillRect(kz.x, kz.y, kz.w, kz.h);
+
+      // Hatching diagonal (solo en 'high'): efecto de zona radioactiva
+      if (q.useStripes) {
+        c.save();
+        c.beginPath(); c.rect(kz.x, kz.y, kz.w, kz.h); c.clip();
+        c.strokeStyle = 'rgba(255,80,80,0.45)';
+        c.lineWidth = 1.4;
+        var stripeW = 14;
+        for (var sx = kz.x - kz.h; sx < kz.x + kz.w + kz.h; sx += stripeW) {
+          c.beginPath();
+          c.moveTo(sx, kz.y);
+          c.lineTo(sx + kz.h, kz.y + kz.h);
+          c.stroke();
+        }
+        c.restore();
+      }
+
+      // Borde
+      c.strokeStyle = 'rgba(255,90,90,0.85)';
+      c.lineWidth = 2;
+      c.strokeRect(kz.x + 0.5, kz.y + 0.5, kz.w - 1, kz.h - 1);
+
+      // Marcas decorativas en esquinas (en 'high'): da carácter industrial
+      if (q.useStripes) {
+        c.fillStyle = 'rgba(255,90,90,0.95)';
+        var ms = 4;
+        c.fillRect(kz.x, kz.y, ms, ms);
+        c.fillRect(kz.x + kz.w - ms, kz.y, ms, ms);
+        c.fillRect(kz.x, kz.y + kz.h - ms, ms, ms);
+        c.fillRect(kz.x + kz.w - ms, kz.y + kz.h - ms, ms, ms);
+      }
+    }
+
+
+    /* --- Paredes con bisel y textura sutil ---
+     * En 'soft' se pintan planas (rápidas y limpias).
+     * En 'high' añadimos: gradiente vertical, línea de luz superior y
+     * scanlines internas que sugieren panel metálico (NO ruido pesado).
+     */
+    for (i = 0; i < this.walls.length; i++) {
+      w = this.walls[i];
+
+      if (q.useGradients) {
+        // Gradiente vertical: panel cyan oscuro con borde superior brillante
+        var wg = c.createLinearGradient(0, w.y, 0, w.y + w.h);
+        wg.addColorStop(0,   'rgba(70,130,170,0.35)');
+        wg.addColorStop(0.4, 'rgba(40,80,130,0.25)');
+        wg.addColorStop(1,   'rgba(20,40,80,0.30)');
+        c.fillStyle = wg;
+        c.fillRect(w.x, w.y, w.w, w.h);
+
+        // Línea superior brillante (highlight)
+        c.fillStyle = 'rgba(180,235,255,0.55)';
+        c.fillRect(w.x, w.y, w.w, 1);
+
+        // Scanlines horizontales (cada 4px) para textura sin ruido pesado
+        if (w.h > 6) {
+          c.fillStyle = 'rgba(125,249,255,0.05)';
+          for (var sy = w.y + 2; sy < w.y + w.h - 1; sy += 4) {
+            c.fillRect(w.x + 1, sy, w.w - 2, 1);
+          }
+        }
+      } else {
+        // Modo 'soft': fill plano legible
+        c.fillStyle = 'rgba(125,249,255,0.10)';
+        c.fillRect(w.x, w.y, w.w, w.h);
+      }
+
+      // Borde definidor (siempre)
+      c.strokeStyle = q.useGradients ? 'rgba(125,249,255,0.65)' : 'rgba(125,249,255,0.42)';
+      c.lineWidth = 1.5;
+      c.strokeRect(w.x + 0.5, w.y + 0.5, w.w - 1, w.h - 1);
+    }
+
+
+    /* --- Discos de acreción de los agujeros negros (estáticos) ---
+     * El nimbo y los anillos van aquí (no cambian). La rotación animada
+     * de la espiral interior se hace en el render dinámico.
+     */
+    for (i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      var negative = bh.strength < 0;
+      var diskCol = negative ? 'rgba(0,243,255,'  : 'rgba(155,89,255,';
+      var diskHot = negative ? 'rgba(120,255,255,': 'rgba(255,140,200,';
+
+      // Halo exterior
+      if (q.useGradients) {
+        var hg = c.createRadialGradient(bh.x, bh.y, bh.r * 0.5, bh.x, bh.y, bh.r * 2.4);
+        hg.addColorStop(0,    diskCol + '0.32)');
+        hg.addColorStop(0.45, diskCol + '0.16)');
+        hg.addColorStop(1,    diskCol + '0)');
+        c.fillStyle = hg;
+        c.beginPath(); c.arc(bh.x, bh.y, bh.r * 2.4, 0, Math.PI*2); c.fill();
+      } else {
+        c.fillStyle = diskCol + '0.18)';
+        c.beginPath(); c.arc(bh.x, bh.y, bh.r * 2.0, 0, Math.PI*2); c.fill();
+      }
+
+      // Anillos del disco de acreción (q.bhRings = 1 en soft, 3 en high)
+      var rings = q.bhRings;
+      for (var rr = 0; rr < rings; rr++) {
+        var rt = (rr + 1) / (rings + 1);
+        var rad = bh.r * (0.85 + rt * 1.0);
+        var alpha = 0.45 - rt * 0.15;
+        c.strokeStyle = diskHot + alpha + ')';
+        c.lineWidth = 1.4 + (1 - rt) * 1.0;
+        c.beginPath(); c.arc(bh.x, bh.y, rad, 0, Math.PI*2); c.stroke();
+      }
+    }
+
+    /* --- Bases metálicas de bumpers (el flash animado se pinta arriba) --- */
+    for (i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      // Anillo de soporte oscuro
+      c.fillStyle = 'rgba(0,0,0,0.35)';
+      c.beginPath(); c.arc(b.x, b.y + 1, b.r * 1.06, 0, Math.PI*2); c.fill();
+    }
+
+    this.staticDirty = false;
+  },
+
+
+  /* ==========================================================================
+   * RENDER PRINCIPAL · solo lo que cambia de frame
+   * ========================================================================== */
+  render: function(){
+    // Reconstrucción de capas si están sucias
+    if (this.bgDirty)     this.buildBgLayer();
+    if (this.staticDirty) this.buildStaticLayer();
+
+    var ctx = this.ctx, W = this.W, H = this.H;
+    var q = this.qSettings[this.quality];
+    var hi = (this.quality === 'high');
+
+    // 1) Fondo cacheado
+    ctx.drawImage(this.bgLayer, 0, 0);
+
+    // 2) Overlays animados sobre el fondo (solo 'high')
+    if (hi) {
+      // Twinkle (estrellas que parpadean)
+      var i, len = this.bgTwinkles.length;
+      for (i = 0; i < len; i++) {
+        var tw = this.bgTwinkles[i];
+        var s = 0.55 + Math.sin(tw.t) * 0.45;
+        if (s <= 0) continue;
+        ctx.globalAlpha = s;
+        ctx.fillStyle = tw.col;
+        ctx.beginPath(); ctx.arc(tw.x, tw.y, tw.r, 0, Math.PI*2); ctx.fill();
+      }
+      // Parallax (puntos brillantes lentos en primer plano)
+      len = this.bgParallax.length;
+      for (i = 0; i < len; i++) {
+        var pp = this.bgParallax[i];
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = pp.col;
+        ctx.beginPath(); ctx.arc(pp.x, pp.y, pp.size, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 3) Si no estamos en partida: solo confeti (victoria) y salimos
+    if (this.state !== 'PLAYING' && this.state !== 'PAUSED') {
+      if (this.state === 'VICTORY') this.renderConfetti(ctx);
+      return;
+    }
+
+    // 4) Capa estática (geometría del nivel)
+    ctx.drawImage(this.staticLayer, 0, 0);
+
+    // 5) Animación de espirales sobre los agujeros negros
+    this.renderBlackHoleSpirals(ctx, q);
+
+    // 6) Bumpers (sobre la base ya pintada en staticLayer)
+    this.renderBumpers(ctx, q, hi);
+
+    // 7) Estrellas coleccionables
+    this.renderStars(ctx, q, hi);
+
+    // 8) Meta (portal)
+    if (this.goal) this.renderGoal(ctx, q);
+
+    // 9) Rastro
+    this.renderTrail(ctx);
+
+    // 10) Orbe
+    if (this.orb && this.orb.alive) this.renderOrb(ctx, q, hi);
+
+    // 11) Predicción de trayectoria mientras se apunta
+    if (this.aiming) this.renderAimPredictor(ctx);
+
+    // 12) Partículas
+    this.renderParticles(ctx);
+
+    // 13) Confeti (puede solapar al final del nivel)
+    this.renderConfetti(ctx);
+  },
+
+
+  /* --- Espirales animadas en agujeros negros --- */
+  renderBlackHoleSpirals: function(ctx, q){
+    for (var i = 0; i < this.blackHoles.length; i++) {
+      var bh = this.blackHoles[i];
+      var negative = bh.strength < 0;
+      ctx.save();
+      ctx.translate(bh.x, bh.y);
+      ctx.rotate(bh.angle);
+
+      // Líneas espirales (animadas: cambian con bh.angle)
+      ctx.strokeStyle = negative ? 'rgba(0,243,255,0.30)' : 'rgba(155,89,255,0.30)';
+      ctx.lineWidth = 1.6;
+      var arms = q.bhArms, pts = q.bhPoints;
+      for (var arm = 0; arm < arms; arm++) {
+        ctx.beginPath();
+        var armOff = (arm / arms) * Math.PI * 2;
+        for (var t = 0; t < pts; t++) {
+          var tt = t / pts;
+          var sr = bh.r * 0.45 + tt * bh.r * 1.35;
+          var sa = armOff + (negative ? -1 : 1) * tt * Math.PI * 2.2;
+          var px = Math.cos(sa) * sr, py = Math.sin(sa) * sr;
+          if (t === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      // Núcleo (event horizon)
+      var coreR = bh.r * 0.58;
+      if (q.useGradients) {
+        var cg = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
+        if (negative) {
+          cg.addColorStop(0, '#ffffff');
+          cg.addColorStop(0.5, '#00f3ff');
+          cg.addColorStop(1, 'rgba(0,10,25,0.7)');
+        } else {
+          cg.addColorStop(0, '#04000b');
+          cg.addColorStop(0.65, '#120524');
+          cg.addColorStop(1, 'rgba(30,5,55,0.6)');
+        }
+        ctx.fillStyle = cg;
+      } else {
+        ctx.fillStyle = negative ? '#00f3ff' : '#120524';
+      }
+      ctx.beginPath(); ctx.arc(0, 0, coreR, 0, Math.PI*2); ctx.fill();
+
+      // Anillo de luz alrededor del núcleo (sutil, define el horizonte)
+      ctx.strokeStyle = negative ? 'rgba(180,255,255,0.5)' : 'rgba(180,140,255,0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(0, 0, coreR + 1.5, 0, Math.PI*2); ctx.stroke();
+
+      ctx.restore();
+    }
+  },
+
+
+  /* --- Bumpers (parte dinámica: cuerpo + flash + chevron) --- */
+  renderBumpers: function(ctx, q, hi){
+    for (var i = 0; i < this.bumpers.length; i++) {
+      var b = this.bumpers[i];
+      var flash = b.flash || 0;
+      var bR = b.r * (1 + flash * 0.18);
+
+      // Halo de flash (solo modo high y solo si está flasheando)
+      if (q.bumperGlow && flash > 0.05 && q.useGradients) {
+        var hg = ctx.createRadialGradient(b.x, b.y, bR * 0.4, b.x, b.y, bR * 2.2);
+        hg.addColorStop(0, 'rgba(255,215,112,' + (flash * 0.45) + ')');
+        hg.addColorStop(1, 'rgba(255,215,112,0)');
+        ctx.fillStyle = hg;
+        ctx.beginPath(); ctx.arc(b.x, b.y, bR * 2.2, 0, Math.PI*2); ctx.fill();
+      }
+
+      // Cuerpo del bumper
+      if (q.useGradients) {
+        var bg = ctx.createRadialGradient(b.x - bR*0.35, b.y - bR*0.35, bR*0.08, b.x, b.y, bR);
+        bg.addColorStop(0,   flash > 0.4 ? '#fff7d6' : '#ffe893');
+        bg.addColorStop(0.5, '#ffd770');
+        bg.addColorStop(1,   '#9b7600');
+        ctx.fillStyle = bg;
+      } else {
+        ctx.fillStyle = flash > 0.4 ? '#ffe893' : '#ffd770';
+      }
+      ctx.beginPath(); ctx.arc(b.x, b.y, bR, 0, Math.PI*2); ctx.fill();
+
+      // Chevron metálico (solo en 'high'): líneas internas que dan facetas
+      if (hi) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(b.x, b.y, bR * 0.62, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.beginPath();
+        ctx.arc(b.x - bR*0.30, b.y - bR*0.30, bR*0.18, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // Borde
+      ctx.strokeStyle = 'rgba(255,215,112,' + (0.55 + flash * 0.45) + ')';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(b.x, b.y, bR, 0, Math.PI*2); ctx.stroke();
+    }
+  },
+
+
+  /* --- Estrellas coleccionables --- */
+  renderStars: function(ctx, q, hi){
+    for (var i = 0; i < this.stars.length; i++) {
+      var st = this.stars[i]; if (st.collected) continue;
+      ctx.save();
+      ctx.translate(st.x, st.y);
+      ctx.rotate(st.angle);
+
+      // Halo (solo high)
+      if (q.starGlow && q.useGradients) {
+        var sg = ctx.createRadialGradient(0, 0, 0, 0, 0, st.r * 2.2);
+        var pulse = 0.55 + Math.sin(st.pulse) * 0.25;
+        sg.addColorStop(0, 'rgba(255,215,112,' + pulse + ')');
+        sg.addColorStop(1, 'rgba(255,215,112,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath(); ctx.arc(0, 0, st.r * 2.2, 0, Math.PI*2); ctx.fill();
+      }
+
+      // Estrella de 5 puntas
+      ctx.fillStyle = '#ffd770';
+      ctx.beginPath();
+      for (var si = 0; si < 5; si++) {
+        var oa = (si * 72 - 90) * Math.PI / 180;
+        var ia = (si * 72 + 36 - 90) * Math.PI / 180;
+        var ox = Math.cos(oa) * st.r,        oy = Math.sin(oa) * st.r;
+        var ix = Math.cos(ia) * st.r * 0.42, iy = Math.sin(ia) * st.r * 0.42;
+        if (si === 0) ctx.moveTo(ox, oy); else ctx.lineTo(ox, oy);
+        ctx.lineTo(ix, iy);
+      }
+      ctx.closePath(); ctx.fill();
+
+      // Highlight especular (solo high)
+      if (hi) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); ctx.arc(-st.r * 0.18, -st.r * 0.18, st.r * 0.22, 0, Math.PI*2); ctx.fill();
+      }
+
+      ctx.restore();
+    }
+  },
+
+  /* --- Portal de meta --- */
+  renderGoal: function(ctx, q){
+    var gP = Math.sin(this.goal.pulse) * 0.25 + 0.75;
+    var gr = this.goal.r;
+
+    if (q.goalHalo && q.useGradients) {
+      var hg = ctx.createRadialGradient(this.goal.x, this.goal.y, gr * 0.4, this.goal.x, this.goal.y, gr * 2.4);
+      hg.addColorStop(0, 'rgba(93,255,168,' + (gP * 0.35) + ')');
+      hg.addColorStop(1, 'rgba(93,255,168,0)');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.arc(this.goal.x, this.goal.y, gr * 2.4, 0, Math.PI*2); ctx.fill();
+    }
+
+    if (q.useGradients) {
+      var ig = ctx.createRadialGradient(this.goal.x, this.goal.y, 0, this.goal.x, this.goal.y, gr);
+      ig.addColorStop(0,    'rgba(93,255,168,' + gP + ')');
+      ig.addColorStop(0.65, 'rgba(93,255,168,' + (gP * 0.4) + ')');
+      ig.addColorStop(1,    'rgba(93,255,168,0.08)');
+      ctx.fillStyle = ig;
+    } else {
+      ctx.fillStyle = 'rgba(93,255,168,' + (gP * 0.65) + ')';
+    }
+    ctx.beginPath(); ctx.arc(this.goal.x, this.goal.y, gr, 0, Math.PI*2); ctx.fill();
+
+    ctx.strokeStyle = 'rgba(93,255,168,' + gP + ')';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(this.goal.x, this.goal.y, gr * (1 + Math.sin(this.goal.pulse * 1.8) * 0.08), 0, Math.PI*2); ctx.stroke();
+  },
+
+
+  /* --- Rastro --- */
+  renderTrail: function(ctx){
+    if (!this.orb) return;
+    var skin = this.getSkin();
+    for (var i = 0; i < this.trail.length; i++) {
+      var t = this.trail[i];
+      var alpha = t.life * 0.65;
+      var size = this.orb.r * t.life * 0.65;
+      ctx.fillStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,' + alpha + ')' : skin.colorTrail + alpha + ')';
+      ctx.beginPath(); ctx.arc(t.x, t.y, size, 0, Math.PI*2); ctx.fill();
+    }
+  },
+
+  /* --- Orbe (la esfera) --- */
+  renderOrb: function(ctx, q, hi){
+    var orb = this.orb;
+    var skin = this.getSkin();
+    var coreCol = skin.colorCore, glowCol = skin.colorGlow;
+    if (skin.id === 'hiperespacio') {
+      var hue = (Date.now() / 15) % 360;
+      coreCol = 'hsl(' + hue + ', 100%, 65%)';
+      glowCol = 'hsla(' + hue + ', 100%, 65%, 0.40)';
+    }
+
+    var ox = orb.x, oy = orb.y, or = orb.r;
+
+    // Halo (solo high)
+    if (q.orbHalo && q.useGradients) {
+      var hg = ctx.createRadialGradient(ox, oy, or, ox, oy, or * 2.4);
+      hg.addColorStop(0, glowCol);
+      hg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.arc(ox, oy, or * 2.4, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Esfera
+    if (q.useGradients) {
+      var bg = ctx.createRadialGradient(ox - or*0.35, oy - or*0.35, or*0.05, ox, oy, or);
+      if (skin.id === 'wormhole') {
+        bg.addColorStop(0,   '#555555');
+        bg.addColorStop(0.3, '#0e0e1d');
+        bg.addColorStop(1,   '#000000');
+      } else {
+        bg.addColorStop(0,    'rgba(255,255,255,0.95)');
+        bg.addColorStop(0.3,  coreCol);
+        bg.addColorStop(0.75, skin.id === 'hiperespacio' ? coreCol : skin.colorTrail + '0.8)');
+        bg.addColorStop(1,    'rgba(0,0,0,0.6)');
+      }
+      ctx.fillStyle = bg;
+    } else {
+      ctx.fillStyle = skin.id === 'wormhole' ? '#0e0e1d' : coreCol;
+    }
+    ctx.beginPath(); ctx.arc(ox, oy, or, 0, Math.PI*2); ctx.fill();
+
+    // Detalles solo en 'high'
+    if (hi) {
+      // Sombra interior (lado opuesto a la luz)
+      var sg = ctx.createRadialGradient(ox + or*0.2, oy + or*0.35, 0, ox + or*0.2, oy + or*0.35, or*0.85);
+      sg.addColorStop(0, 'rgba(0,0,0,0.4)');
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(ox, oy, or, 0, Math.PI*2); ctx.fill();
+
+      // Reflejo (especular)
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.beginPath(); ctx.ellipse(ox - or*0.28, oy - or*0.32, or*0.28, or*0.13, -0.6, 0, Math.PI*2); ctx.fill();
+
+      // Rim light
+      ctx.strokeStyle = skin.id === 'hiperespacio' ? 'rgba(255,255,255,0.5)' : skin.colorTrail + '0.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(ox, oy, or - 1, Math.PI*0.7, Math.PI*1.55); ctx.stroke();
+    }
+
+    // Escudo (info importante: siempre visible)
+    if (orb.shieldCharges > 0) {
+      ctx.strokeStyle = 'rgba(0,255,255,0.8)';
+      ctx.lineWidth = 2;
+      var pulseR = or * 1.4 + (hi ? Math.sin(Date.now() / 150) * 1.5 : 0);
+      ctx.beginPath(); ctx.arc(ox, oy, pulseR, 0, Math.PI*2); ctx.stroke();
+    }
+  },
+
+
+  /* --- Predictor de trayectoria --- */
+  renderAimPredictor: function(ctx){
+    var orb = this.orb; if (!orb) return;
+    var skin = this.getSkin();
+    if (!(orb.grounded || (skin.ability === 'midair_launch' && !orb.midAirLaunched))) return;
+
+    var adx = this.aimStart.x - this.aimEnd.x;
+    var ady = this.aimStart.y - this.aimEnd.y;
+    var alen = Math.sqrt(adx*adx + ady*ady);
+    if (alen <= 12) return;
+
+    var power = Math.min(alen / 150, 1);
+    var maxLP = (skin.ability === 'hyper_power') ? 14.55 : 13.0;
+    var fLaunch = power * maxLP;
+    var nx = adx / alen, ny = ady / alen;
+
+    var tX = orb.x, tY = orb.y, tVx = nx * fLaunch, tVy = ny * fLaunch;
+    ctx.fillStyle = 'rgba(125,249,255,0.5)';
+    var maxSim = (skin.ability === 'frictionless_predict') ? 50 : 25;
+    for (var step = 0; step < maxSim; step++) {
+      for (var bi = 0; bi < this.blackHoles.length; bi++) {
+        var bh = this.blackHoles[bi];
+        var sdx = bh.x - tX, sdy = bh.y - tY;
+        var sd = Math.sqrt(sdx*sdx + sdy*sdy);
+        var gMod = 1.0;
+        if (skin.ability === 'gravity_res') gMod = 0.78;
+        if (skin.ability === 'anti_grav')   gMod = 0.35;
+        if (sd > bh.r * 0.38 && sd < bh.r * 6 && gMod > 0) {
+          var sf = (bh.strength * gMod) * 180 / (sd*sd + 80);
+          tVx += (sdx/sd) * sf; tVy += (sdy/sd) * sf;
+        }
+      }
+      var sFr = (skin.ability === 'low_friction') ? 0.9978 : (skin.ability === 'frictionless_predict' ? 0.9988 : 0.997);
+      tVx *= sFr; tVy *= sFr; tX += tVx; tY += tVy;
+      if (tX < 0 || tX > this.W || tY < 0 || tY > this.H) break;
+      if (step % 2 === 0) {
+        ctx.beginPath(); ctx.arc(tX, tY, 2.5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // Indicador de dirección
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.2 + power*0.4) + ')';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 8]);
+    ctx.beginPath(); ctx.moveTo(orb.x, orb.y); ctx.lineTo(orb.x + adx*0.32, orb.y + ady*0.32); ctx.stroke();
+    ctx.setLineDash([]);
+
+    var ax = orb.x + adx*0.32, ay = orb.y + ady*0.32;
+    var aa = Math.atan2(ady, adx);
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + power*0.4) + ')';
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 8 * Math.cos(aa - 0.42), ay - 8 * Math.sin(aa - 0.42));
+    ctx.lineTo(ax - 8 * Math.cos(aa + 0.42), ay - 8 * Math.sin(aa + 0.42));
+    ctx.closePath(); ctx.fill();
+
+    // Barra de potencia
+    var bw = 48, bh2 = 5, bx = orb.x - bw/2, by = orb.y + orb.r + 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(bx, by, bw, bh2);
+    var pg = ctx.createLinearGradient(bx, 0, bx + bw*power, 0);
+    pg.addColorStop(0,   '#5dffa8');
+    pg.addColorStop(0.5, '#ffd770');
+    pg.addColorStop(1,   '#ff6868');
+    ctx.fillStyle = pg; ctx.fillRect(bx, by, bw * power, bh2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh2);
+  },
+
+  /* --- Partículas + confeti --- */
+  renderParticles: function(ctx){
+    var pLen = this.particlesPool.length;
+    for (var i = 0; i < pLen; i++) {
+      var p = this.particlesPool[i]; if (!p.active) continue;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  },
+  renderConfetti: function(ctx){
+    var cLen = this.confettiPool.length;
+    for (var i = 0; i < cLen; i++) {
+      var c = this.confettiPool[i]; if (!c.active) continue;
+      ctx.globalAlpha = c.life;
+      ctx.fillStyle = c.color;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot * Math.PI / 180);
+      ctx.fillRect(-c.size/2, -c.size/4, c.size, c.size * 0.5);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  },
+
+
+  /* ==========================================================================
+   * INPUT (ratón + táctil + teclado)
+   * ========================================================================== */
+  getPos: function(e){
+    var rect = this.canvas.getBoundingClientRect();
+    var cx, cy;
+    if      (e.touches && e.touches.length > 0)             { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+    else if (e.changedTouches && e.changedTouches.length>0) { cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY; }
+    else                                                    { cx = e.clientX; cy = e.clientY; }
+    return { x: (cx - rect.left) * this.dpr, y: (cy - rect.top) * this.dpr };
+  },
+  onDown: function(e){
+    if (this.state !== 'PLAYING') return;
+    if (!this.orb || !this.orb.alive) return;
+    var skin = this.getSkin();
+
+    // Habilidad activa: salto cuántico (Materia Exótica)
+    if (skin.ability === 'quantum_break' && !this.orb.grounded) {
+      e.preventDefault();
+      this.orb.vx = 0; this.orb.vy = 0;
+      this.orb.grounded = true; this.orb.launched = false;
+      this.sfx.shieldBreak();
+      for (var i = 0; i < 20; i++) {
+        var a = (i/20) * Math.PI * 2;
+        this.spawnParticle(this.orb.x, this.orb.y, Math.cos(a)*4, Math.sin(a)*4, '#e0115f', 3, 0.8);
+      }
+      return;
+    }
+
+    var canAim = this.orb.grounded || (skin.ability === 'midair_launch' && !this.orb.midAirLaunched);
+    if (!canAim) return;
+
+    e.preventDefault();
+    this.initAudio();
+    var pos = this.getPos(e);
+    this.aiming = true;
+    this.aimStart = { x: pos.x, y: pos.y };
+    this.aimEnd   = { x: pos.x, y: pos.y };
+  },
+  onMove: function(e){
+    if (!this.aiming) return;
+    e.preventDefault();
+    var pos = this.getPos(e);
+    this.aimEnd = { x: pos.x, y: pos.y };
+  },
+  onUp: function(e){
+    if (!this.aiming) return;
+    e.preventDefault();
+    this.aiming = false;
+    var dx = this.aimStart.x - this.aimEnd.x;
+    var dy = this.aimStart.y - this.aimEnd.y;
+    var len = Math.sqrt(dx*dx + dy*dy);
+    if (len < 16) return;
+
+    var skin = this.getSkin();
+    var maxLP = (skin.ability === 'hyper_power') ? 14.55 : 13.0;
+    var power = Math.min(len / 150, 1) * maxLP;
+    var nx = dx/len, ny = dy/len;
+
+    if (!this.orb.grounded && skin.ability === 'midair_launch' && !this.orb.midAirLaunched) {
+      this.orb.midAirLaunched = true;
+      power *= 0.8;
+      for (var j = 0; j < 15; j++) {
+        this.spawnParticle(this.orb.x, this.orb.y, (Math.random()-0.5)*4, (Math.random()-0.5)*4, '#ff00ff', 4, 0.8);
+      }
+    }
+
+    this.orb.vx = nx * power; this.orb.vy = ny * power;
+    this.orb.launched = true; this.orb.grounded = false;
+    this.shots++;
+    this.updateHUD();
+    this.sfx.launch();
+  },
+  onKey: function(e){
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      if      (this.state === 'PLAYING') this.pause();
+      else if (this.state === 'PAUSED')  this.resume();
+    }
+    if (e.key === 'r' || e.key === 'R') {
+      if (this.state === 'PLAYING' || this.state === 'PAUSED' || this.state === 'GAME_OVER') this.restartLevel();
+    }
+  },
+
+
+  /* ==========================================================================
+   * GAME LOOP · timestep fijo + tracking de FPS
+   * ========================================================================== */
+  loop: function(timestamp){
+    if (!this.lastTime) this.lastTime = timestamp;
+    var delta = (timestamp - this.lastTime) / 1000;
+    this.lastTime = timestamp;
+    if (delta > 0.1) delta = 0.1;
+
+    if (this.state === 'PLAYING') {
+      this.accumulator += delta;
+      var maxSteps = 4, steps = 0;
+      while (this.accumulator >= this.dt && steps < maxSteps) {
+        this.physicsStep();
+        this.accumulator -= this.dt;
+        steps++;
+      }
+      if (this.accumulator > this.dt * maxSteps) this.accumulator = 0;
+    }
+
+    this.updateParticles();
+    this.render();
+    this.frameCount++;
+
+    // FPS rolling 1s
+    this.fpsAccum += delta; this.fpsFrames++;
+    if (this.fpsAccum >= 1.0) {
+      this.fpsAvg = Math.round(this.fpsFrames / this.fpsAccum);
+      this.fpsAccum = 0; this.fpsFrames = 0;
+      if (this.showFps) {
+        var b = document.getElementById('fpsBadge');
+        if (b) { b.style.display = 'block'; b.textContent = 'FPS ' + this.fpsAvg + ' · ' + (this.quality === 'high' ? 'Alto' : 'Suave'); }
+      }
+    }
+
+    var self = this;
+    requestAnimationFrame(function(t){ self.loop(t); });
+  },
+
+  /* ==========================================================================
+   * RESIZE · DPR según calidad. Marca capas como sucias.
+   * ========================================================================== */
+  resize: function(){
+    var dprMax = this.qSettings[this.quality].dprMax;
+    this.dpr = Math.min(window.devicePixelRatio || 1, dprMax);
+    var rect = this.canvas.getBoundingClientRect();
+    this.W = Math.max(1, Math.floor(rect.width  * this.dpr));
+    this.H = Math.max(1, Math.floor(rect.height * this.dpr));
+    this.canvas.width  = this.W;
+    this.canvas.height = this.H;
+    this.bgDirty = true;
+    this.staticDirty = true;
+    if (this.state === 'PLAYING' && this.orb) this.startLevel(this.currentLevel);
+  },
+  onVisChange: function(){ if (document.hidden && this.state === 'PLAYING') this.pause(); },
+
+
+  /* ==========================================================================
+   * INIT · arranque del motor
+   * ========================================================================== */
+  init: function(){
+    this.canvas = document.getElementById('gc');
+    this.ctx    = this.canvas.getContext('2d', { alpha: false });
+
+    this.load();
+
+    var qs = this.qSettings[this.quality] || this.qSettings.soft;
+    this.maxParticles = qs.maxParticles;
+    this.maxConfetti  = qs.maxConfetti;
+    this.initPools();
+    this.resize();
+
+    var self = this;
+    this.canvas.addEventListener('mousedown',  function(e){ self.onDown(e); });
+    this.canvas.addEventListener('mousemove',  function(e){ self.onMove(e); });
+    this.canvas.addEventListener('mouseup',    function(e){ self.onUp(e); });
+    this.canvas.addEventListener('mouseleave', function(){ if (self.aiming) self.aiming = false; });
+
+    this.canvas.addEventListener('touchstart',  function(e){ self.onDown(e); }, { passive: false });
+    this.canvas.addEventListener('touchmove',   function(e){ self.onMove(e); }, { passive: false });
+    this.canvas.addEventListener('touchend',    function(e){ self.onUp(e);   }, { passive: false });
+    this.canvas.addEventListener('touchcancel', function(){ self.aiming = false; }, { passive: false });
+
+    window.addEventListener('keydown', function(e){ self.onKey(e); });
+    window.addEventListener('resize',  function(){ self.resize(); });
+    document.addEventListener('visibilitychange', function(){ self.onVisChange(); });
+
+    this.unlockedLevels[0] = true;
+
+    if (this.showFps) {
+      var b = document.getElementById('fpsBadge'); if (b) b.style.display = 'block';
+    }
+
+    this.updateMenuUI();
+    this.updateQualityUI();
+    this.setState('MENU');
+
+    requestAnimationFrame(function(t){ self.loop(t); });
+  }
+};
+
+window.addEventListener('DOMContentLoaded', function(){ G.init(); });
+</script>
+</body>
+</html>
