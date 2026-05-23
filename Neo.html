@@ -1,0 +1,4741 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mía: La Mochila Robada</title>
+  <meta name="description" content="Plataformero 2D al estilo clásico. Mía debe recuperar su mochila de las garras del Mapache Gigante Mutante. ¡Cuidado con la invasión alien!" />
+  <style>
+:root {
+  --bg-0: #0e0b1f;
+  --bg-1: #1c1338;
+  --accent: #ff4fa3;
+  --accent-2: #6cf0ff;
+  --text: #f4eefb;
+  --muted: #b3a8d1;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(ellipse at top, var(--bg-1), var(--bg-0) 60%);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 40px rgba(255, 79, 163, 0.25);
+}
+
+.tagline {
+  margin: 4px 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+#stage {
+  position: relative;
+  display: inline-block;
+  border: 3px solid #2b1f55;
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  background: #000;
+  overflow: hidden;
+  line-height: 0;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 800px;
+  max-width: 100%;
+  height: auto;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 5, 22, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: opacity 0.25s ease;
+  line-height: 1.5;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel {
+  max-width: 520px;
+  padding: 24px 28px;
+  background: rgba(28, 19, 56, 0.9);
+  border: 1px solid rgba(108, 240, 255, 0.25);
+  border-radius: 12px;
+  text-align: left;
+  color: var(--text);
+}
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.panel p { margin: 6px 0 12px; color: var(--muted); }
+
+.controls {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.controls li { margin: 4px 0; }
+
+kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 0 2px;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: 12px;
+  background: #2b1f55;
+  border: 1px solid #4a3585;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+button {
+  display: inline-block;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0e0b1f;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.2s ease;
+}
+
+button:hover { filter: brightness(1.1); }
+button:active { transform: translateY(1px); }
+
+footer {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+
+
+.panel .tip {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  background: rgba(255, 79, 79, 0.12);
+  border-left: 3px solid #ff4f4f;
+  border-radius: 4px;
+  color: #ffe7c8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.panel .tip strong { color: #ffd14f; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Mía: La Mochila Robada</h1>
+      <p class="tagline">Un plataformero 2D al estilo clásico — todo en un solo archivo</p>
+    </header>
+
+    <div id="stage">
+      <canvas id="game" width="960" height="540"></canvas>
+      <div id="overlay" class="overlay">
+        <div class="panel">
+          <h2>Mía: La Mochila Robada</h2>
+          <p>
+            Recupera tu mochila de diseños de las garras del
+            <strong>Mapache Gigante Mutante</strong>.
+          </p>
+          <ul class="controls">
+            <li><kbd>A</kbd>/<kbd>D</kbd> o <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> &mdash; moverse</li>
+            <li><kbd>Shift</kbd> &mdash; correr</li>
+            <li><kbd>Espacio</kbd> o <kbd>&uarr;</kbd> &mdash; saltar (mantén para saltar más alto)</li>
+            <li><kbd>K</kbd> o <kbd>Z</kbd> &mdash; atacar con espada &#9876;</li>
+            <li><kbd>J</kbd> &mdash; lanzar nota musical (con auriculares mágicos)</li>
+            <li><kbd>P</kbd> &mdash; pausar &nbsp;&middot;&nbsp; <kbd>R</kbd> &mdash; reiniciar nivel</li>
+          </ul>
+          <p class="tip">
+            &#9888; <strong>Cada 3 niveles</strong> caen <strong>naves alienígenas</strong>
+            disparando rayos láser. ¡Esquívalas o caerás al instante!
+          </p>
+          <button id="startBtn" type="button">Comenzar aventura</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>
+        Mundos: <strong>La Ciudad</strong> &middot; <strong>El Parque Abandonado</strong> &middot;
+        <strong>La Avenida Neón</strong> &middot; <strong>Las Alcantarillas</strong> &middot;
+        <strong>La Azotea Eléctrica</strong> &middot; <strong>El Rascacielos</strong>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+"use strict";
+
+/* =============================================================
+   audio.js
+   ============================================================= */
+// Sonidos sintetizados con Web Audio (sin assets externos, estilo retro).
+// Inicialización perezosa porque los navegadores requieren un gesto del
+// usuario antes de permitir audio.
+
+let audioCtx = null;
+
+function ensureCtx() {
+  if (audioCtx) return audioCtx;
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return null;
+  audioCtx = new Ctor();
+  return audioCtx;
+}
+
+function unlockAudio() {
+  const c = ensureCtx();
+  if (c && c.state === 'suspended') c.resume();
+}
+
+function blip({ freq = 440, dur = 0.1, type = 'square', vol = 0.18, slide = 0 }) {
+  const c = ensureCtx();
+  if (!c) return;
+  const t0 = c.currentTime;
+  const osc = c.createOscillator();
+  const gain = c.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t0 + dur);
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(c.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+const SFX = {
+  jump:    () => blip({ freq: 520, dur: 0.12, type: 'square', slide: 280 }),
+  coin:    () => { blip({ freq: 880, dur: 0.06, type: 'square' }); setTimeout(() => blip({ freq: 1320, dur: 0.1, type: 'square' }), 50); },
+  stomp:   () => blip({ freq: 180, dur: 0.1, type: 'sawtooth', slide: -100 }),
+  hit:     () => blip({ freq: 220, dur: 0.18, type: 'sawtooth', slide: -180 }),
+  break:   () => blip({ freq: 320, dur: 0.12, type: 'triangle', slide: -200 }),
+  power:   () => { blip({ freq: 440, dur: 0.08, type: 'square' }); setTimeout(() => blip({ freq: 660, dur: 0.08, type: 'square' }), 80); setTimeout(() => blip({ freq: 880, dur: 0.16, type: 'square' }), 160); },
+  shoot:   () => blip({ freq: 720, dur: 0.08, type: 'triangle', slide: 220 }),
+  death:   () => { blip({ freq: 440, dur: 0.18, type: 'square', slide: -380 }); setTimeout(() => blip({ freq: 220, dur: 0.3, type: 'sawtooth', slide: -180 }), 200); },
+  goal:    () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => blip({ freq: f, dur: 0.12, type: 'square' }), i * 100)); },
+  bossHit: () => blip({ freq: 110, dur: 0.2, type: 'sawtooth', slide: -50 }),
+  win:     () => { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => blip({ freq: f, dur: 0.18, type: 'square', vol: 0.22 }), i * 140)); },
+
+  // ----- Sonidos del ataque alien -----
+  // Sirena imponente: dos tonos alternándose, baja y alta. Repetida 4 veces.
+  alarm:   () => {
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => blip({ freq: 320, dur: 0.18, type: 'sawtooth', vol: 0.26 }), i * 380);
+      setTimeout(() => blip({ freq: 540, dur: 0.18, type: 'sawtooth', vol: 0.26 }), i * 380 + 180);
+    }
+  },
+  // Carga: zumbido ascendente que sube de tono
+  laserCharge: () => blip({ freq: 200, dur: 0.55, type: 'square', slide: 700, vol: 0.18 }),
+  // Disparo: pulso fuerte y sostenido
+  laserFire:   () => {
+    blip({ freq: 1100, dur: 0.18, type: 'square', slide: -400, vol: 0.22 });
+    setTimeout(() => blip({ freq: 220, dur: 0.35, type: 'sawtooth', slide: -120, vol: 0.18 }), 60);
+  },
+  // Trueno (storm world)
+  thunder: () => {
+    blip({ freq: 80, dur: 0.5, type: 'sawtooth', slide: -40, vol: 0.22 });
+    setTimeout(() => blip({ freq: 120, dur: 0.4, type: 'square', slide: -80, vol: 0.18 }), 120);
+  },
+};
+
+/* =============================================================
+   sprites.js
+   ============================================================= */
+// Pixel-art programático: cada función pinta un sprite con fillRect.
+// La rejilla está pensada en celdas de 2px sobre el canvas para un look retro.
+
+function px(ctx, x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+// ---------- Mía ----------
+
+const PALETTE = {
+  skin: '#ffd9b8',
+  skinShade: '#e6b894',
+  skinDark: '#c69675',
+  blush: '#ff9eb5',
+  hair: '#ffffff',
+  hairShade: '#dfe5f2',
+  hairDeep: '#b9c1d6',
+  hoodie: '#ff4fa3',
+  hoodieMid: '#e0357e',
+  hoodieShade: '#a8276c',
+  hoodieDark: '#6f1746',
+  hoodieHighlight: '#ff85c5',
+  jeans: '#3a6cd8',
+  jeansShade: '#23499a',
+  jeansDark: '#142d6a',
+  jeansSeam: '#5a8df0',
+  shoe: '#f4f4f4',
+  shoeStripe: '#ff4fa3',
+  shoeSole: '#1a1a1a',
+  shoeShade: '#bdbdbd',
+  eye: '#1d1338',
+  eyeShine: '#ffffff',
+  brow: '#3a2a55',
+  mouth: '#a83b6b',
+  headphones: '#ffd14f',
+  headphonesPad: '#ff8a3b',
+  swordBlade: '#cfd8ec',
+  swordEdge: '#7c8eb5',
+  swordHilt: '#4a3585',
+  swordGuard: '#ffd14f',
+  swordPommel: '#ff4fa3',
+};
+
+/**
+ * Dibuja a Mía mirando a la derecha en una caja de tamaño w×h, usando
+ * una rejilla 24×36 (mucho más detalle que la versión 16×24 anterior).
+ */
+function drawMia(ctx, x, y, w, h, opts = {}) {
+  const facing = opts.facing ?? 1;
+  const walk = opts.walkPhase ?? 0;
+  const jumping = !!opts.isJumping;
+  const falling = !!opts.isFalling;
+  const hp = !!opts.hasHeadphones;
+  const blink = !!opts.blink;
+  const showSword = opts.showSword !== false; // por defecto sí
+  const swinging = !!opts.swinging;
+  const swingT = opts.swingT ?? 0; // 0..1 progreso del swing
+  const stretchY = opts.stretchY ?? 1;
+  const stretchX = opts.stretchX ?? 1;
+
+  ctx.save();
+  // Squash & stretch desde el pie
+  const cx = x + w / 2;
+  const baseY = y + h;
+  ctx.translate(cx, baseY);
+  ctx.scale(stretchX, stretchY);
+  ctx.translate(-cx, -baseY);
+
+  if (facing < 0) {
+    ctx.translate(x + w, y);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(x, y);
+  }
+
+  // Rejilla relativa 24×36 escalada a w×h.
+  const sx = w / 24, sy = h / 36;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
+
+  // ---------- Cabello (parte trasera) ----------
+  u(4, 1, 16, 5, PALETTE.hair);
+  u(3, 2, 1, 7, PALETTE.hair);
+  u(20, 2, 1, 7, PALETTE.hair);
+  u(2, 4, 1, 5, PALETTE.hairShade);
+  u(21, 4, 1, 5, PALETTE.hairShade);
+  // Mechones laterales largos
+  u(3, 9, 2, 5, PALETTE.hair);
+  u(19, 9, 2, 5, PALETTE.hair);
+  u(3, 13, 2, 1, PALETTE.hairShade);
+  u(19, 13, 2, 1, PALETTE.hairShade);
+  // Sombra superior del cabello
+  u(5, 6, 14, 1, PALETTE.hairShade);
+  // Highlight del cabello
+  u(7, 2, 4, 1, PALETTE.hair);
+  u(13, 3, 3, 1, '#ffffff');
+  // Flequillo asimétrico
+  u(6, 5, 8, 3, PALETTE.hair);
+  u(7, 7, 4, 1, PALETTE.hairShade);
+  u(13, 6, 5, 2, PALETTE.hair);
+  u(13, 7, 4, 1, PALETTE.hairShade);
+
+  // ---------- Cara ----------
+  u(6, 7, 12, 7, PALETTE.skin);
+  u(6, 13, 12, 1, PALETTE.skinShade);
+  u(6, 7, 1, 1, PALETTE.skinShade);
+  u(17, 7, 1, 1, PALETTE.skinShade);
+  // Mejillas
+  u(7, 11, 2, 1, PALETTE.blush);
+  u(15, 11, 2, 1, PALETTE.blush);
+
+  // ---------- Cejas ----------
+  u(8, 8, 2, 1, PALETTE.brow);
+  u(14, 8, 2, 1, PALETTE.brow);
+
+  // ---------- Ojos ----------
+  if (!blink) {
+    u(8, 9, 2, 3, PALETTE.eye);
+    u(14, 9, 2, 3, PALETTE.eye);
+    // Brillo en los ojos (vida!)
+    u(9, 9, 1, 1, PALETTE.eyeShine);
+    u(15, 9, 1, 1, PALETTE.eyeShine);
+  } else {
+    u(8, 11, 2, 1, PALETTE.eye);
+    u(14, 11, 2, 1, PALETTE.eye);
+  }
+
+  // ---------- Boca ----------
+  u(11, 12, 2, 1, PALETTE.mouth);
+  u(10, 12, 1, 1, PALETTE.mouth);
+  u(13, 12, 1, 1, PALETTE.mouth);
+
+  // ---------- Capucha (asoma por detrás de la cabeza) ----------
+  u(2, 9, 1, 6, PALETTE.hoodie);
+  u(21, 9, 1, 6, PALETTE.hoodie);
+  u(3, 14, 18, 1, PALETTE.hoodieShade);
+
+  // ---------- Cuerpo / sudadera ----------
+  u(5, 14, 14, 9, PALETTE.hoodie);
+  // Highlight superior
+  u(5, 14, 14, 1, PALETTE.hoodieHighlight);
+  // Sombra inferior
+  u(5, 21, 14, 2, PALETTE.hoodieMid);
+  u(5, 22, 14, 1, PALETTE.hoodieShade);
+  // Bolsillo central canguro
+  u(8, 18, 8, 4, PALETTE.hoodieShade);
+  u(8, 18, 8, 1, PALETTE.hoodieDark);
+  u(9, 19, 1, 2, PALETTE.hoodieDark);
+  u(14, 19, 1, 2, PALETTE.hoodieDark);
+  // Cordones de la capucha
+  u(10, 14, 1, 4, PALETTE.hairShade);
+  u(13, 14, 1, 4, PALETTE.hairShade);
+  // Remates de cordón
+  u(10, 18, 1, 1, PALETTE.swordGuard);
+  u(13, 18, 1, 1, PALETTE.swordGuard);
+  // Pequeño detalle (corazón) en pecho
+  u(15, 16, 1, 1, PALETTE.hoodieHighlight);
+  u(16, 17, 1, 1, PALETTE.hoodieHighlight);
+  u(15, 17, 1, 1, PALETTE.hoodieHighlight);
+
+  // ---------- Brazos ----------
+  const armSwing = swinging ? 1 : (jumping ? -1 : (walk === 1 ? 1 : walk === 3 ? -1 : 0));
+  // Brazo izquierdo (desde nuestra perspectiva)
+  u(4, 15, 1, 7 + (armSwing > 0 ? 1 : 0), PALETTE.hoodie);
+  u(4, 15, 1, 1, PALETTE.hoodieHighlight);
+  // Manga (cuff)
+  u(3, 21 + (armSwing > 0 ? 1 : 0), 2, 1, PALETTE.hoodieDark);
+  // Mano izquierda
+  u(3, 22 + (armSwing > 0 ? 1 : 0), 2, 1, PALETTE.skin);
+
+  // Brazo derecho
+  u(19, 15, 1, 7 + (armSwing < 0 ? 1 : 0), PALETTE.hoodie);
+  u(19, 15, 1, 1, PALETTE.hoodieHighlight);
+  u(19, 21 + (armSwing < 0 ? 1 : 0), 2, 1, PALETTE.hoodieDark);
+  u(19, 22 + (armSwing < 0 ? 1 : 0), 2, 1, PALETTE.skin);
+
+  // ---------- Cinturón ----------
+  u(5, 23, 14, 1, PALETTE.jeansDark);
+  u(11, 23, 2, 1, PALETTE.swordGuard); // hebilla
+
+  // ---------- Jeans ----------
+  u(5, 24, 14, 6, PALETTE.jeans);
+  u(5, 24, 14, 1, PALETTE.jeansSeam);
+  // División de piernas
+  u(11, 24, 2, 6, PALETTE.jeansShade);
+  // Bolsillo trasero (lado)
+  u(6, 26, 3, 2, PALETTE.jeansShade);
+  u(15, 26, 3, 2, PALETTE.jeansShade);
+  u(6, 26, 3, 1, PALETTE.jeansDark);
+  u(15, 26, 3, 1, PALETTE.jeansDark);
+
+  // ---------- Piernas ----------
+  let legL = 0, legR = 0;
+  if (jumping) { legL = -1; legR = 1; }
+  else if (falling) { legL = 1; legR = -1; }
+  else if (walk === 1) { legL = -1; legR = 1; }
+  else if (walk === 3) { legL = 1; legR = -1; }
+
+  // Pantorrillas
+  u(6, 30 + legL, 4, 3, PALETTE.jeans);
+  u(14, 30 + legR, 4, 3, PALETTE.jeans);
+  u(6, 32 + legL, 4, 1, PALETTE.jeansShade);
+  u(14, 32 + legR, 4, 1, PALETTE.jeansShade);
+
+  // ---------- Zapatillas ----------
+  // Pie izquierdo
+  u(5, 33 + legL, 5, 2, PALETTE.shoe);
+  u(5, 33 + legL, 5, 1, '#ffffff');
+  u(5, 34 + legL, 5, 1, PALETTE.shoeShade);
+  u(5, 35 + legL, 5, 1, PALETTE.shoeSole);
+  u(5, 33 + legL, 1, 2, PALETTE.shoeStripe); // raya lateral
+  u(8, 34 + legL, 1, 1, PALETTE.shoeStripe);
+
+  // Pie derecho
+  u(14, 33 + legR, 5, 2, PALETTE.shoe);
+  u(14, 33 + legR, 5, 1, '#ffffff');
+  u(14, 34 + legR, 5, 1, PALETTE.shoeShade);
+  u(14, 35 + legR, 5, 1, PALETTE.shoeSole);
+  u(18, 33 + legR, 1, 2, PALETTE.shoeStripe);
+  u(15, 34 + legR, 1, 1, PALETTE.shoeStripe);
+
+  // ---------- Auriculares mágicos (overlay sobre cabello) ----------
+  if (hp) {
+    u(4, 1, 16, 1, PALETTE.headphones);
+    u(3, 1, 1, 3, PALETTE.headphones);
+    u(20, 1, 1, 3, PALETTE.headphones);
+    u(2, 4, 3, 5, PALETTE.headphonesPad);
+    u(19, 4, 3, 5, PALETTE.headphonesPad);
+    u(2, 4, 3, 1, PALETTE.headphones);
+    u(19, 4, 3, 1, PALETTE.headphones);
+  }
+
+  // ---------- Espada en la mano derecha ----------
+  if (showSword) {
+    if (swinging) {
+      // Arco de swing visible: la espada pivota frente a Mía (~135°)
+      ctx.restore();
+      ctx.save();
+      // Re-aplicar transforms para el arco
+      const cx2 = x + w / 2;
+      const baseY2 = y + h;
+      ctx.translate(cx2, baseY2);
+      ctx.scale(stretchX, stretchY);
+      ctx.translate(-cx2, -baseY2);
+      if (facing < 0) {
+        ctx.translate(x + w, y);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(x, y);
+      }
+      _drawSwordSwing(ctx, sx, sy, swingT);
+    } else {
+      // En reposo: empuñada al costado
+      _drawSwordIdle(ctx, sx, sy, walk, jumping);
+    }
+  }
+
+  ctx.restore();
+}
+
+// Espada en reposo (empuñada al costado/derecha)
+function _drawSwordIdle(ctx, sx, sy, walk, jumping) {
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
+
+  // Mango (lo agarra la mano derecha, x≈19-20, y≈22-23)
+  // La espada cuelga hacia abajo
+  const ox = 21;
+  const oy = 19;
+  // Hoja
+  u(ox, oy, 2, 8, PALETTE.swordBlade);
+  u(ox, oy, 1, 8, '#ffffff');
+  u(ox + 1, oy, 1, 8, PALETTE.swordEdge);
+  u(ox, oy, 2, 1, '#ffffff');
+  // Guarda
+  u(ox - 1, oy + 8, 4, 1, PALETTE.swordGuard);
+  // Mango
+  u(ox, oy + 9, 2, 2, PALETTE.swordHilt);
+  // Pomo
+  u(ox - 1, oy + 11, 4, 1, PALETTE.swordPommel);
+}
+
+// Espada haciendo swing (arco frente a Mía)
+function _drawSwordSwing(ctx, sx, sy, swingT) {
+  // swingT va de 0 (inicio) a 1 (fin). El ángulo va de -45° a +90° aprox.
+  // La espada pivota desde el hombro derecho (~20, 16).
+  const angle = -Math.PI / 4 + swingT * (Math.PI * 0.85);
+  const px0 = 18 * sx;
+  const py0 = 17 * sy;
+  ctx.save();
+  ctx.translate(px0, py0);
+  ctx.rotate(angle);
+
+  // Hoja extendida
+  const bladeLen = 14 * sx;
+  const bladeW = 3 * sy;
+  ctx.fillStyle = PALETTE.swordBlade;
+  ctx.fillRect(0, -bladeW / 2, bladeLen, bladeW);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, -bladeW / 2, bladeLen, 1);
+  ctx.fillStyle = PALETTE.swordEdge;
+  ctx.fillRect(0, bladeW / 2 - 1, bladeLen, 1);
+  // Punta
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bladeLen - 2, -bladeW / 2 + 1, 2, bladeW - 2);
+  // Guarda (cruz)
+  ctx.fillStyle = PALETTE.swordGuard;
+  ctx.fillRect(-2, -bladeW / 2 - 1, 4, bladeW + 2);
+  // Mango
+  ctx.fillStyle = PALETTE.swordHilt;
+  ctx.fillRect(-5 * sx, -1, 5 * sx, 2);
+  // Pomo
+  ctx.fillStyle = PALETTE.swordPommel;
+  ctx.fillRect(-6 * sx, -2, 2, 4);
+
+  ctx.restore();
+
+  // Estela del swing (arco translúcido)
+  ctx.save();
+  ctx.translate(px0, py0);
+  ctx.fillStyle = `rgba(255,255,255,${0.4 * (1 - swingT)})`;
+  ctx.beginPath();
+  const r = 16 * sx;
+  ctx.arc(0, 0, r, -Math.PI / 4, angle, false);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// ---------- Slime de Basura ----------
+function drawSlime(ctx, x, y, w, h, opts = {}) {
+  const sx = w / 16, sy = h / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+
+  // cuerpo gelatinoso
+  u(3, 6, 10, 8, '#7aa845');
+  u(2, 7, 1, 5, '#7aa845');
+  u(13, 7, 1, 5, '#7aa845');
+  u(4, 5, 8, 1, '#7aa845');
+  // brillo
+  u(5, 7, 2, 1, '#c0e074');
+  // sombra inferior
+  u(3, 13, 10, 1, '#4d6d28');
+  // cáscara de plátano encima
+  u(6, 3, 4, 2, '#f7d34a');
+  u(6, 5, 4, 1, '#d2a51d');
+  u(7, 1, 2, 2, '#a87b16');
+  // ojos
+  const blink = opts.blink;
+  if (!blink) {
+    u(6, 9, 1, 2, '#1a1a1a');
+    u(10, 9, 1, 2, '#1a1a1a');
+    u(6, 9, 1, 1, '#fff');
+    u(10, 9, 1, 1, '#fff');
+  } else {
+    u(6, 10, 1, 1, '#1a1a1a');
+    u(10, 10, 1, 1, '#1a1a1a');
+  }
+  // boca
+  u(7, 12, 3, 1, '#1a1a1a');
+}
+
+// ---------- Cuervo Robacarteras ----------
+function drawCrow(ctx, x, y, w, h, opts = {}) {
+  const sx = w / 16, sy = h / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+
+  if (opts.shellMode) {
+    // Forma "concha": el cuervo escondido en sus alas, tipo bolita.
+    u(3, 6, 10, 7, '#3b2a55');
+    u(4, 5, 8, 1, '#3b2a55');
+    u(2, 7, 1, 5, '#3b2a55');
+    u(13, 7, 1, 5, '#3b2a55');
+    u(3, 13, 10, 1, '#1d1133');
+    // pluma destacada
+    u(6, 8, 4, 1, '#6c3df0');
+    u(7, 9, 2, 1, '#6c3df0');
+    if (!opts.blink) {
+      u(6, 10, 1, 1, '#ff4fa3');
+      u(9, 10, 1, 1, '#ff4fa3');
+    }
+    return;
+  }
+
+  const facing = opts.facing ?? 1;
+  ctx.save();
+  if (facing < 0) {
+    ctx.translate(x + w, y);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(x, y);
+  }
+  const v = (cx, cy, cw, ch, color) =>
+    px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
+
+  // cuerpo
+  v(4, 7, 7, 5, '#1d1133');
+  v(3, 8, 1, 3, '#1d1133');
+  v(11, 8, 1, 3, '#1d1133');
+  // ala batiendo (si vuela)
+  const flap = opts.flap ?? 0;
+  if (opts.flying) {
+    if (flap < 2) {
+      v(2, 5, 4, 2, '#3b2a55');
+    } else {
+      v(2, 9, 4, 2, '#3b2a55');
+    }
+  } else {
+    v(4, 8, 3, 1, '#3b2a55');
+  }
+  // cabeza
+  v(9, 4, 4, 4, '#1d1133');
+  // ojo
+  v(11, 5, 1, 1, '#ff4fa3');
+  // pico
+  v(13, 6, 2, 1, '#ffae3b');
+  v(13, 7, 1, 1, '#d2891f');
+  // patas (si camina)
+  if (!opts.flying) {
+    v(6, 12, 1, 2, '#ffae3b');
+    v(9, 12, 1, 2, '#ffae3b');
+  }
+  ctx.restore();
+}
+
+// ---------- Cactus Rodante ----------
+function drawCactus(ctx, x, y, w, h, opts = {}) {
+  const sx = w / 16, sy = h / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+
+  // bola espinosa rotando
+  const rot = opts.rot ?? 0;
+  u(3, 3, 10, 10, '#3aa84a');
+  u(2, 4, 1, 8, '#3aa84a');
+  u(13, 4, 1, 8, '#3aa84a');
+  u(4, 2, 8, 1, '#3aa84a');
+  u(4, 13, 8, 1, '#3aa84a');
+  u(3, 12, 10, 1, '#1f6e2f');
+
+  // espinas que rotan
+  const spikes = [
+    [4, 1], [11, 1], [1, 5], [1, 10], [14, 5], [14, 10], [4, 14], [11, 14],
+  ];
+  for (let i = 0; i < spikes.length; i++) {
+    if ((i + Math.floor(rot)) % 2 === 0) {
+      u(spikes[i][0], spikes[i][1], 1, 1, '#e9f7c3');
+    } else {
+      u(spikes[i][0], spikes[i][1], 1, 1, '#9be07a');
+    }
+  }
+  // cara enojada
+  u(6, 7, 1, 2, '#1a1a1a');
+  u(9, 7, 1, 2, '#1a1a1a');
+  u(7, 10, 2, 1, '#1a1a1a');
+}
+
+// ---------- Caja de cartón misteriosa ----------
+function drawMysteryBox(ctx, x, y, size, opts = {}) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+
+  if (opts.empty) {
+    u(0, 0, 16, 16, '#6e4a25');
+    u(0, 0, 16, 1, '#a06c39');
+    u(0, 15, 16, 1, '#3e2a14');
+    u(0, 0, 1, 16, '#a06c39');
+    u(15, 0, 1, 16, '#3e2a14');
+    u(7, 7, 2, 2, '#3e2a14');
+    return;
+  }
+  // base cartón
+  u(0, 0, 16, 16, '#c98a4d');
+  u(0, 0, 16, 1, '#e9b073');
+  u(0, 15, 16, 1, '#7a4d22');
+  u(0, 0, 1, 16, '#e9b073');
+  u(15, 0, 1, 16, '#7a4d22');
+  // cinta adhesiva
+  u(7, 0, 2, 16, '#f0e6c8');
+  u(0, 7, 16, 2, '#f0e6c8');
+  // signo de interrogación
+  const blink = opts.blink ? '#ffe27a' : '#ffd14f';
+  u(6, 3, 4, 1, blink);
+  u(10, 3, 1, 2, blink);
+  u(8, 5, 2, 2, blink);
+  u(8, 8, 2, 1, blink);
+  u(8, 11, 2, 1, blink);
+}
+
+// ---------- Bloque ladrillo ----------
+function drawBrick(ctx, x, y, size) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+  u(0, 0, 16, 16, '#a83b29');
+  u(0, 0, 16, 1, '#d36049');
+  u(0, 15, 16, 1, '#6f1f12');
+  // mortero
+  u(0, 4, 16, 1, '#3b1409');
+  u(0, 9, 16, 1, '#3b1409');
+  u(7, 0, 1, 4, '#3b1409');
+  u(3, 5, 1, 4, '#3b1409');
+  u(11, 5, 1, 4, '#3b1409');
+  u(7, 10, 1, 6, '#3b1409');
+}
+
+// ---------- Tile sólido (suelo) ----------
+function drawGround(ctx, x, y, size, world = 'city') {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+
+  if (world === 'park') {
+    u(0, 0, 16, 4, '#5fb24a');
+    u(0, 4, 16, 12, '#7a4f2c');
+    u(0, 4, 16, 1, '#3a8030');
+    // raicillas
+    u(2, 6, 1, 2, '#4a2d18');
+    u(8, 9, 1, 2, '#4a2d18');
+    u(13, 12, 1, 2, '#4a2d18');
+  } else if (world === 'sewer') {
+    u(0, 0, 16, 16, '#3a3550');
+    u(0, 0, 16, 1, '#5a5378');
+    u(0, 15, 16, 1, '#1f1c30');
+    // patrón de losetas
+    u(0, 7, 16, 1, '#1f1c30');
+    u(7, 0, 1, 16, '#1f1c30');
+    u(2, 3, 1, 1, '#5a5378');
+    u(11, 11, 1, 1, '#5a5378');
+  } else if (world === 'roof') {
+    u(0, 0, 16, 16, '#566075');
+    u(0, 0, 16, 2, '#7a8499');
+    u(0, 14, 16, 2, '#3a4156');
+    u(0, 5, 16, 1, '#3a4156');
+    u(0, 10, 16, 1, '#3a4156');
+  } else if (world === 'neon') {
+    // Suelo de avenida con neón rosa/cyan
+    u(0, 0, 16, 16, '#1a0a30');
+    u(0, 0, 16, 1, '#ff4fa3');     // borde superior brillante
+    u(0, 1, 16, 1, '#a8276c');
+    u(0, 14, 16, 2, '#0a0218');
+    // Líneas luminosas internas
+    u(0, 7, 16, 1, '#6cf0ff');
+    u(0, 8, 16, 1, '#3a8aa8');
+    // Ladrillos pequeños
+    u(3, 3, 1, 3, '#3a1a55');
+    u(11, 10, 1, 3, '#3a1a55');
+    u(7, 12, 1, 2, '#3a1a55');
+  } else if (world === 'storm') {
+    // Tejados mojados con reflejo
+    u(0, 0, 16, 16, '#2a2a44');
+    u(0, 0, 16, 2, '#4a4a72');     // borde superior
+    u(0, 14, 16, 2, '#0a0a1a');
+    u(0, 6, 16, 1, '#1a1a3a');
+    u(0, 11, 16, 1, '#1a1a3a');
+    // Reflejo brillante (charco)
+    u(2, 1, 4, 1, '#7a8aa8');
+    u(10, 2, 3, 1, '#7a8aa8');
+  } else {
+    // ciudad: asfalto
+    u(0, 0, 16, 16, '#2a2a32');
+    u(0, 0, 16, 2, '#3e3e4c');
+    u(0, 14, 16, 2, '#16161c');
+    u(3, 5, 2, 1, '#56566a');
+    u(10, 9, 2, 1, '#56566a');
+    u(6, 12, 2, 1, '#56566a');
+  }
+}
+
+// ---------- Plataforma flotante ----------
+function drawPlatform(ctx, x, y, size, world = 'city') {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+  if (world === 'park') {
+    u(0, 0, 16, 5, '#8a5a32');
+    u(0, 0, 16, 1, '#b5784a');
+    u(0, 4, 16, 1, '#5a3618');
+    u(0, 5, 16, 11, '#3a221068');
+  } else if (world === 'sewer') {
+    u(0, 0, 16, 5, '#4a4565');
+    u(0, 0, 16, 1, '#6c6790');
+    u(0, 4, 16, 1, '#241f3a');
+  } else if (world === 'roof') {
+    u(0, 0, 16, 5, '#a36ad8');
+    u(0, 0, 16, 1, '#c98aff');
+    u(0, 4, 16, 1, '#5e3990');
+  } else if (world === 'neon') {
+    u(0, 0, 16, 5, '#ff4fa3');
+    u(0, 0, 16, 1, '#ffb1d8');
+    u(0, 1, 16, 1, '#ff85c5');
+    u(0, 4, 16, 1, '#a8276c');
+    // Detalles cyan
+    u(0, 2, 1, 1, '#6cf0ff');
+    u(7, 2, 1, 1, '#6cf0ff');
+    u(14, 2, 1, 1, '#6cf0ff');
+  } else if (world === 'storm') {
+    u(0, 0, 16, 5, '#3a4566');
+    u(0, 0, 16, 1, '#6a78a0');
+    u(0, 1, 16, 1, '#5a6890');
+    u(0, 4, 16, 1, '#1a2240');
+  } else {
+    u(0, 0, 16, 5, '#3a4a8a');
+    u(0, 0, 16, 1, '#5a72b5');
+    u(0, 4, 16, 1, '#1f2a55');
+  }
+}
+
+// ---------- Moneda de plata (con halo y sparkle) ----------
+function drawCoin(ctx, x, y, size, t = 0) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+
+  // Halo radial
+  const cxC = x + size / 2;
+  const cyC = y + size / 2;
+  const haloR = size * 0.95;
+  const halo = ctx.createRadialGradient(cxC, cyC, 0, cxC, cyC, haloR);
+  const pulse = 0.5 + 0.5 * Math.sin(t * 6);
+  halo.addColorStop(0, `rgba(255,247,200,${0.35 + pulse * 0.25})`);
+  halo.addColorStop(0.5, `rgba(255,209,79,${0.18 + pulse * 0.12})`);
+  halo.addColorStop(1, 'rgba(255,209,79,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(cxC - haloR, cyC - haloR, haloR * 2, haloR * 2);
+
+  // Animación de spin: anchura horizontal cambia con seno
+  const spin = Math.abs(Math.sin(t * 6));
+  const w = 2 + spin * 6;
+  const cx = 8 - w / 2;
+  u(cx, 4, w, 8, '#fff5d0');
+  u(cx + 1, 5, w - 2, 1, '#ffffff');
+  u(cx + 1, 10, w - 2, 1, '#d2a51d');
+  if (w > 4) {
+    u(cx + 2, 6, 1, 4, '#ffd14f');
+    u(cx + w - 3, 6, 1, 4, '#a8801a');
+  }
+
+  // Sparkle pequeño que aparece y desaparece
+  const sparkle = Math.sin(t * 3.5) > 0.7;
+  if (sparkle) {
+    u(13, 2, 1, 1, '#ffffff');
+    u(12, 3, 3, 1, '#ffffff');
+    u(13, 4, 1, 1, '#ffffff');
+  }
+}
+
+// ---------- Bebida Energética ----------
+function drawEnergyDrink(ctx, x, y, size) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+  // lata
+  u(4, 3, 8, 11, '#e23a3a');
+  u(4, 3, 8, 2, '#ff6c6c');
+  u(4, 12, 8, 1, '#7e1414');
+  // tapa
+  u(5, 2, 6, 1, '#dcdcdc');
+  u(7, 1, 2, 1, '#bcbcbc');
+  // rayo
+  u(7, 5, 2, 2, '#ffe27a');
+  u(6, 7, 4, 1, '#ffe27a');
+  u(7, 8, 2, 2, '#ffe27a');
+  // texto fake
+  u(5, 11, 6, 1, '#ffffff66');
+}
+
+// ---------- Auriculares Mágicos (item) ----------
+function drawHeadphonesItem(ctx, x, y, size) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+  // banda
+  u(4, 3, 8, 2, '#ffd14f');
+  u(3, 4, 1, 4, '#ffd14f');
+  u(12, 4, 1, 4, '#ffd14f');
+  // copas
+  u(2, 7, 3, 5, '#ff8a3b');
+  u(11, 7, 3, 5, '#ff8a3b');
+  u(2, 7, 3, 1, '#ffd14f');
+  u(11, 7, 3, 1, '#ffd14f');
+  // notitas
+  u(6, 12, 1, 2, '#6cf0ff');
+  u(7, 13, 2, 1, '#6cf0ff');
+  u(10, 11, 1, 2, '#6cf0ff');
+}
+
+// ---------- Nota musical (proyectil) ----------
+function drawMusicNote(ctx, x, y, size, t = 0) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+  const c = Math.floor(t * 8) % 2 === 0 ? '#6cf0ff' : '#ff4fa3';
+  u(4, 9, 4, 4, c);
+  u(8, 4, 1, 8, c);
+  u(8, 4, 3, 1, c);
+}
+
+// ---------- Estación de tren / parada ----------
+function drawGoal(ctx, x, y, w, h) {
+  const sx = w / 32, sy = h / 64;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+  // poste
+  u(15, 8, 2, 56, '#a8a8b8');
+  u(14, 8, 4, 1, '#cfcfdc');
+  // letrero
+  u(4, 0, 24, 12, '#1d8aff');
+  u(4, 0, 24, 2, '#5cb1ff');
+  u(4, 10, 24, 2, '#0e5fbf');
+  // texto BUS / TREN
+  u(8, 4, 2, 4, '#ffffff');  u(11, 4, 2, 4, '#ffffff'); u(14, 4, 2, 4, '#ffffff');
+  u(18, 4, 2, 4, '#ffe27a');  u(21, 4, 2, 4, '#ffe27a');
+  // banco
+  u(2, 56, 28, 2, '#5a3a18');
+  u(4, 58, 2, 6, '#3a2410');
+  u(26, 58, 2, 6, '#3a2410');
+}
+
+// ---------- Mochila de Mía (objetivo final) ----------
+function drawBackpack(ctx, x, y, size) {
+  const s = size / 16;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
+  u(3, 4, 10, 11, '#ff4fa3');
+  u(3, 4, 10, 2, '#ff85c5');
+  u(3, 13, 10, 2, '#a8276c');
+  u(5, 2, 6, 3, '#ff4fa3');
+  u(6, 6, 4, 4, '#ffffff');
+  u(7, 7, 2, 2, '#ff4fa3');
+  // correas
+  u(3, 6, 1, 8, '#a8276c');
+  u(12, 6, 1, 8, '#a8276c');
+}
+
+// ---------- Mapache Gigante Mutante (jefe) ----------
+function drawRaccoonBoss(ctx, x, y, w, h, opts = {}) {
+  const sx = w / 32, sy = h / 32;
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+  const facing = opts.facing ?? 1;
+  ctx.save();
+  if (facing < 0) {
+    ctx.translate(x + w, y);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(x, y);
+  }
+  const v = (cx, cy, cw, ch, color) =>
+    px(ctx, cx * sx, cy * sy, cw * sx, ch * sy, color);
+
+  const hurt = opts.hurt;
+  const bodyA = hurt ? '#9a8aa8' : '#6e6480';
+  const bodyB = hurt ? '#cabad8' : '#9a8aa8';
+
+  // cuerpo
+  v(6, 12, 20, 16, bodyA);
+  v(6, 12, 20, 2, bodyB);
+  v(6, 26, 20, 2, '#3a3548');
+  // cabeza
+  v(8, 4, 16, 12, bodyA);
+  v(8, 4, 16, 2, bodyB);
+  // orejas
+  v(8, 2, 4, 3, bodyA);
+  v(20, 2, 4, 3, bodyA);
+  // máscara de mapache (negra)
+  v(9, 8, 14, 4, '#1d1133');
+  v(11, 9, 4, 2, '#ffffff');
+  v(17, 9, 4, 2, '#ffffff');
+  // ojos
+  v(12, 9, 2, 2, opts.hurt ? '#ff4fa3' : '#ffd14f');
+  v(18, 9, 2, 2, opts.hurt ? '#ff4fa3' : '#ffd14f');
+  // hocico
+  v(13, 12, 6, 3, '#dcd2e5');
+  v(15, 13, 2, 1, '#1a1a1a');
+  v(13, 14, 6, 1, '#1a1a1a');
+  // dientes
+  v(13, 14, 1, 1, '#ffffff');
+  v(18, 14, 1, 1, '#ffffff');
+  // brazos
+  v(2, 14, 4, 6, bodyA);
+  v(26, 14, 4, 6, bodyA);
+  v(2, 19, 4, 2, '#1d1133');
+  v(26, 19, 4, 2, '#1d1133');
+  // cola con rayas
+  v(26, 22, 6, 4, '#3a3548');
+  v(26, 22, 6, 1, '#7a7090');
+  v(28, 24, 4, 1, '#7a7090');
+  // patas
+  v(8, 28, 5, 4, '#3a3548');
+  v(19, 28, 5, 4, '#3a3548');
+  ctx.restore();
+}
+
+
+
+// ---------- Aura/Glow para personajes (siempre activa en modo ULTRA) ----------
+function drawCharacterAura(ctx, x, y, w, h, opts = {}) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const radius = Math.max(w, h) * (opts.scale || 0.85);
+  const color = opts.color || '#ff4fa3';
+  const intensity = opts.intensity ?? 0.35;
+
+  const grad = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
+  grad.addColorStop(0, hexToRgba(color, intensity * 0.6));
+  grad.addColorStop(0.5, hexToRgba(color, intensity * 0.25));
+  grad.addColorStop(1, hexToRgba(color, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+}
+
+function hexToRgba(hex, a) {
+  // soporta #rgb, #rrggbb
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ---------- Nube de polvo (al correr/saltar/aterrizar) ----------
+function drawDust(ctx, x, y, life, maxLife) {
+  const k = Math.max(0, life / maxLife);
+  const r = (1 - k) * 12 + 4;
+  ctx.fillStyle = `rgba(220,210,230,${0.45 * k})`;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.25 * k})`;
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 2, r * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------- Nave Alien (UFO) ----------
+//
+// Sprite imponente: cúpula con piloto verde, casco metálico con luces
+// circulares, halo bajo el platillo, antena con bola pulsante arriba.
+function drawAlienShip(ctx, x, y, w, h, opts = {}) {
+  const sx = w / 32, sy = h / 16;
+  const t = opts.t || 0;
+  const damaged = !!opts.damaged;
+
+  // Halo bajo el platillo (verde/cyan brillante)
+  const haloC = damaged ? '#ff4fa3' : '#6cf0ff';
+  const haloX = x + w / 2;
+  const haloY = y + h * 0.85;
+  const haloR = w * 0.7;
+  const grad = ctx.createRadialGradient(haloX, haloY, 0, haloX, haloY, haloR);
+  grad.addColorStop(0, hexToRgba(haloC, 0.55 + 0.2 * Math.sin(t * 8)));
+  grad.addColorStop(0.5, hexToRgba(haloC, 0.2));
+  grad.addColorStop(1, hexToRgba(haloC, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(haloX - haloR, haloY - haloR, haloR * 2, haloR * 2);
+
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+
+  // Cuerpo del platillo (elipse pixelada)
+  // fila por fila simulando una elipse
+  // y rows: 5..11 con anchos crecientes/decrecientes
+  const bodyDark  = damaged ? '#5a3038' : '#2a2a3a';
+  const bodyMid   = damaged ? '#a04a55' : '#5a5a72';
+  const bodyLight = damaged ? '#ff85a8' : '#a8b0c8';
+
+  // Sombra inferior
+  u(4, 11, 24, 1, bodyDark);
+  u(2, 10, 28, 1, bodyDark);
+  u(1, 9,  30, 1, bodyMid);
+  u(0, 8,  32, 1, bodyMid);
+  u(1, 7,  30, 1, bodyLight);
+  u(3, 6,  26, 1, bodyLight);
+  u(6, 5,  20, 1, bodyMid);
+
+  // Cúpula transparente con piloto
+  u(11, 1, 10, 4, '#0a1a30');         // cúpula (cristal oscuro)
+  u(11, 1, 10, 1, '#6cf0ff');         // borde superior cyan
+  u(11, 4, 10, 1, '#3a8aa8');         // borde inferior
+  // Reflejo en cristal
+  u(13, 2, 2, 1, '#a8e0ff');
+  u(13, 3, 1, 1, '#a8e0ff');
+
+  // Piloto alien (cabezota verde con un solo ojo)
+  u(14, 2, 4, 2, '#5fd84a');          // cabeza
+  u(15, 1, 2, 1, '#5fd84a');          // tope
+  u(16, 2, 1, 1, '#1a1a1a');          // ojo (cíclope)
+  u(15, 3, 3, 1, '#3a8a30');          // sombra
+  // Antenas
+  u(14, 0, 1, 1, '#ffd14f');
+  u(17, 0, 1, 1, '#ffd14f');
+
+  // Luces circulares en la base del platillo (parpadean)
+  const blinkPhase = Math.floor(t * 8) % 4;
+  const lights = [3, 8, 14, 19, 24];
+  for (let i = 0; i < lights.length; i++) {
+    const lit = (i + blinkPhase) % 2 === 0;
+    const cx = lights[i];
+    u(cx, 8, 2, 1, lit ? '#ff4fa3' : '#5a3060');
+    if (lit) {
+      // pequeño halo
+      ctx.fillStyle = 'rgba(255,79,163,0.35)';
+      ctx.fillRect(x + (cx - 1) * sx, y + 7 * sy, 4 * sx, 3 * sy);
+    }
+  }
+
+  // Antena superior con esfera roja pulsante
+  u(15, 0, 2, 1, '#3a3a55');
+  // Bolita
+  const pulseSize = 1 + Math.sin(t * 10) * 0.3;
+  ctx.fillStyle = '#ff4f4f';
+  ctx.beginPath();
+  ctx.arc(x + 16 * sx, y - 1 * sy, 2.5 * sx * pulseSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,79,79,0.5)';
+  ctx.beginPath();
+  ctx.arc(x + 16 * sx, y - 1 * sy, 5 * sx * pulseSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cañón inferior (donde sale el láser)
+  u(15, 11, 2, 2, '#1a1a2a');
+  u(14, 12, 4, 1, '#3a3a55');
+}
+
+// ---------- Láser vertical (rayo de la nave alien) ----------
+//
+// Dibuja un rayo vertical que va desde (x,y) hacia abajo con altura h.
+// Tiene núcleo blanco intenso, corona verde/rosa, halo amplio y partículas.
+function drawAlienLaser(ctx, x, y, h, opts = {}) {
+  const t = opts.t || 0;
+  const charge = opts.charge ?? 1;       // 0..1 para fade-in al aparecer
+  const colorCore = '#ffffff';
+  const colorMid = opts.color || '#ff4fa3';
+  const colorOuter = opts.outer || '#6cf0ff';
+
+  // Halo lateral muy ancho
+  const haloW = 36 * charge;
+  const grad = ctx.createLinearGradient(x - haloW / 2, 0, x + haloW / 2, 0);
+  grad.addColorStop(0, hexToRgba(colorOuter, 0));
+  grad.addColorStop(0.4, hexToRgba(colorMid, 0.25 * charge));
+  grad.addColorStop(0.5, hexToRgba(colorCore, 0.6 * charge));
+  grad.addColorStop(0.6, hexToRgba(colorMid, 0.25 * charge));
+  grad.addColorStop(1, hexToRgba(colorOuter, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(x - haloW / 2, y, haloW, h);
+
+  // Capas: outer, mid, core
+  ctx.fillStyle = hexToRgba(colorOuter, 0.5 * charge);
+  ctx.fillRect(x - 8 * charge, y, 16 * charge, h);
+
+  ctx.fillStyle = hexToRgba(colorMid, 0.85 * charge);
+  ctx.fillRect(x - 4 * charge, y, 8 * charge, h);
+
+  ctx.fillStyle = colorCore;
+  ctx.fillRect(x - 2 * charge, y, 4 * charge, h);
+
+  // "Pulsos" que viajan por el rayo
+  for (let i = 0; i < 4; i++) {
+    const py = y + ((t * 600 + i * 60) % h);
+    ctx.fillStyle = hexToRgba(colorCore, 0.9 * charge);
+    ctx.fillRect(x - 4 * charge, py, 8 * charge, 4);
+  }
+
+  // Punto de impacto al final (chispa)
+  ctx.fillStyle = colorCore;
+  ctx.beginPath();
+  ctx.arc(x, y + h - 2, 6 * charge, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = hexToRgba(colorMid, 0.5 * charge);
+  ctx.beginPath();
+  ctx.arc(x, y + h - 2, 14 * charge, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------- Carga del láser (antes de disparar) ----------
+function drawLaserCharge(ctx, x, y, t, charge) {
+  const k = Math.min(1, charge);
+  ctx.fillStyle = `rgba(255,79,163,${0.5 * k})`;
+  ctx.beginPath();
+  ctx.arc(x, y, 8 * k + 2 * Math.sin(t * 30), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.9 * k})`;
+  ctx.beginPath();
+  ctx.arc(x, y, 3 * k + 1.5 * Math.sin(t * 40), 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------- Explosión alien ----------
+function drawAlienExplosion(ctx, x, y, life, maxLife) {
+  const k = life / maxLife;
+  const r = (1 - k) * 30 + 8;
+  // núcleo
+  ctx.fillStyle = `rgba(255,255,255,${k * 0.9})`;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2); ctx.fill();
+  // anillo verde
+  ctx.fillStyle = `rgba(95,216,74,${k * 0.6})`;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  // anillo exterior cyan
+  ctx.strokeStyle = `rgba(108,240,255,${k * 0.5})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1;
+}
+
+/* =============================================================
+   levels.js
+   ============================================================= */
+// Niveles definidos como filas de texto. Caracteres:
+//
+//   '.' / ' '  vacío
+//   '#'        suelo sólido
+//   '='        plataforma (sólida pero ligera)
+//   'B'        ladrillo (sólido; rompible si Mía está grande)
+//   '?'        caja misteriosa con moneda
+//   '$'        caja misteriosa con power-up (alterna bebida/auriculares)
+//   '*'        caja misteriosa con auriculares mágicos garantizados
+//   'C'        moneda suelta
+//   'S'        slime de basura (Goomba)
+//   'K'        cuervo robacarteras caminando
+//   'F'        cuervo robacarteras volando
+//   'X'        cactus rodante
+//   'G'        meta (estación / parada)
+//   'M'        spawn de Mía (siempre debe existir uno por nivel)
+//
+// Todos los niveles miden 15 filas de alto. La fila inferior debe ser piso.
+// Los niveles con `alienAttack: true` activan la invasión de naves alien
+// con un aviso imponente al inicio. Por petición del usuario, esto pasa
+// cada 3 niveles (3 y 6 con la nueva longitud de campaña).
+
+// ---------- Helper para pintar filas ---------------------------------------
+// Construye una fila de exactamente `width` chars colocando piezas en
+// posiciones específicas, rellenando con '.' (vacío). Esto hace que los
+// niveles sean legibles como un blueprint en lugar de cadenas gigantes.
+function _row(width, ...pieces) {
+  const buf = new Array(width).fill('.');
+  for (let i = 0; i < pieces.length; i += 2) {
+    const idx = pieces[i];
+    const str = pieces[i + 1];
+    for (let k = 0; k < str.length; k++) {
+      if (idx + k >= 0 && idx + k < width) buf[idx + k] = str[k];
+    }
+  }
+  return buf.join('');
+}
+
+// Suelo sólido continuo (todos '#') o con huecos definidos como pares [start,len].
+function _floor(width, ...gaps) {
+  const buf = new Array(width).fill('#');
+  for (let i = 0; i < gaps.length; i += 2) {
+    const start = gaps[i];
+    const len = gaps[i + 1];
+    for (let k = start; k < start + len && k < width; k++) buf[k] = '.';
+  }
+  return buf.join('');
+}
+
+// =========================================================================
+// NIVEL 1 — La Ciudad (rediseñado, 130 cols)
+// Multi-tier, callejón con saltos suaves, escalera a un edificio con secreto,
+// puente sobre callejón, cuervo+cactus en final. Aprende todas las mecánicas
+// sin sentirse vacío.
+// =========================================================================
+const _L1_W = 130;
+const LEVEL_1_ROWS = [
+  _row(_L1_W),                                                                // 0  cielo
+  _row(_L1_W, 65, 'CCCCC'),                                                   // 1  secreto: monedas en lo alto
+  _row(_L1_W, 60, '==========', 95, '====='),                                 // 2  techo del edificio + plataforma alta
+  _row(_L1_W, 63, '$', 96, 'CCC'),                                            // 3  power-up arriba del edificio
+  _row(_L1_W, 7, 'CCC', 32, '?', 56, '====', 95, '====='),                    // 4  trail de monedas + caja alta + plat
+  _row(_L1_W, 15, '====', 36, 'BBBB', 52, '====', 78, 'B?B', 110, '===='),    // 5  plataformas medias + brick puzzle
+  _row(_L1_W, 14, '?', 18, 'C', 30, '?', 38, '$', 48, '====', 70, 'CCCC', 110, 'CC'),       // 6  cajas + monedas + plat baja
+  _row(_L1_W, 25, 'CCC', 60, '?', 64, '*', 100, '$', 122, 'CCC'),             // 7  monedas + caja secreta de auriculares
+  _row(_L1_W, 5, 'CCC', 22, 'F', 78, 'CC', 122, 'C'),                         // 8  cuervo volador en patrullaje + monedas
+  _row(_L1_W, 38, '====', 88, '======'),                                      // 9  plataforma media-baja
+  _row(_L1_W, 47, 'X', 105, 'C', 110, 'C', 115, 'C'),                         // 10 cactus rodando + monedas previas a meta
+  _row(_L1_W, 28, 'S', 68, 'K', 95, 'X', 128, 'G'),                           // 11 slime + cuervo caminante + cactus + GOAL
+  _floor(_L1_W),                                                              // 12 piso (continuo en L1, sin huecos profundos)
+  _floor(_L1_W),                                                              // 13 piso
+  _floor(_L1_W),                                                              // 14 piso
+];
+
+// =========================================================================
+// NIVEL 2 — El Parque Abandonado (mejorado)
+// =========================================================================
+const _L2_W = 120;
+const LEVEL_2_ROWS = [
+  _row(_L2_W),
+  _row(_L2_W, 12, 'CCCC', 70, 'CCC'),
+  _row(_L2_W, 10, '======', 38, '$', 68, '====='),
+  _row(_L2_W, 90, 'F'),
+  _row(_L2_W, 4, 'F', 35, '?BBB?', 52, 'CCCCC', 88, '?$?'),
+  _row(_L2_W, 50, '================', 95, '======'),
+  _row(_L2_W, 22, '?', 26, 'B', 28, '?', 84, 'CCCC'),
+  _row(_L2_W, 5, 'CCC', 20, '====', 78, '======================'),
+  _row(_L2_W, 98, 'F'),
+  _row(_L2_W, 14, 'BBBB', 44, '====', 60, 'BBB', 96, 'BBB'),
+  _row(_L2_W, 8, 'X', 32, 'S', 60, '====', 70, 'X'),
+  _row(_L2_W, 4, 'S', 27, 'X', 50, 'S', 80, 'K', 118, 'G'),
+  _floor(_L2_W, 6, 3, 38, 4, 75, 4),                                          // huecos: enseñar saltos
+  _floor(_L2_W, 6, 3, 38, 4, 75, 4),
+  _floor(_L2_W),
+];
+
+// =========================================================================
+// NIVEL 3 — La Avenida Neón (NUEVO, ¡INVASIÓN ALIEN!)
+// Nivel "puente" entre el parque y las alcantarillas: una avenida de neones
+// en altura. Aquí descienden las naves alienígenas por primera vez.
+// Diseñado con muchas plataformas para que el jugador pueda esquivar láseres.
+// =========================================================================
+const _L3_W = 140;
+const LEVEL_3_ROWS = [
+  _row(_L3_W, 5, 'CCCCCCC'),
+  _row(_L3_W, 22, '==========', 70, '==========', 105, '=========='),
+  _row(_L3_W, 25, '*', 73, '$', 108, '?'),
+  _row(_L3_W, 15, 'F', 40, '====', 55, '====', 85, '====', 120, '===='),
+  _row(_L3_W, 42, '?B?', 87, '?B?', 122, 'C'),
+  _row(_L3_W, 10, '======', 30, 'F', 60, '======', 95, 'F', 125, 'CC'),
+  _row(_L3_W, 12, '$', 65, '?', 96, 'CCCC'),
+  _row(_L3_W, 25, 'CCCC', 50, '====', 78, '====', 110, '===='),
+  _row(_L3_W, 38, 'BBB', 80, 'BBB', 100, 'F'),
+  _row(_L3_W, 5, '====', 60, '====', 90, '======'),
+  _row(_L3_W, 18, 'C', 22, 'C', 26, 'C', 92, 'X', 130, 'C'),
+  _row(_L3_W, 8, 'S', 35, 'X', 70, 'S', 100, 'K', 138, 'G'),
+  _floor(_L3_W, 16, 5, 48, 6, 82, 5, 115, 5),
+  _floor(_L3_W, 16, 5, 48, 6, 82, 5, 115, 5),
+  _floor(_L3_W),
+];
+
+// =========================================================================
+// NIVEL 4 — Las Alcantarillas (mejorado)
+// =========================================================================
+const _L4_W = 130;
+const LEVEL_4_ROWS = [
+  _row(_L4_W),
+  _row(_L4_W, 28, 'CCCC', 88, 'CCCCC'),
+  _row(_L4_W, 25, '======', 86, '======='),
+  _row(_L4_W, 12, 'F', 50, 'F', 105, 'F'),
+  _row(_L4_W, 18, '?$?BBB?', 60, 'CCCCCCC', 110, '*'),
+  _row(_L4_W, 35, '================', 90, '================'),
+  _row(_L4_W, 8, 'CCC', 75, 'CCCC', 122, 'C'),
+  _row(_L4_W, 5, '====', 38, '======', 70, '====', 98, '======'),
+  _row(_L4_W),
+  _row(_L4_W, 16, 'BBB', 48, 'BBBB', 84, 'BBB', 116, 'BBB'),
+  _row(_L4_W, 4, 'S', 28, 'X', 56, 'S', 78, 'K', 100, 'X'),
+  _row(_L4_W, 14, 'K', 40, 'F', 64, 'X', 92, 'S', 128, 'G'),
+  _floor(_L4_W, 22, 4, 58, 4, 92, 4),
+  _floor(_L4_W, 22, 4, 58, 4, 92, 4),
+  _floor(_L4_W),
+];
+
+// =========================================================================
+// NIVEL 5 — La Azotea Eléctrica (NUEVO, transición al jefe)
+// Tejados conectados por cables y plataformas. Sin alien attack, pero con
+// muchos cuervos voladores y saltos largos.
+// =========================================================================
+const _L5_W = 130;
+const LEVEL_5_ROWS = [
+  _row(_L5_W, 30, 'CCCCC', 90, 'CCCCC'),
+  _row(_L5_W, 18, '========', 50, '*', 75, '==========='),
+  _row(_L5_W, 20, 'F', 78, '$'),
+  _row(_L5_W, 8, '======', 45, '========', 95, '======'),
+  _row(_L5_W, 10, '?$?', 48, 'BBBB', 96, '?B?'),
+  _row(_L5_W, 32, 'F', 60, 'CCC', 105, 'F'),
+  _row(_L5_W, 25, '====', 65, '======', 105, '===='),
+  _row(_L5_W, 5, 'CCCCC', 80, 'F', 115, 'CCC'),
+  _row(_L5_W, 38, '======', 85, '======'),
+  _row(_L5_W, 14, 'BB?BB', 56, 'BBB', 90, 'BBBB'),
+  _row(_L5_W, 22, 'F', 58, 'X', 102, 'F'),
+  _row(_L5_W, 6, 'X', 28, 'S', 50, 'K', 75, 'X', 100, 'S', 128, 'G'),
+  _floor(_L5_W, 18, 6, 52, 6, 88, 6),
+  _floor(_L5_W, 18, 6, 52, 6, 88, 6),
+  _floor(_L5_W),
+];
+
+// =========================================================================
+// NIVEL 6 — El Rascacielos (jefe + INVASIÓN ALIEN final)
+// Mismo objetivo: derrotar al jefe y recoger la mochila. Pero ahora también
+// caen naves alien para complicar la pelea: aviso imponente al entrar.
+// =========================================================================
+const _L6_W = 90;
+const LEVEL_6_ROWS = [
+  _row(_L6_W),
+  _row(_L6_W),
+  _row(_L6_W, 10, 'CCCCC', 70, 'CCCCC'),
+  _row(_L6_W, 15, '*', 72, '$'),
+  _row(_L6_W, 30, '==========', 50, '=========='),
+  _row(_L6_W, 8, '========', 70, '========'),
+  _row(_L6_W, 18, 'CCCCC', 60, 'CCCCC'),
+  _row(_L6_W, 30, '==========', 50, '=========='),
+  _row(_L6_W),
+  _row(_L6_W, 14, '?$?', 70, '?*?'),
+  _row(_L6_W, 6, 'BBBB', 78, 'BBBB'),
+  _row(_L6_W, 88, 'G'),
+  _floor(_L6_W),
+  _floor(_L6_W),
+  _floor(_L6_W),
+];
+
+// =========================================================================
+const LEVELS = [
+  {
+    id: 1,
+    name: 'La Ciudad',
+    world: 'city',
+    timeLimit: 260,
+    bgColor: ['#1f1240', '#3a2065'],
+    music: 'city',
+    rows: LEVEL_1_ROWS,
+    spawn: { col: 3, row: 11 },
+  },
+  {
+    id: 2,
+    name: 'El Parque Abandonado',
+    world: 'park',
+    timeLimit: 240,
+    bgColor: ['#0e2a1a', '#1a4a2c'],
+    music: 'park',
+    rows: LEVEL_2_ROWS,
+    spawn: { col: 2, row: 11 },
+  },
+  {
+    id: 3,
+    name: 'La Avenida Neón',
+    world: 'neon',
+    timeLimit: 280,
+    bgColor: ['#0a0220', '#3d0f5e'],
+    music: 'neon',
+    rows: LEVEL_3_ROWS,
+    spawn: { col: 2, row: 11 },
+    alienAttack: true,                    // ¡ATAQUE ALIEN!
+  },
+  {
+    id: 4,
+    name: 'Las Alcantarillas',
+    world: 'sewer',
+    timeLimit: 260,
+    bgColor: ['#0a0814', '#241a3a'],
+    music: 'sewer',
+    rows: LEVEL_4_ROWS,
+    spawn: { col: 2, row: 11 },
+  },
+  {
+    id: 5,
+    name: 'La Azotea Eléctrica',
+    world: 'storm',
+    timeLimit: 260,
+    bgColor: ['#0a0a25', '#2a1f55'],
+    music: 'storm',
+    rows: LEVEL_5_ROWS,
+    spawn: { col: 2, row: 11 },
+  },
+  {
+    id: 6,
+    name: 'El Rascacielos',
+    world: 'roof',
+    timeLimit: 320,
+    bgColor: ['#180a30', '#3d1466'],
+    music: 'boss',
+    isBoss: true,
+    rows: LEVEL_6_ROWS,
+    spawn: { col: 2, row: 11 },
+    alienAttack: true,                    // ¡ATAQUE ALIEN final!
+  },
+];
+
+// Validación / saneo: cada fila debe tener la misma longitud.
+for (const lvl of LEVELS) {
+  const w = lvl.rows[0].length;
+  for (let i = 0; i < lvl.rows.length; i++) {
+    if (lvl.rows[i].length !== w) {
+      lvl.rows[i] = lvl.rows[i].padEnd(w, '.').slice(0, w);
+    }
+  }
+  lvl.cols = w;
+  lvl.rowsCount = lvl.rows.length;
+}
+
+/* =============================================================
+   world.js
+   ============================================================= */
+// Tipos y constantes de tilemap, fondos parallax y render de tiles.
+// Modo gráfico siempre en ULTRA: sin selector, todo el mundo se beneficia.
+//
+// Pipeline de fondo:
+//   1. drawBackground:  cielo + 3 capas de parallax cacheadas + capa viva
+//      (estrellas, nubes, gotas, neón).
+//   2. drawTiles:       tiles del mapa con bordes biselados.
+//   3. drawForeground:  niebla / lluvia / vignette (lo llama main.js
+//                       DESPUÉS de pintar entidades).
+
+const TILE = 40; // px por celda
+
+// Tipos de tile
+const T = {
+  EMPTY: 0,
+  GROUND: 1,
+  PLATFORM: 2,
+  BRICK: 3,
+  MYSTERY: 4,        // con moneda
+  MYSTERY_POWER: 5,  // con bebida o auriculares (según estado de Mía)
+  MYSTERY_HP: 6,     // siempre auriculares
+  EMPTY_BOX: 7,      // caja golpeada
+};
+
+const SOLID = new Set([T.GROUND, T.PLATFORM, T.BRICK, T.MYSTERY, T.MYSTERY_POWER, T.MYSTERY_HP, T.EMPTY_BOX]);
+
+// Generador pseudo-aleatorio determinístico (xorshift) para que las
+// estrellas/edificios queden iguales entre frames sin necesitar guardar
+// posiciones — pero distintas en cada nivel.
+function _seedRand(seed) {
+  let s = seed | 0 || 1;
+  return function() {
+    s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+    return ((s >>> 0) % 10000) / 10000;
+  };
+}
+
+class World {
+  constructor(level) {
+    this.level = level;
+    this.world = level.world;
+    this.cols = level.cols;
+    this.rows = level.rowsCount;
+    this.timeLimit = level.timeLimit;
+    this.tiles = new Uint8Array(this.cols * this.rows);
+    this.bumpAnim = new Map();
+    this.entitySeeds = [];
+
+    for (let r = 0; r < this.rows; r++) {
+      const row = level.rows[r];
+      for (let c = 0; c < this.cols; c++) {
+        const ch = row[c];
+        switch (ch) {
+          case '#': this.set(c, r, T.GROUND); break;
+          case '=': this.set(c, r, T.PLATFORM); break;
+          case 'B': this.set(c, r, T.BRICK); break;
+          case '?': this.set(c, r, T.MYSTERY); break;
+          case '$': this.set(c, r, T.MYSTERY_POWER); break;
+          case '*': this.set(c, r, T.MYSTERY_HP); break;
+          case 'C': this.entitySeeds.push({ kind: 'coin', col: c, row: r }); break;
+          case 'S': this.entitySeeds.push({ kind: 'slime', col: c, row: r }); break;
+          case 'K': this.entitySeeds.push({ kind: 'crow', col: c, row: r, flying: false }); break;
+          case 'F': this.entitySeeds.push({ kind: 'crow', col: c, row: r, flying: true }); break;
+          case 'X': this.entitySeeds.push({ kind: 'cactus', col: c, row: r }); break;
+          case 'G': this.entitySeeds.push({ kind: 'goal', col: c, row: r }); break;
+          default: break;
+        }
+      }
+    }
+
+    this.widthPx = this.cols * TILE;
+    this.heightPx = this.rows * TILE;
+
+    // 3 capas de parallax cacheadas, cada una con su factor de scroll
+    // (más cerca = scroll más rápido).
+    this._parallax = null;        // {far, mid, near, w, h}
+    this._cacheW = 0;
+    this._cacheH = 0;
+
+    // Estrellas pre-generadas (posiciones, tamaño, color, fase de twinkle).
+    this._stars = null;
+    // Shooting stars (estrellas fugaces): se generan al vuelo.
+    this._shootingStars = [];
+    this._nextShootingStar = 1.5 + Math.random() * 3;
+
+    // Nubes/neblina (para city, neon, storm)
+    this._clouds = null;
+
+    // Rayos de tormenta (storm) — flashes esporádicos
+    this._lightningTimer = 2 + Math.random() * 3;
+    this._lightningFlash = 0;
+  }
+
+  idx(c, r) { return r * this.cols + c; }
+  inBounds(c, r) { return c >= 0 && c < this.cols && r >= 0 && r < this.rows; }
+  get(c, r) { return this.inBounds(c, r) ? this.tiles[this.idx(c, r)] : T.EMPTY; }
+  set(c, r, v) { if (this.inBounds(c, r)) this.tiles[this.idx(c, r)] = v; }
+
+  isSolid(c, r) { return SOLID.has(this.get(c, r)); }
+  isOneWay(c, r) { return this.get(c, r) === T.PLATFORM; }
+  tileRect(c, r) { return { x: c * TILE, y: r * TILE, w: TILE, h: TILE }; }
+
+  bump(col, row, mia) {
+    const v = this.get(col, row);
+    if (v === T.MYSTERY) {
+      this.set(col, row, T.EMPTY_BOX);
+      this.bumpAnim.set(`${col},${row}`, { t: 0.0 });
+      return { kind: 'coin', x: col * TILE + TILE / 2, y: row * TILE };
+    }
+    if (v === T.MYSTERY_POWER) {
+      this.set(col, row, T.EMPTY_BOX);
+      this.bumpAnim.set(`${col},${row}`, { t: 0.0 });
+      const item = mia && mia.size === 'big' ? 'headphones' : 'energy';
+      return { kind: 'powerup', item, x: col * TILE + TILE / 2, y: row * TILE };
+    }
+    if (v === T.MYSTERY_HP) {
+      this.set(col, row, T.EMPTY_BOX);
+      this.bumpAnim.set(`${col},${row}`, { t: 0.0 });
+      return { kind: 'powerup', item: 'headphones', x: col * TILE + TILE / 2, y: row * TILE };
+    }
+    if (v === T.BRICK) {
+      this.bumpAnim.set(`${col},${row}`, { t: 0.0 });
+      if (mia && mia.size !== 'small') {
+        this.set(col, row, T.EMPTY);
+        return { kind: 'brick-break', x: col * TILE + TILE / 2, y: row * TILE + TILE / 2 };
+      }
+      return { kind: 'brick-bump', x: col * TILE + TILE / 2, y: row * TILE };
+    }
+    return { kind: 'none' };
+  }
+
+  update(dt) {
+    for (const [k, v] of this.bumpAnim) {
+      v.t += dt;
+      if (v.t > 0.25) this.bumpAnim.delete(k);
+    }
+    // Shooting stars
+    this._nextShootingStar -= dt;
+    if (this._nextShootingStar <= 0 && this._isStarryWorld()) {
+      this._spawnShootingStar();
+      this._nextShootingStar = 2 + Math.random() * 5;
+    }
+    for (const s of this._shootingStars) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= dt;
+    }
+    this._shootingStars = this._shootingStars.filter(s => s.life > 0);
+
+    // Lightning (storm world)
+    if (this.world === 'storm') {
+      if (this._lightningFlash > 0) this._lightningFlash -= dt;
+      this._lightningTimer -= dt;
+      if (this._lightningTimer <= 0) {
+        this._lightningFlash = 0.35;
+        this._lightningTimer = 4 + Math.random() * 6;
+      }
+    }
+  }
+
+  _isStarryWorld() {
+    return this.world === 'roof' || this.world === 'neon' ||
+           this.world === 'city' || this.world === 'storm';
+  }
+
+  _spawnShootingStar() {
+    const fromLeft = Math.random() < 0.5;
+    this._shootingStars.push({
+      x: fromLeft ? -40 : 980,
+      y: 30 + Math.random() * 200,
+      vx: fromLeft ? 700 + Math.random() * 250 : -(700 + Math.random() * 250),
+      vy: 100 + Math.random() * 80,
+      life: 0.7,
+      maxLife: 0.7,
+    });
+  }
+
+  // ============================================================
+  // BACKGROUND
+  // ============================================================
+  drawBackground(ctx, cam, viewW, viewH, t) {
+    // 1) Cielo gradiente (con sutil pulsación de color)
+    const [c1, c2] = this.level.bgColor;
+    const grad = ctx.createLinearGradient(0, 0, 0, viewH);
+    grad.addColorStop(0, c1);
+    grad.addColorStop(1, c2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, viewW, viewH);
+
+    // Aura nebulosa (radial gradient sutil) — da profundidad
+    if (this._isStarryWorld()) {
+      const neb = ctx.createRadialGradient(viewW * 0.3, viewH * 0.4, 30,
+                                            viewW * 0.3, viewH * 0.4, viewW * 0.7);
+      neb.addColorStop(0, this.world === 'neon' ? 'rgba(255,79,163,0.18)' : 'rgba(108,143,255,0.14)');
+      neb.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = neb;
+      ctx.fillRect(0, 0, viewW, viewH);
+
+      const neb2 = ctx.createRadialGradient(viewW * 0.75, viewH * 0.3, 20,
+                                             viewW * 0.75, viewH * 0.3, viewW * 0.6);
+      neb2.addColorStop(0, this.world === 'neon' ? 'rgba(108,240,255,0.16)' : 'rgba(255,79,163,0.12)');
+      neb2.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = neb2;
+      ctx.fillRect(0, 0, viewW, viewH);
+    }
+
+    this._ensureParallax(viewW, viewH);
+
+    // 2) Estrellas (capa más profunda, scroll lentísimo) y luna
+    if (this._isStarryWorld()) {
+      this._drawStars(ctx, cam, viewW, viewH, t);
+    }
+
+    // 3) Capa lejana (factor 0.15)
+    this._drawCachedLayer(ctx, this._parallax.far, cam.x * 0.15, viewW);
+
+    // 4) Capa media (factor 0.35)
+    this._drawCachedLayer(ctx, this._parallax.mid, cam.x * 0.35, viewW);
+
+    // 5) Nubes / niebla animadas
+    if (this._clouds) this._drawClouds(ctx, cam, viewW, viewH, t);
+
+    // 6) Capa cercana (factor 0.6)
+    this._drawCachedLayer(ctx, this._parallax.near, cam.x * 0.6, viewW);
+
+    // 7) Detalles vivos por mundo (gotas alcantarilla, neón flicker, rayos)
+    if (this.world === 'sewer') this._drawSewerDrips(ctx, cam, viewW, viewH, t);
+    if (this.world === 'neon')  this._drawNeonHaze(ctx, cam, viewW, viewH, t);
+    if (this.world === 'storm') this._drawStormFlash(ctx, viewW, viewH);
+  }
+
+  _drawCachedLayer(ctx, layer, scrollX, viewW) {
+    if (!layer) return;
+    const w = layer.width;
+    const offset = -((scrollX % w + w) % w);
+    ctx.drawImage(layer, offset, 0);
+    if (offset + w < viewW) ctx.drawImage(layer, offset + w, 0);
+  }
+
+  // ============================================================
+  // ESTRELLAS (mucho más llamativas)
+  // ============================================================
+  _ensureStars(viewW, viewH) {
+    if (this._stars) return;
+    const rng = _seedRand(this.level.id * 7919 + 13);
+    const stars = [];
+    const count = this.world === 'neon' ? 70 : 110;
+    const colors = this.world === 'neon'
+      ? ['#fff', '#ffe7ff', '#c8ffff', '#ffb1ff', '#a8e0ff']
+      : ['#ffffff', '#fff7d6', '#c8e0ff', '#ffd7ff', '#a8f0ff'];
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: rng() * viewW * 1.2,
+        y: rng() * viewH * 0.65,
+        // Tamaño con pesos: la mayoría pequeñas, pocas grandes
+        size: rng() < 0.85 ? (1 + Math.floor(rng() * 2)) : (3 + Math.floor(rng() * 2)),
+        color: colors[Math.floor(rng() * colors.length)],
+        phase: rng() * Math.PI * 2,
+        speed: 1.5 + rng() * 3,
+        // Algunas estrellas tienen "cross flare"
+        cross: rng() < 0.18,
+      });
+    }
+    this._stars = stars;
+  }
+
+  _drawStars(ctx, cam, viewW, viewH, t) {
+    this._ensureStars(viewW, viewH);
+    // scroll lentísimo (factor 0.05)
+    const scroll = (cam.x * 0.05) % viewW;
+
+    for (const s of this._stars) {
+      const tw = 0.5 + 0.5 * Math.sin(t * s.speed + s.phase);
+      const alpha = 0.35 + tw * 0.65;
+      const x = ((s.x - scroll) % (viewW * 1.2) + viewW * 1.2) % (viewW * 1.2);
+      const y = s.y;
+      if (x > viewW + 10) continue;
+
+      // Halo difuso (radial gradient) para las estrellas grandes
+      if (s.size >= 3) {
+        const halo = ctx.createRadialGradient(x, y, 0, x, y, s.size * 4);
+        halo.addColorStop(0, s.color);
+        halo.addColorStop(0.5, s.color + (this.world === 'neon' ? '55' : '40'));
+        halo.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.fillStyle = halo;
+        ctx.fillRect(x - s.size * 4, y - s.size * 4, s.size * 8, s.size * 8);
+      }
+
+      // Núcleo de la estrella
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = s.color;
+      const sz = s.size;
+      ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+
+      // Brazos cruzados (twinkle): aparecen y desaparecen
+      if (s.cross && tw > 0.6) {
+        const armLen = sz * (1.5 + tw * 2.5);
+        ctx.fillRect(x - armLen / 2, y, armLen, 1);
+        ctx.fillRect(x, y - armLen / 2, 1, armLen);
+        ctx.globalAlpha = alpha * 0.5;
+        ctx.fillRect(x - armLen / 4, y, armLen / 2, 1);
+        ctx.fillRect(x, y - armLen / 4, 1, armLen / 2);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Estrellas fugaces (vivas)
+    for (const ss of this._shootingStars) {
+      const k = ss.life / ss.maxLife;
+      // Estela
+      ctx.globalAlpha = 0.85 * k;
+      const trailLen = 80;
+      const dx = ss.vx > 0 ? -trailLen : trailLen;
+      const grad = ctx.createLinearGradient(ss.x, ss.y, ss.x + dx, ss.y - (ss.vy / 2));
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.5, this.world === 'neon' ? '#ff85c5' : '#a8f0ff');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ss.x, ss.y);
+      ctx.lineTo(ss.x + dx, ss.y - (ss.vy / 2));
+      ctx.stroke();
+      // Cabeza brillante
+      ctx.globalAlpha = k;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(ss.x - 2, ss.y - 2, 4, 4);
+      // Halo
+      const headHalo = ctx.createRadialGradient(ss.x, ss.y, 0, ss.x, ss.y, 14);
+      headHalo.addColorStop(0, '#ffffff');
+      headHalo.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = headHalo;
+      ctx.fillRect(ss.x - 14, ss.y - 14, 28, 28);
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+  }
+
+  // ============================================================
+  // NUBES / NEBLINA (city, neon, storm)
+  // ============================================================
+  _ensureClouds() {
+    if (this._clouds) return;
+    if (this.world !== 'city' && this.world !== 'neon' && this.world !== 'storm') {
+      this._clouds = false;
+      return;
+    }
+    const rng = _seedRand(this.level.id * 113 + 47);
+    const clouds = [];
+    const tint = this.world === 'neon' ? '#3a1a55'
+               : this.world === 'storm' ? '#2a2540'
+               : '#3a2a55';
+    for (let i = 0; i < 8; i++) {
+      clouds.push({
+        x: rng() * 1200,
+        y: 30 + rng() * 180,
+        scale: 0.7 + rng() * 1.4,
+        speed: 6 + rng() * 14,
+        tint,
+        alpha: 0.35 + rng() * 0.35,
+      });
+    }
+    this._clouds = clouds;
+  }
+
+  _drawClouds(ctx, cam, viewW, viewH, t) {
+    this._ensureClouds();
+    if (!this._clouds || this._clouds === false) return;
+    const scroll = cam.x * 0.25;
+    for (const c of this._clouds) {
+      const x = ((c.x - scroll + t * c.speed) % (viewW + 400) + (viewW + 400)) % (viewW + 400) - 200;
+      ctx.globalAlpha = c.alpha;
+      // Cuerpo de nube (varias bolas)
+      ctx.fillStyle = c.tint;
+      const s = c.scale;
+      ctx.beginPath();
+      ctx.arc(x, c.y, 28 * s, 0, Math.PI * 2);
+      ctx.arc(x + 30 * s, c.y - 8 * s, 32 * s, 0, Math.PI * 2);
+      ctx.arc(x + 60 * s, c.y, 26 * s, 0, Math.PI * 2);
+      ctx.arc(x + 18 * s, c.y + 6 * s, 24 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ============================================================
+  // PARALLAX CACHE — 3 capas
+  // ============================================================
+  _ensureParallax(viewW, viewH) {
+    if (this._parallax && this._cacheW === viewW && this._cacheH === viewH) return;
+    const W = viewW * 2;
+    const make = () => {
+      const off = document.createElement('canvas');
+      off.width = W; off.height = viewH;
+      return off;
+    };
+    const far = make(), mid = make(), near = make();
+
+    if (this.world === 'city')      this._renderCity(far.getContext('2d'), mid.getContext('2d'), near.getContext('2d'), W, viewH);
+    else if (this.world === 'park') this._renderPark(far.getContext('2d'), mid.getContext('2d'), near.getContext('2d'), W, viewH);
+    else if (this.world === 'sewer')this._renderSewer(far.getContext('2d'), mid.getContext('2d'), near.getContext('2d'), W, viewH);
+    else if (this.world === 'roof') this._renderRoof(far.getContext('2d'), mid.getContext('2d'), near.getContext('2d'), W, viewH);
+    else if (this.world === 'neon') this._renderNeon(far.getContext('2d'), mid.getContext('2d'), near.getContext('2d'), W, viewH);
+    else if (this.world === 'storm')this._renderStorm(far.getContext('2d'), mid.getContext('2d'), near.getContext('2d'), W, viewH);
+
+    this._parallax = { far, mid, near };
+    this._cacheW = viewW; this._cacheH = viewH;
+  }
+
+  // ----- CITY -----
+  _renderCity(far, mid, near, W, H) {
+    const rng = _seedRand(101);
+    // Luna con halo grande
+    const moonX = W * 0.15, moonY = 80;
+    const moonHalo = far.createRadialGradient(moonX, moonY, 0, moonX, moonY, 90);
+    moonHalo.addColorStop(0, 'rgba(255,247,214,0.45)');
+    moonHalo.addColorStop(1, 'rgba(255,247,214,0)');
+    far.fillStyle = moonHalo;
+    far.fillRect(moonX - 90, moonY - 90, 180, 180);
+    far.fillStyle = '#fff7d6';
+    far.beginPath(); far.arc(moonX, moonY, 32, 0, Math.PI * 2); far.fill();
+    far.fillStyle = '#e8d8a0';
+    far.beginPath(); far.arc(moonX - 8, moonY - 6, 4, 0, Math.PI * 2); far.fill();
+    far.beginPath(); far.arc(moonX + 6, moonY + 10, 5, 0, Math.PI * 2); far.fill();
+
+    // Edificios lejanos (silueta plana, oscura)
+    for (let i = 0; i < W / 90 + 1; i++) {
+      const bx = i * 90 + (rng() * 20);
+      const bh = 140 + rng() * 100;
+      far.fillStyle = '#0e0820';
+      far.fillRect(bx, H - bh, 80, bh);
+      far.fillStyle = '#1c1338';
+      far.fillRect(bx, H - bh, 80, 4);
+    }
+
+    // Edificios medios con ventanas luminosas
+    for (let i = 0; i < W / 160 + 1; i++) {
+      const bx = i * 160 + 10;
+      const bh = 220 + rng() * 130;
+      mid.fillStyle = '#1c1338';
+      mid.fillRect(bx, H - bh, 140, bh);
+      mid.fillStyle = '#2b1f55';
+      mid.fillRect(bx, H - bh, 140, 6);
+      // Ventanas
+      for (let wy = H - bh + 20; wy < H - 30; wy += 24) {
+        for (let wx = bx + 12; wx < bx + 130; wx += 22) {
+          const lit = ((wx + wy + i * 7) % 9) < 4;
+          if (!lit) continue;
+          mid.fillStyle = '#ffd14f';
+          mid.fillRect(wx, wy, 8, 12);
+          // Halo de la ventana
+          mid.fillStyle = 'rgba(255,209,79,0.18)';
+          mid.fillRect(wx - 2, wy - 2, 12, 16);
+        }
+      }
+      // Antena
+      mid.fillStyle = '#444';
+      mid.fillRect(bx + 70, H - bh - 18, 2, 18);
+      mid.fillStyle = '#ff4fa3';
+      mid.fillRect(bx + 68, H - bh - 22, 6, 4);
+    }
+
+    // Edificios cercanos (más detalle)
+    for (let i = 0; i < W / 240 + 1; i++) {
+      const bx = i * 240 + 50;
+      const bh = 320 + rng() * 80;
+      near.fillStyle = '#06030f';
+      near.fillRect(bx, H - bh, 180, bh);
+      near.fillStyle = '#1a0e30';
+      near.fillRect(bx, H - bh, 180, 8);
+      // Ventanas grandes
+      for (let wy = H - bh + 30; wy < H - 60; wy += 32) {
+        for (let wx = bx + 18; wx < bx + 170; wx += 28) {
+          const lit = ((wx * 3 + wy + i * 5) % 11) < 5;
+          if (!lit) continue;
+          const cyan = ((wx + wy) % 17) < 4;
+          near.fillStyle = cyan ? '#6cf0ff' : '#ffd14f';
+          near.fillRect(wx, wy, 12, 16);
+          near.fillStyle = cyan ? 'rgba(108,240,255,0.25)' : 'rgba(255,209,79,0.25)';
+          near.fillRect(wx - 3, wy - 3, 18, 22);
+        }
+      }
+      // Cartel de neón ocasional
+      if (i % 2 === 0) {
+        near.fillStyle = '#ff4fa3';
+        near.fillRect(bx + 30, H - bh + 60, 50, 8);
+        near.fillStyle = 'rgba(255,79,163,0.4)';
+        near.fillRect(bx + 26, H - bh + 56, 58, 16);
+      }
+    }
+  }
+
+  // ----- PARK -----
+  _renderPark(far, mid, near, W, H) {
+    // Luna pálida
+    far.fillStyle = '#e9f0d6';
+    far.beginPath(); far.arc(W * 0.7, 70, 28, 0, Math.PI * 2); far.fill();
+    const moonHalo = far.createRadialGradient(W * 0.7, 70, 0, W * 0.7, 70, 80);
+    moonHalo.addColorStop(0, 'rgba(233,240,214,0.35)');
+    moonHalo.addColorStop(1, 'rgba(0,0,0,0)');
+    far.fillStyle = moonHalo;
+    far.fillRect(W * 0.7 - 80, -10, 160, 160);
+
+    // Colinas lejanas
+    far.fillStyle = '#1a3d2a';
+    for (let i = 0; i < W / 320 + 1; i++) {
+      const bx = i * 320;
+      far.beginPath();
+      far.moveTo(bx, H);
+      far.quadraticCurveTo(bx + 160, H - 240, bx + 320, H);
+      far.fill();
+    }
+    // Niebla entre colinas
+    far.fillStyle = 'rgba(120,200,150,0.08)';
+    far.fillRect(0, H - 130, W, 60);
+
+    // Bosque medio
+    mid.fillStyle = '#0e2418';
+    for (let i = 0; i < W / 110 + 1; i++) {
+      const bx = i * 110;
+      mid.fillRect(bx + 60, H - 200, 14, 200);
+      mid.beginPath(); mid.arc(bx + 67, H - 210, 60, 0, Math.PI * 2); mid.fill();
+      mid.fillStyle = '#1a3a25';
+      mid.beginPath(); mid.arc(bx + 50, H - 220, 26, 0, Math.PI * 2); mid.fill();
+      mid.fillStyle = '#0e2418';
+    }
+
+    // Árboles cercanos con detalle
+    for (let i = 0; i < W / 200 + 1; i++) {
+      const bx = i * 200 + 60;
+      // tronco
+      near.fillStyle = '#3a2410';
+      near.fillRect(bx, H - 180, 18, 180);
+      near.fillStyle = '#4a3018';
+      near.fillRect(bx, H - 180, 4, 180);
+      // copa
+      near.fillStyle = '#2a5a30';
+      near.beginPath(); near.arc(bx + 9, H - 200, 70, 0, Math.PI * 2); near.fill();
+      near.fillStyle = '#1f4a25';
+      near.beginPath(); near.arc(bx - 20, H - 220, 30, 0, Math.PI * 2); near.fill();
+      near.beginPath(); near.arc(bx + 36, H - 215, 28, 0, Math.PI * 2); near.fill();
+      // hojas brillantes
+      near.fillStyle = '#5fb24a';
+      near.beginPath(); near.arc(bx + 30, H - 230, 8, 0, Math.PI * 2); near.fill();
+      near.beginPath(); near.arc(bx - 14, H - 200, 6, 0, Math.PI * 2); near.fill();
+    }
+  }
+
+  // ----- SEWER -----
+  _renderSewer(far, mid, near, W, H) {
+    // Pared lejana de losetas oscuras
+    far.fillStyle = '#0c0820';
+    far.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 12) {
+      for (let x = 0; x < W; x += 24) {
+        if ((x + y) % 24 === 0) {
+          far.fillStyle = '#1a132d';
+          far.fillRect(x, y, 22, 10);
+        }
+      }
+    }
+
+    // Tuberías horizontales con brillos
+    mid.fillStyle = '#241a3a';
+    for (let i = 0; i < W / 60 + 1; i++) {
+      mid.fillRect(i * 60, 0, 50, H);
+      mid.fillStyle = '#3a2a55';
+      mid.fillRect(i * 60, 0, 3, H);
+      mid.fillStyle = '#241a3a';
+    }
+    // Anillos en las tuberías
+    mid.fillStyle = '#1a1130';
+    for (let y = 60; y < H; y += 90) {
+      mid.fillRect(0, y, W, 6);
+      mid.fillStyle = '#3a2a55';
+      mid.fillRect(0, y, W, 1);
+      mid.fillStyle = '#1a1130';
+    }
+
+    // Arcos cercanos
+    near.fillStyle = '#0a0618';
+    for (let i = 0; i < W / 220 + 1; i++) {
+      const bx = i * 220;
+      near.beginPath(); near.arc(bx + 110, H - 60, 100, Math.PI, Math.PI * 2); near.fill();
+      // borde luminoso
+      near.strokeStyle = '#3a2c5c';
+      near.lineWidth = 2;
+      near.beginPath(); near.arc(bx + 110, H - 60, 100, Math.PI, Math.PI * 2); near.stroke();
+    }
+    near.lineWidth = 1;
+
+    // Brillos puntuales
+    for (let i = 0; i < 60; i++) {
+      const x = (i * 137) % W;
+      const y = (i * 53) % (H - 80) + 40;
+      near.fillStyle = i % 3 === 0 ? '#6cf0ff' : '#3a2c5c';
+      near.fillRect(x, y, 2, 2);
+    }
+  }
+
+  // ----- ROOF -----
+  _renderRoof(far, mid, near, W, H) {
+    // Skyline lejano
+    for (let i = 0; i < W / 200 + 1; i++) {
+      const bx = i * 200;
+      const bh = 160 + ((i * 41) % 90);
+      far.fillStyle = '#0a061a';
+      far.fillRect(bx, H - bh, 130, bh);
+      // ventanas pequeñísimas púrpura
+      for (let wy = H - bh + 15; wy < H - 20; wy += 26) {
+        for (let wx = bx + 8; wx < bx + 122; wx += 16) {
+          if ((wx + wy + i) % 4 < 2) {
+            far.fillStyle = '#a36ad8';
+            far.fillRect(wx, wy, 5, 8);
+          }
+        }
+      }
+    }
+
+    // Edificios medios con ventanas iluminadas
+    for (let i = 0; i < W / 250 + 1; i++) {
+      const bx = i * 250 + 40;
+      const bh = 280 + ((i * 53) % 60);
+      mid.fillStyle = '#180a30';
+      mid.fillRect(bx, H - bh, 180, bh);
+      mid.fillStyle = '#2a1148';
+      mid.fillRect(bx, H - bh, 180, 6);
+      for (let wy = H - bh + 25; wy < H - 50; wy += 30) {
+        for (let wx = bx + 16; wx < bx + 170; wx += 24) {
+          if ((wx + wy + i * 3) % 5 < 2) {
+            mid.fillStyle = '#c98aff';
+            mid.fillRect(wx, wy, 8, 12);
+            mid.fillStyle = 'rgba(201,138,255,0.25)';
+            mid.fillRect(wx - 2, wy - 2, 12, 16);
+          }
+        }
+      }
+    }
+
+    // Borde de la azotea cercana (silueta)
+    near.fillStyle = '#0a061a';
+    for (let i = 0; i < W / 300 + 1; i++) {
+      const bx = i * 300;
+      const bh = 80;
+      near.fillRect(bx, H - bh, 280, bh);
+      // antenas y vallas
+      near.fillStyle = '#3a2a55';
+      near.fillRect(bx + 30, H - bh - 24, 2, 24);
+      near.fillRect(bx + 100, H - bh - 18, 2, 18);
+      near.fillRect(bx + 200, H - bh - 30, 2, 30);
+      near.fillStyle = '#ff4fa3';
+      near.fillRect(bx + 30 - 2, H - bh - 26, 6, 3);
+      near.fillStyle = '#0a061a';
+    }
+  }
+
+  // ----- NEON (nuevo) -----
+  _renderNeon(far, mid, near, W, H) {
+    // Cielo púrpura con neblina rosa lejana
+    far.fillStyle = 'rgba(120,30,90,0.15)';
+    far.fillRect(0, H * 0.4, W, H * 0.6);
+
+    // Hologramas distantes
+    for (let i = 0; i < W / 280 + 1; i++) {
+      const bx = i * 280 + 40;
+      const bh = 200 + (i * 37) % 80;
+      far.fillStyle = '#1a0828';
+      far.fillRect(bx, H - bh, 100, bh);
+      // banda de neón en el techo
+      far.fillStyle = i % 2 === 0 ? '#ff4fa3' : '#6cf0ff';
+      far.fillRect(bx, H - bh, 100, 4);
+      far.fillStyle = i % 2 === 0 ? 'rgba(255,79,163,0.35)' : 'rgba(108,240,255,0.35)';
+      far.fillRect(bx - 4, H - bh - 4, 108, 12);
+    }
+
+    // Rascacielos medios con neón intenso
+    for (let i = 0; i < W / 180 + 1; i++) {
+      const bx = i * 180 + 20;
+      const bh = 320 + (i * 53) % 100;
+      mid.fillStyle = '#0a0220';
+      mid.fillRect(bx, H - bh, 140, bh);
+      mid.fillStyle = '#220a40';
+      mid.fillRect(bx, H - bh, 140, 6);
+
+      // Letrero vertical de neón con rectángulos pulsantes
+      const neonColor = ['#ff4fa3', '#6cf0ff', '#ffd14f', '#a86dff'][i % 4];
+      mid.fillStyle = neonColor;
+      mid.fillRect(bx + 12, H - bh + 30, 5, bh - 80);
+      mid.fillStyle = neonColor + (typeof neonColor === 'string' && neonColor.length === 7 ? '44' : '');
+      // halo
+      mid.fillRect(bx + 10, H - bh + 28, 9, bh - 76);
+
+      // Ventanas
+      for (let wy = H - bh + 20; wy < H - 40; wy += 22) {
+        for (let wx = bx + 30; wx < bx + 130; wx += 18) {
+          const lit = ((wx + wy + i * 11) % 7) < 3;
+          if (!lit) continue;
+          const c = (wx + wy) % 13 < 4 ? '#ff85c5' : '#6cf0ff';
+          mid.fillStyle = c;
+          mid.fillRect(wx, wy, 6, 9);
+          mid.fillStyle = c + '55';
+          mid.fillRect(wx - 1, wy - 1, 8, 11);
+        }
+      }
+    }
+
+    // Cables suspendidos cercanos
+    near.strokeStyle = '#1a0828';
+    near.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const yBase = 40 + i * 18;
+      near.beginPath();
+      near.moveTo(0, yBase);
+      for (let x = 0; x < W; x += 40) {
+        near.lineTo(x, yBase + Math.sin(x * 0.02 + i) * 6);
+      }
+      near.stroke();
+    }
+    // Faroles colgantes
+    for (let i = 0; i < W / 220 + 1; i++) {
+      const x = i * 220 + 60;
+      near.fillStyle = '#ffd14f';
+      near.fillRect(x - 4, 90, 8, 12);
+      near.fillStyle = 'rgba(255,209,79,0.35)';
+      near.fillRect(x - 10, 86, 20, 22);
+    }
+    near.lineWidth = 1;
+  }
+
+  // ----- STORM (nuevo) -----
+  _renderStorm(far, mid, near, W, H) {
+    // Cielo tormentoso lejano con nubes oscuras
+    far.fillStyle = '#1a1235';
+    for (let i = 0; i < 6; i++) {
+      const cx = (i * 250 + 50) % W;
+      const cy = 80 + (i * 23) % 80;
+      far.beginPath(); far.arc(cx, cy, 60, 0, Math.PI * 2); far.fill();
+      far.beginPath(); far.arc(cx + 50, cy + 10, 50, 0, Math.PI * 2); far.fill();
+      far.beginPath(); far.arc(cx - 40, cy + 5, 45, 0, Math.PI * 2); far.fill();
+    }
+
+    // Skyline distante en silueta
+    mid.fillStyle = '#0a0a25';
+    for (let i = 0; i < W / 180 + 1; i++) {
+      const bx = i * 180;
+      const bh = 220 + (i * 41) % 100;
+      mid.fillRect(bx, H - bh, 130, bh);
+      // antenas y rayos rojos arriba
+      mid.fillStyle = '#3a2a55';
+      mid.fillRect(bx + 60, H - bh - 16, 2, 16);
+      mid.fillStyle = '#ff4fa3';
+      mid.fillRect(bx + 58, H - bh - 18, 6, 3);
+      mid.fillStyle = '#0a0a25';
+    }
+
+    // Borde de tejados cercano
+    near.fillStyle = '#06061a';
+    for (let i = 0; i < W / 260 + 1; i++) {
+      const bx = i * 260;
+      near.fillRect(bx, H - 110, 220, 110);
+      // chimeneas
+      near.fillStyle = '#1a1230';
+      near.fillRect(bx + 40, H - 140, 14, 30);
+      near.fillRect(bx + 150, H - 130, 12, 20);
+      near.fillStyle = '#06061a';
+    }
+  }
+
+  _drawNeonHaze(ctx, cam, viewW, viewH, t) {
+    // Halo pulsante general en el aire (rosa)
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.5);
+    ctx.fillStyle = `rgba(255,79,163,${0.04 + pulse * 0.04})`;
+    ctx.fillRect(0, 0, viewW, viewH);
+
+    // Pequeñas partículas que flotan
+    const N = 14;
+    for (let i = 0; i < N; i++) {
+      const x = ((i * 173 + t * 30) % viewW + viewW) % viewW;
+      const y = ((i * 91) % viewH + Math.sin(t * 2 + i) * 8 + viewH) % viewH;
+      ctx.fillStyle = i % 2 === 0 ? '#ff85c5' : '#6cf0ff';
+      ctx.globalAlpha = 0.5 + Math.sin(t * 3 + i) * 0.3;
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  _drawStormFlash(ctx, viewW, viewH) {
+    if (this._lightningFlash <= 0) return;
+    const k = this._lightningFlash / 0.35;
+    ctx.fillStyle = `rgba(220,220,255,${0.55 * k})`;
+    ctx.fillRect(0, 0, viewW, viewH);
+    // Rayo zigzag
+    if (k > 0.6) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      let x = 100 + Math.random() * (viewW - 200);
+      let y = 0;
+      ctx.moveTo(x, y);
+      while (y < viewH * 0.7) {
+        y += 20 + Math.random() * 30;
+        x += (Math.random() - 0.5) * 60;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
+
+  _drawSewerDrips(ctx, cam, viewW, viewH, t) {
+    ctx.fillStyle = 'rgba(108,240,255,0.35)';
+    const tt = t * 80;
+    for (let i = 0; i < 22; i++) {
+      const x = (i * 73 + cam.x * 0.1) % viewW;
+      const y = (i * 131 + tt) % viewH;
+      ctx.fillRect(x, y, 2, 6);
+    }
+    // Pequeñas salpicaduras al fondo
+    ctx.fillStyle = 'rgba(108,240,255,0.18)';
+    for (let i = 0; i < 8; i++) {
+      const x = (i * 137 + cam.x * 0.05) % viewW;
+      const y = viewH - 40 - (i * 17) % 40;
+      ctx.fillRect(x, y, 4, 1);
+    }
+  }
+
+  // ============================================================
+  // FOREGROUND (vignette + lluvia/niebla — tras pintar entidades)
+  // ============================================================
+  drawForeground(ctx, cam, viewW, viewH, t) {
+    // Lluvia diagonal en storm world
+    if (this.world === 'storm') {
+      ctx.strokeStyle = 'rgba(180,200,255,0.35)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 80; i++) {
+        const x = (i * 53 + cam.x * 0.3 + t * 600) % (viewW + 80) - 40;
+        const y = (i * 37 + t * 800) % viewH;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 6, y + 14);
+        ctx.stroke();
+      }
+    }
+
+    // Vignette suave en TODOS los mundos
+    const vg = ctx.createRadialGradient(viewW / 2, viewH / 2, viewH * 0.45,
+                                         viewW / 2, viewH / 2, viewH * 0.85);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, viewW, viewH);
+
+    // Línea de scanlines sutiles (estética CRT/retro)
+    ctx.fillStyle = 'rgba(0,0,0,0.07)';
+    for (let y = 0; y < viewH; y += 4) {
+      ctx.fillRect(0, y, viewW, 1);
+    }
+  }
+
+  // ============================================================
+  // TILES con biselado y glow en cajas
+  // ============================================================
+  drawTiles(ctx, cam, viewW, viewH, t) {
+    const c0 = Math.max(0, Math.floor(cam.x / TILE) - 1);
+    const c1 = Math.min(this.cols, Math.ceil((cam.x + viewW) / TILE) + 1);
+    const r0 = Math.max(0, Math.floor(cam.y / TILE) - 1);
+    const r1 = Math.min(this.rows, Math.ceil((cam.y + viewH) / TILE) + 1);
+
+    for (let r = r0; r < r1; r++) {
+      for (let c = c0; c < c1; c++) {
+        const v = this.get(c, r);
+        if (v === T.EMPTY) continue;
+
+        const bump = this.bumpAnim.get(`${c},${r}`);
+        const oy = bump ? -Math.sin((bump.t / 0.25) * Math.PI) * 8 : 0;
+
+        const px = c * TILE - cam.x;
+        const py = r * TILE - cam.y + oy;
+
+        // Mystery box con halo brillante en modo "lleno"
+        if (v === T.MYSTERY || v === T.MYSTERY_POWER || v === T.MYSTERY_HP) {
+          const glow = 0.5 + 0.5 * Math.sin(t * 5 + c + r);
+          const gColor = v === T.MYSTERY_HP ? '#6cf0ff'
+                       : v === T.MYSTERY_POWER ? '#ff4fa3' : '#ffd14f';
+          ctx.fillStyle = gColor + Math.floor(20 + glow * 35).toString(16).padStart(2, '0');
+          ctx.fillRect(px - 4, py - 4, TILE + 8, TILE + 8);
+        }
+
+        switch (v) {
+          case T.GROUND: drawGround(ctx, px, py, TILE, this.world); break;
+          case T.PLATFORM: drawPlatform(ctx, px, py, TILE, this.world); break;
+          case T.BRICK: drawBrick(ctx, px, py, TILE); break;
+          case T.MYSTERY:
+          case T.MYSTERY_POWER:
+          case T.MYSTERY_HP: {
+            const blink = (Math.floor(t * 4) % 2) === 0;
+            drawMysteryBox(ctx, px, py, TILE, { blink });
+            break;
+          }
+          case T.EMPTY_BOX: drawMysteryBox(ctx, px, py, TILE, { empty: true }); break;
+        }
+      }
+    }
+  }
+}
+
+/* =============================================================
+   player.js
+   ============================================================= */
+// Mía: jugadora con física de plataformas, salto variable, espada y power-ups.
+// Constantes de física escaladas por 1.25 para acompañar TILE=40 (era 32).
+
+// Constantes de física (px/seg).
+const GRAVITY = 2250;            // 1800 * 1.25
+const MAX_FALL = 1125;           // 900 * 1.25
+const WALK_ACCEL = 1125;         // 900 * 1.25
+const RUN_ACCEL  = 1750;         // 1400 * 1.25
+const WALK_MAX   = 225;          // 180 * 1.25
+const RUN_MAX    = 400;          // 320 * 1.25
+const FRICTION   = 1625;         // 1300 * 1.25
+const JUMP_VEL   = -700;         // -560 * 1.25
+const JUMP_HOLD_FORCE = -1375;   // -1100 * 1.25
+const JUMP_HOLD_TIME  = 0.22;
+const COYOTE_TIME = 0.08;
+const JUMP_BUFFER = 0.10;
+
+// Espada
+const SWORD_DURATION = 0.22;     // duración del swing visible
+const SWORD_COOLDOWN = 0.32;     // tiempo mínimo entre swings
+const SWORD_REACH = 38;          // alcance horizontal del hitbox
+
+class Player {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0;
+    this.facing = 1;
+    this.size = 'small';   // 'small' | 'big'
+    this.hasHeadphones = false;
+    this.onGround = false;
+    this.onPlatform = false;
+    this.coyote = 0;
+    this.jumpBuffer = 0;
+    this.jumpHold = 0;
+    this.jumping = false;
+    this.invuln = 0;
+    this.dead = false;
+    this.deathTimer = 0;
+    this.walkPhase = 0;
+    this.walkTimer = 0;
+    this.shootCooldown = 0;
+    this.justBumped = null;
+    this.justHit = null;
+    this.spawnX = x; this.spawnY = y;
+    this.completed = false;
+    this.win = false;
+
+    // Espada
+    this.swordTimer = 0;       // > 0 mientras está activa
+    this.swordCooldown = 0;
+    this.swordHits = new Set(); // ids ya golpeados en este swing
+    this.swordSwingId = 0;
+
+    // Squash & stretch
+    this.landSquash = 0;       // > 0 brevemente al aterrizar
+    this._wasOnGround = false;
+  }
+
+  // Ligeramente más grandes que antes para acompañar TILE=40
+  get width()  { return 30; }
+  get height() { return this.size === 'big' ? 60 : 36; }
+
+  get aabb() {
+    return { x: this.x, y: this.y, w: this.width, h: this.height };
+  }
+
+  // Hitbox del swing de espada (frente a Mía mientras swordTimer > 0)
+  get swordHitbox() {
+    if (this.swordTimer <= 0) return null;
+    const hx = this.facing > 0 ? (this.x + this.width - 4) : (this.x - SWORD_REACH + 4);
+    return {
+      x: hx,
+      y: this.y + 6,
+      w: SWORD_REACH,
+      h: this.height - 10,
+    };
+  }
+
+  get isSwinging() { return this.swordTimer > 0; }
+  get swingProgress() {
+    return this.swordTimer > 0 ? 1 - (this.swordTimer / SWORD_DURATION) : 0;
+  }
+
+  reset(x, y) {
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0;
+    this.size = 'small';
+    this.hasHeadphones = false;
+    this.onGround = false;
+    this.invuln = 0;
+    this.dead = false;
+    this.deathTimer = 0;
+    this.completed = false;
+    this.swordTimer = 0;
+    this.swordCooldown = 0;
+  }
+
+  attack() {
+    if (this.swordCooldown > 0 || this.dead) return false;
+    this.swordTimer = SWORD_DURATION;
+    this.swordCooldown = SWORD_COOLDOWN;
+    this.swordHits = new Set();
+    this.swordSwingId++;
+    SFX.shoot();
+    return true;
+  }
+
+  takeDamage() {
+    if (this.invuln > 0 || this.dead) return false;
+    if (this.hasHeadphones) {
+      this.hasHeadphones = false;
+      this.invuln = 1.5;
+      SFX.hit();
+      return false;
+    }
+    if (this.size === 'big') {
+      this.size = 'small';
+      this.invuln = 1.5;
+      SFX.hit();
+      return false;
+    }
+    this.dead = true;
+    this.deathTimer = 0;
+    this.vx = 0;
+    this.vy = -560;
+    SFX.death();
+    return true;
+  }
+
+  grow() {
+    if (this.size === 'small') {
+      this.size = 'big';
+      this.y -= 24;
+      SFX.power();
+    }
+  }
+
+  giveHeadphones() {
+    this.hasHeadphones = true;
+    if (this.size === 'small') {
+      this.size = 'big';
+      this.y -= 24;
+    }
+    SFX.power();
+  }
+
+  bounce(small = false) {
+    this.vy = small ? -380 : -600;
+    this.jumping = false;
+    this.jumpHold = 0;
+  }
+
+  update(dt, input, world) {
+    if (this.dead) {
+      this.deathTimer += dt;
+      this.vy += GRAVITY * dt;
+      this.y += this.vy * dt;
+      return;
+    }
+
+    // Timers de espada
+    if (this.swordTimer > 0) this.swordTimer -= dt;
+    if (this.swordCooldown > 0) this.swordCooldown -= dt;
+
+    // Trigger de ataque
+    if (input.wasPressed('attack')) {
+      this.attack();
+    }
+
+    // Squash & stretch: aterrizaje
+    if (this.landSquash > 0) this.landSquash -= dt;
+
+    // Entrada horizontal
+    const left = input.isDown('left');
+    const right = input.isDown('right');
+    const running = input.isDown('run');
+    const dir = (right ? 1 : 0) - (left ? 1 : 0);
+    const maxSpeed = running ? RUN_MAX : WALK_MAX;
+    const accel = running ? RUN_ACCEL : WALK_ACCEL;
+
+    if (dir !== 0) {
+      this.vx += dir * accel * dt;
+      this.facing = dir;
+      if (Math.abs(this.vx) > maxSpeed) {
+        const sign = Math.sign(this.vx);
+        this.vx = sign * Math.max(maxSpeed, Math.abs(this.vx) - FRICTION * 0.5 * dt);
+      }
+    } else {
+      const sign = Math.sign(this.vx);
+      this.vx -= sign * FRICTION * dt;
+      if (Math.sign(this.vx) !== sign) this.vx = 0;
+    }
+    this.vx = Math.max(-RUN_MAX, Math.min(RUN_MAX, this.vx));
+
+    // Coyote / buffer
+    this.coyote = this.onGround ? COYOTE_TIME : Math.max(0, this.coyote - dt);
+    if (input.wasPressed('jump')) this.jumpBuffer = JUMP_BUFFER;
+    else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+
+    if (this.jumpBuffer > 0 && this.coyote > 0) {
+      this.vy = JUMP_VEL;
+      this.jumping = true;
+      this.jumpHold = JUMP_HOLD_TIME;
+      this.jumpBuffer = 0;
+      this.coyote = 0;
+      this.onGround = false;
+      SFX.jump();
+    }
+
+    if (this.jumping && input.isDown('jump') && this.jumpHold > 0 && this.vy < 0) {
+      this.vy += JUMP_HOLD_FORCE * dt;
+      this.jumpHold -= dt;
+    } else {
+      this.jumping = false;
+      this.jumpHold = 0;
+    }
+
+    if (this.shootCooldown > 0) this.shootCooldown -= dt;
+
+    this.vy += GRAVITY * dt;
+    if (this.vy > MAX_FALL) this.vy = MAX_FALL;
+
+    this.justBumped = null;
+    this.moveAndCollide(dt, world);
+
+    // Detectar aterrizaje para squash
+    if (this.onGround && !this._wasOnGround) {
+      this.landSquash = 0.12;
+    }
+    this._wasOnGround = this.onGround;
+
+    // Animación de caminar
+    if (this.onGround && Math.abs(this.vx) > 10) {
+      this.walkTimer += Math.abs(this.vx) * dt * 0.04;
+      this.walkPhase = Math.floor(this.walkTimer) % 4;
+    } else {
+      this.walkPhase = 0;
+    }
+
+    if (this.invuln > 0) this.invuln -= dt;
+
+    if (this.y > world.heightPx + 200) {
+      if (!this.dead) {
+        this.dead = true;
+        this.deathTimer = 0;
+        SFX.death();
+      }
+    }
+  }
+
+  moveAndCollide(dt, world) {
+    // X axis
+    let dx = this.vx * dt;
+    this.x += dx;
+    this.collideAxis(world, 'x');
+
+    // Y axis
+    let dy = this.vy * dt;
+    const wasOnGround = this.onGround;
+    this.onGround = false;
+    this.onPlatform = false;
+    this.y += dy;
+    this.collideAxis(world, 'y');
+
+    if (this.onGround && !wasOnGround) {
+      this.jumping = false;
+    }
+  }
+
+  collideAxis(world, axis) {
+    const left = Math.floor(this.x / TILE);
+    const right = Math.floor((this.x + this.width - 1) / TILE);
+    const top = Math.floor(this.y / TILE);
+    const bottom = Math.floor((this.y + this.height - 1) / TILE);
+
+    for (let r = top; r <= bottom; r++) {
+      for (let c = left; c <= right; c++) {
+        if (!world.isSolid(c, r)) continue;
+        const tile = world.tileRect(c, r);
+        const isOneWay = world.isOneWay(c, r);
+
+        if (axis === 'x') {
+          if (isOneWay) continue; // las plataformas no bloquean lateralmente
+          if (this.vx > 0) {
+            this.x = tile.x - this.width;
+          } else if (this.vx < 0) {
+            this.x = tile.x + tile.w;
+          }
+          this.vx = 0;
+        } else {
+          if (this.vy > 0) {
+            // cayendo: aterrizamos sobre tile
+            if (isOneWay) {
+              // plataforma: solo si el pie estaba por encima en el frame anterior
+              const prevBottom = (this.y - this.vy * (1 / 60)) + this.height;
+              if (prevBottom > tile.y + 1) continue;
+            }
+            this.y = tile.y - this.height;
+            this.vy = 0;
+            this.onGround = true;
+            if (isOneWay) this.onPlatform = true;
+          } else if (this.vy < 0) {
+            if (isOneWay) continue; // plataformas se atraviesan hacia arriba
+            this.y = tile.y + tile.h;
+            this.vy = 0;
+            // golpe de cabeza con el bloque c,r — registrar
+            this.justBumped = { col: c, row: r };
+            this.jumping = false;
+            this.jumpHold = 0;
+          }
+        }
+      }
+    }
+  }
+
+  draw(ctx, cam, t) {
+    if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) return;
+
+    // Sprite displays más grandes (1.5x el grid 24x36)
+    const w = this.size === 'big' ? 48 : 36;
+    const h = this.size === 'big' ? 72 : 54;
+
+    const drawX = this.x - cam.x + (this.width - w) / 2;
+    const drawY = this.y - cam.y - (h - this.height);
+
+    // Squash & stretch
+    let stretchY = 1, stretchX = 1;
+    if (this.landSquash > 0) {
+      // Aplastarse al aterrizar
+      const k = this.landSquash / 0.12;
+      stretchY = 1 - 0.18 * k;
+      stretchX = 1 + 0.14 * k;
+    } else if (!this.onGround) {
+      if (this.vy < -50) {
+        // Subiendo: estirar verticalmente
+        const k = Math.min(1, -this.vy / 700);
+        stretchY = 1 + 0.18 * k;
+        stretchX = 1 - 0.10 * k;
+      } else if (this.vy > 100) {
+        // Cayendo: levemente alargar pero menos
+        stretchY = 1.06;
+        stretchX = 0.96;
+      }
+    }
+
+    // Aura/glow siempre encendida (modo ULTRA). Más intensa con auriculares
+    // y al correr. Aporta el "look" mejorado que el jugador pidió.
+    const speed = Math.abs(this.vx);
+    const speedFrac = Math.min(1, speed / RUN_MAX);
+    const auraColor = this.hasHeadphones ? '#6cf0ff' : '#ff4fa3';
+    const auraIntensity = 0.18 + speedFrac * 0.18 + (this.hasHeadphones ? 0.12 : 0);
+    drawCharacterAura(ctx, drawX, drawY, w, h, {
+      color: auraColor,
+      intensity: auraIntensity,
+      scale: 0.95 + speedFrac * 0.15,
+    });
+
+    const blink = (Math.floor(t * 2) % 8) === 0;
+    drawMia(ctx, drawX, drawY, w, h, {
+      facing: this.facing,
+      walkPhase: this.walkPhase,
+      isJumping: !this.onGround && this.vy < 0,
+      isFalling: !this.onGround && this.vy >= 0,
+      hasHeadphones: this.hasHeadphones,
+      blink,
+      swinging: this.isSwinging,
+      swingT: this.swingProgress,
+      stretchX, stretchY,
+    });
+  }
+}
+
+/* =============================================================
+   enemies.js
+   ============================================================= */
+// Enemigos: Slime de Basura, Cuervo Robacarteras, Cactus Rodante, Mapache jefe.
+
+// Helper: colisión vertical contra el world. Se usa para que enemies caigan
+// y caminen sobre tiles sólidos. (Versión simple, no tan estricta como la
+// del jugador.)
+function collideTiles(ent, world) {
+  // ejes separados
+  // X
+  ent.x += ent.vx * ent.dt;
+  let l = Math.floor(ent.x / TILE);
+  let r = Math.floor((ent.x + ent.w - 1) / TILE);
+  let t = Math.floor(ent.y / TILE);
+  let b = Math.floor((ent.y + ent.h - 1) / TILE);
+  for (let row = t; row <= b; row++) {
+    for (let col = l; col <= r; col++) {
+      if (!world.isSolid(col, row) || world.isOneWay(col, row)) continue;
+      const tile = world.tileRect(col, row);
+      if (ent.vx > 0) ent.x = tile.x - ent.w;
+      else if (ent.vx < 0) ent.x = tile.x + tile.w;
+      ent.vx = -ent.vx;
+      ent.facing = -ent.facing;
+    }
+  }
+
+  // Y
+  ent.y += ent.vy * ent.dt;
+  ent.onGround = false;
+  l = Math.floor(ent.x / TILE);
+  r = Math.floor((ent.x + ent.w - 1) / TILE);
+  t = Math.floor(ent.y / TILE);
+  b = Math.floor((ent.y + ent.h - 1) / TILE);
+  for (let row = t; row <= b; row++) {
+    for (let col = l; col <= r; col++) {
+      if (!world.isSolid(col, row)) continue;
+      const tile = world.tileRect(col, row);
+      const isOneWay = world.isOneWay(col, row);
+      if (ent.vy > 0) {
+        if (isOneWay) {
+          const prevBottom = ent.y + ent.h - ent.vy * ent.dt;
+          if (prevBottom > tile.y + 1) continue;
+        }
+        ent.y = tile.y - ent.h;
+        ent.vy = 0;
+        ent.onGround = true;
+      } else if (ent.vy < 0) {
+        if (isOneWay) continue;
+        ent.y = tile.y + tile.h;
+        ent.vy = 0;
+      }
+    }
+  }
+}
+
+class Enemy {
+  constructor(x, y, w, h) {
+    this.x = x; this.y = y; this.w = w; this.h = h;
+    this.vx = 0; this.vy = 0;
+    this.facing = -1;
+    this.dead = false;
+    this.deadTimer = 0;
+    this.dt = 1 / 60;
+    this.onGround = false;
+    this.canStomp = true;
+    this.kind = 'enemy';
+  }
+  get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  killByStomp() { this.dead = true; this.deadTimer = 0; this.vy = -200; this.canStomp = false; SFX.stomp(); }
+  killByProjectile() { this.dead = true; this.deadTimer = 0; this.vy = -260; this.vx = this.facing * 80; SFX.stomp(); }
+  // Por defecto, la espada se comporta como proyectil (mata si canBeStomped).
+  // Cactus override este método para ser inmune.
+  killBySword(fromDir) {
+    this.dead = true;
+    this.deadTimer = 0;
+    this.vy = -320;
+    this.vx = (fromDir || 1) * 220;
+    SFX.stomp();
+  }
+}
+
+// ---------- Slime de Basura ----------
+class Slime extends Enemy {
+  constructor(x, y) {
+    super(x, y, 36, 36);
+    this.kind = 'slime';
+    this.vx = -65;
+    this.canBeStomped = true;
+    this.canBeProjectiled = true;
+    this.canBeDeflected = true;
+  }
+  update(dt, world) {
+    this.dt = dt;
+    if (this.dead) {
+      this.deadTimer += dt;
+      this.vy += 1800 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      return;
+    }
+    this.vy += 1800 * dt;
+    if (this.vy > 600) this.vy = 600;
+    // Detectar borde del piso para no caerse:
+    if (this.onGround) {
+      const aheadX = Math.floor((this.x + (this.vx > 0 ? this.w + 1 : -1)) / TILE);
+      const belowR = Math.floor((this.y + this.h + 2) / TILE);
+      if (!world.isSolid(aheadX, belowR)) {
+        this.vx = -this.vx;
+        this.facing = -this.facing;
+      }
+    }
+    collideTiles(this, world);
+  }
+  draw(ctx, cam, t) {
+    if (this.dead) {
+      ctx.save();
+      ctx.translate(this.x - cam.x + this.w / 2, this.y - cam.y + this.h / 2);
+      ctx.scale(1, -1);
+      drawSlime(ctx, -this.w / 2, -this.h / 2, this.w, this.h, {});
+      ctx.restore();
+      return;
+    }
+    const blink = (Math.floor(t * 6) % 7) === 0;
+    drawSlime(ctx, this.x - cam.x, this.y - cam.y, this.w, this.h, { blink });
+  }
+}
+
+// ---------- Cuervo Robacarteras ----------
+class Crow extends Enemy {
+  constructor(x, y, flying) {
+    super(x, y, 36, 36);
+    this.kind = 'crow';
+    this.flying = flying;
+    this.shellMode = false;
+    this.shellTimer = 0;
+    this.shellMoving = false;
+    this.flap = 0;
+    this.baseY = y;
+    this.tParam = 0;
+    this.vx = flying ? 100 : -75;
+    this.canBeStomped = true;
+    this.canBeProjectiled = true;
+    this.canBeDeflected = true;
+  }
+  killByStomp() {
+    if (!this.shellMode) {
+      // primer pisotón: convertir en concha
+      this.shellMode = true;
+      this.shellTimer = 8;
+      this.shellMoving = false;
+      this.vx = 0;
+      this.vy = -100;
+      this.flying = false;
+      SFX.stomp();
+      return;
+    }
+    if (this.shellMoving) {
+      // pisotón sobre concha en movimiento -> detener
+      this.shellMoving = false;
+      this.vx = 0;
+      SFX.stomp();
+      return;
+    }
+    // pisotón sobre concha quieta -> patear
+    // dirección depende de quién pisó (la sets desde main)
+    this.shellMoving = true;
+    this.vx = this.kickDir > 0 ? 360 : -360;
+    SFX.stomp();
+  }
+  // Espada sobre cuervo: si no está en concha, lo mata; si está, lo patea.
+  killBySword(fromDir) {
+    if (this.shellMode) {
+      this.shellMoving = true;
+      this.vx = (fromDir || 1) * 420;
+      SFX.stomp();
+    } else {
+      this.dead = true;
+      this.deadTimer = 0;
+      this.vy = -320;
+      this.vx = (fromDir || 1) * 220;
+      SFX.stomp();
+    }
+  }
+  update(dt, world) {
+    this.dt = dt;
+    this.tParam += dt;
+    if (this.dead) {
+      this.deadTimer += dt;
+      this.vy += 1800 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      return;
+    }
+    if (this.shellMode) {
+      this.shellTimer -= dt;
+      if (this.shellTimer < 0 && !this.shellMoving) {
+        // sale del modo concha
+        this.shellMode = false;
+        this.flying = false;
+        this.vx = -60;
+      }
+    }
+    if (this.flying) {
+      // patrón sinusoidal
+      this.vy = Math.sin(this.tParam * 3) * 120;
+      this.flap = Math.floor(this.tParam * 6) % 4;
+      this.x += this.vx * dt;
+      this.y = this.baseY + Math.sin(this.tParam * 2) * 20;
+      // rebotar contra muros sólidos
+      const l = Math.floor(this.x / TILE);
+      const r = Math.floor((this.x + this.w) / TILE);
+      const row = Math.floor((this.y + this.h / 2) / TILE);
+      if (world.isSolid(l, row) || world.isSolid(r, row)) {
+        this.vx = -this.vx;
+        this.facing = -this.facing;
+      }
+    } else {
+      this.vy += 1800 * dt;
+      if (this.vy > 600) this.vy = 600;
+      if (this.onGround && !this.shellMode) {
+        const aheadX = Math.floor((this.x + (this.vx > 0 ? this.w + 1 : -1)) / TILE);
+        const belowR = Math.floor((this.y + this.h + 2) / TILE);
+        if (!world.isSolid(aheadX, belowR)) {
+          this.vx = -this.vx;
+          this.facing = -this.facing;
+        }
+      }
+      collideTiles(this, world);
+    }
+  }
+  draw(ctx, cam, t) {
+    if (this.dead) {
+      ctx.save();
+      ctx.translate(this.x - cam.x + this.w / 2, this.y - cam.y + this.h / 2);
+      ctx.scale(1, -1);
+      drawCrow(ctx, -this.w / 2, -this.h / 2, this.w, this.h, { facing: this.facing, shellMode: this.shellMode });
+      ctx.restore();
+      return;
+    }
+    const blink = (Math.floor(t * 6) % 11) === 0;
+    drawCrow(ctx, this.x - cam.x, this.y - cam.y, this.w, this.h, {
+      facing: this.facing,
+      flying: this.flying,
+      shellMode: this.shellMode,
+      flap: this.flap,
+      blink,
+    });
+  }
+}
+
+// ---------- Cactus Rodante (invencible al salto Y a la espada) ----------
+class Cactus extends Enemy {
+  constructor(x, y) {
+    super(x, y, 38, 38);
+    this.kind = 'cactus';
+    this.vx = -110;
+    this.canBeStomped = false;
+    this.canBeProjectiled = true; // se destruye con notas
+    this.canBeDeflected = false;
+    this.rot = 0;
+  }
+  // La espada NO daña al cactus (sus espinas paran el filo).
+  killBySword() { /* ignored — solo notas musicales lo destruyen */ }
+  update(dt, world) {
+    this.dt = dt;
+    this.rot += Math.abs(this.vx) * dt * 0.05;
+    if (this.dead) {
+      this.deadTimer += dt;
+      this.vy += 1800 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      return;
+    }
+    this.vy += 1800 * dt;
+    if (this.vy > 600) this.vy = 600;
+    if (this.onGround) {
+      const aheadX = Math.floor((this.x + (this.vx > 0 ? this.w + 1 : -1)) / TILE);
+      const belowR = Math.floor((this.y + this.h + 2) / TILE);
+      if (!world.isSolid(aheadX, belowR)) {
+        this.vx = -this.vx;
+        this.facing = -this.facing;
+      }
+    }
+    collideTiles(this, world);
+  }
+  draw(ctx, cam) {
+    if (this.dead) {
+      ctx.save();
+      ctx.translate(this.x - cam.x + this.w / 2, this.y - cam.y + this.h / 2);
+      ctx.scale(1, -1);
+      drawCactus(ctx, -this.w / 2, -this.h / 2, this.w, this.h, { rot: this.rot });
+      ctx.restore();
+      return;
+    }
+    drawCactus(ctx, this.x - cam.x, this.y - cam.y, this.w, this.h, { rot: this.rot });
+  }
+}
+
+// ---------- Mapache Gigante Mutante (jefe) ----------
+class RaccoonBoss extends Enemy {
+  constructor(x, y) {
+    super(x, y, 120, 120);
+    this.kind = 'boss';
+    this.hp = 5;
+    this.facing = -1;
+    this.vx = -150;
+    this.canBeStomped = true;
+    this.canBeProjectiled = true;
+    this.canBeDeflected = false;
+    this.hurtTimer = 0;
+    this.jumpTimer = 1.5;
+  }
+  hit() {
+    this.hp -= 1;
+    this.hurtTimer = 0.3;
+    SFX.bossHit();
+    if (this.hp <= 0) {
+      this.dead = true;
+      this.deadTimer = 0;
+      this.vy = -300;
+      this.vx = this.facing * 80;
+    } else {
+      // rebote
+      this.vy = -500;
+      this.vx *= 1.1;
+    }
+  }
+  killByStomp() { this.hit(); }
+  killByProjectile() { this.hit(); }
+  killBySword() { this.hit(); }
+  update(dt, world) {
+    this.dt = dt;
+    if (this.hurtTimer > 0) this.hurtTimer -= dt;
+    if (this.dead) {
+      this.deadTimer += dt;
+      this.vy += 1800 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      return;
+    }
+    this.vy += 1800 * dt;
+    if (this.vy > 700) this.vy = 700;
+
+    this.jumpTimer -= dt;
+    if (this.onGround && this.jumpTimer < 0) {
+      this.vy = -700;
+      this.jumpTimer = 1.2 + Math.random() * 0.6;
+    }
+
+    // patrullaje en su zona (con gestion de bordes)
+    if (this.onGround) {
+      const aheadX = Math.floor((this.x + (this.vx > 0 ? this.w + 2 : -2)) / TILE);
+      const belowR = Math.floor((this.y + this.h + 2) / TILE);
+      if (!world.isSolid(aheadX, belowR)) {
+        this.vx = -this.vx;
+        this.facing = -this.facing;
+      }
+    }
+    collideTiles(this, world);
+  }
+  draw(ctx, cam) {
+    if (this.dead) {
+      ctx.save();
+      ctx.translate(this.x - cam.x + this.w / 2, this.y - cam.y + this.h / 2);
+      ctx.scale(1, -1);
+      drawRaccoonBoss(ctx, -this.w / 2, -this.h / 2, this.w, this.h, { facing: this.facing });
+      ctx.restore();
+      return;
+    }
+    drawRaccoonBoss(ctx, this.x - cam.x, this.y - cam.y, this.w, this.h, {
+      facing: this.facing,
+      hurt: this.hurtTimer > 0,
+    });
+  }
+}
+
+
+
+// ---------- Nave Alien (invasión cada 3 niveles) ----------
+//
+// Vuela horizontal sin colisionar con tiles. Cada cierto tiempo carga su
+// cañón y dispara un láser vertical hasta el suelo. Tocar la nave o el
+// láser mata al jugador instantáneamente. Se puede destruir con espada o
+// notas musicales (recompensa de 500 puntos).
+class AlienShip extends Enemy {
+  constructor(x, y, dir) {
+    super(x, y, 100, 50);
+    this.kind = 'alien';
+    this.vx = dir * 130;
+    this.facing = dir;
+    this.canBeStomped = false;        // pisarla mata al jugador
+    this.canBeProjectiled = true;     // las notas pueden derribarla
+    this.canBeDeflected = false;
+    this.lifetime = 14;               // safety despawn
+
+    // FSM del láser
+    this.laserState = 'idle';         // 'idle' | 'charging' | 'firing'
+    this.laserTimer = 1.4 + Math.random() * 1.4;
+    this.LASER_CHARGE = 0.65;
+    this.LASER_FIRE   = 0.55;
+    this.laserHeight = 0;
+
+    this.t = 0;
+    this.bobBase = y;
+  }
+
+  // Hitbox del rayo (sólo activo mientras dispara, no durante carga)
+  get laserHitbox() {
+    if (this.laserState !== 'firing') return null;
+    const cx = this.x + this.w / 2;
+    return {
+      x: cx - 8,
+      y: this.y + this.h - 4,
+      w: 16,
+      h: this.laserHeight,
+    };
+  }
+
+  // Cargando = peligro visual pero no daña aún
+  get isLaserActive() { return this.laserState === 'firing'; }
+
+  killByStomp()                  { /* invulnerable a pisotón */ }
+  killBySword(fromDir)           { this._destroy(fromDir || 1); }
+  killByProjectile()             { this._destroy(this.facing); }
+  _destroy(dir) {
+    if (this.dead) return;
+    this.dead = true;
+    this.deadTimer = 0;
+    this.vx = dir * 100;
+    this.vy = 100;
+    this.laserState = 'idle';
+    SFX.bossHit && SFX.bossHit();
+  }
+
+  update(dt, world) {
+    this.dt = dt;
+    this.t += dt;
+
+    if (this.dead) {
+      this.deadTimer += dt;
+      this.vy += 800 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      // rotar al caer (visual lo maneja draw)
+      return;
+    }
+
+    this.lifetime -= dt;
+
+    // Movimiento horizontal con bobbing vertical sutil
+    this.x += this.vx * dt;
+    this.y = this.bobBase + Math.sin(this.t * 2.2) * 6;
+
+    // FSM del láser
+    this.laserTimer -= dt;
+    if (this.laserState === 'idle') {
+      if (this.laserTimer <= 0) {
+        this.laserState = 'charging';
+        this.laserTimer = this.LASER_CHARGE;
+        // Distancia al suelo del nivel (la altura del rayo)
+        this.laserHeight = Math.max(60, world.heightPx - (this.y + this.h) - 40);
+        SFX.laserCharge && SFX.laserCharge();
+      }
+    } else if (this.laserState === 'charging') {
+      if (this.laserTimer <= 0) {
+        this.laserState = 'firing';
+        this.laserTimer = this.LASER_FIRE;
+        SFX.laserFire && SFX.laserFire();
+      }
+    } else if (this.laserState === 'firing') {
+      if (this.laserTimer <= 0) {
+        this.laserState = 'idle';
+        this.laserTimer = 2.2 + Math.random() * 1.6;
+      }
+    }
+
+    // Despawn si sale del mundo o vence su vida
+    if (this.lifetime <= 0 || this.x < -260 || this.x > world.widthPx + 260) {
+      this.dead = true;
+      this.deadTimer = 5; // se elimina del array rápidamente
+    }
+  }
+
+  draw(ctx, cam, t) {
+    if (this.dead) {
+      // Cae girando
+      ctx.save();
+      ctx.translate(this.x - cam.x + this.w / 2, this.y - cam.y + this.h / 2);
+      ctx.rotate(this.deadTimer * 4);
+      drawAlienShip(ctx, -this.w / 2, -this.h / 2, this.w, this.h, { t: this.t, damaged: true });
+      ctx.restore();
+      return;
+    }
+
+    drawAlienShip(ctx, this.x - cam.x, this.y - cam.y, this.w, this.h, { t: this.t });
+
+    // Indicador de carga (esfera roja pulsante bajo la nave)
+    if (this.laserState === 'charging') {
+      const k = 1 - (this.laserTimer / this.LASER_CHARGE);
+      drawLaserCharge(ctx, this.x - cam.x + this.w / 2, this.y - cam.y + this.h - 2, this.t, k);
+
+      // Línea de "mira" tenue hasta el suelo (aviso al jugador)
+      ctx.strokeStyle = `rgba(255,79,79,${0.25 + 0.4 * k})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(this.x - cam.x + this.w / 2, this.y - cam.y + this.h - 2);
+      ctx.lineTo(this.x - cam.x + this.w / 2, this.y - cam.y + this.h - 2 + this.laserHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+    }
+
+    // Rayo láser activo
+    if (this.laserState === 'firing') {
+      const elapsed = this.LASER_FIRE - this.laserTimer;
+      const fadeIn  = Math.min(1, elapsed / 0.06);
+      const fadeOut = Math.min(1, this.laserTimer / 0.12);
+      const charge = Math.min(fadeIn, fadeOut);
+      drawAlienLaser(
+        ctx,
+        this.x - cam.x + this.w / 2,
+        this.y - cam.y + this.h - 2,
+        this.laserHeight,
+        { t: this.t, charge, color: '#ff4fa3', outer: '#6cf0ff' }
+      );
+    }
+  }
+}
+
+/* =============================================================
+   entities.js
+   ============================================================= */
+// Entidades del mundo: monedas, power-ups, notas musicales, meta y mochila.
+
+class Coin {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.w = 24; this.h = 24;
+    this.collected = false;
+    this.t = 0;
+  }
+  get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  update(dt) { this.t += dt; }
+  draw(ctx, cam) {
+    drawCoin(ctx, this.x - cam.x + 4, this.y - cam.y + 4, 24, this.t);
+  }
+}
+
+// Moneda volátil que aparece al golpear caja misteriosa.
+class PopCoin {
+  constructor(x, y) {
+    this.x = x - 12; this.y = y - 24;
+    this.vy = -360; this.vx = 0;
+    this.w = 24; this.h = 24;
+    this.t = 0;
+    this.life = 0.7;
+    this.collected = true; // no necesita ser recolectada — se cuenta al spawnear
+  }
+  update(dt) {
+    this.t += dt;
+    this.life -= dt;
+    this.vy += 1400 * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+  }
+  get done() { return this.life <= 0; }
+  draw(ctx, cam) {
+    drawCoin(ctx, this.x - cam.x, this.y - cam.y, 24, this.t);
+  }
+}
+
+// Power-up que sube de la caja y luego camina horizontal cayendo por gravedad.
+class PowerUp {
+  constructor(x, y, kind) {
+    this.kind = kind; // 'energy' | 'headphones'
+    this.x = x - 14; this.y = y;
+    this.w = 28; this.h = 28;
+    this.vx = 0;
+    this.vy = -120;
+    this.t = 0;
+    this.spawnPhase = 0.5; // tiempo subiendo de la caja
+    this.collected = false;
+  }
+  get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  update(dt, world) {
+    this.t += dt;
+    if (this.spawnPhase > 0) {
+      this.spawnPhase -= dt;
+      this.y += this.vy * dt;
+      if (this.spawnPhase <= 0) {
+        this.vy = 0;
+        this.vx = 90;
+      }
+      return;
+    }
+    this.vy += 1400 * dt;
+    if (this.vy > 500) this.vy = 500;
+    // X
+    this.x += this.vx * dt;
+    let l = Math.floor(this.x / TILE);
+    let r = Math.floor((this.x + this.w - 1) / TILE);
+    let tt = Math.floor(this.y / TILE);
+    let bb = Math.floor((this.y + this.h - 1) / TILE);
+    for (let row = tt; row <= bb; row++) {
+      for (let col = l; col <= r; col++) {
+        if (!world.isSolid(col, row) || world.isOneWay(col, row)) continue;
+        const tile = world.tileRect(col, row);
+        if (this.vx > 0) this.x = tile.x - this.w;
+        else if (this.vx < 0) this.x = tile.x + tile.w;
+        this.vx = -this.vx;
+      }
+    }
+    // Y
+    this.y += this.vy * dt;
+    l = Math.floor(this.x / TILE);
+    r = Math.floor((this.x + this.w - 1) / TILE);
+    tt = Math.floor(this.y / TILE);
+    bb = Math.floor((this.y + this.h - 1) / TILE);
+    for (let row = tt; row <= bb; row++) {
+      for (let col = l; col <= r; col++) {
+        if (!world.isSolid(col, row)) continue;
+        const tile = world.tileRect(col, row);
+        const isOneWay = world.isOneWay(col, row);
+        if (this.vy > 0) {
+          if (isOneWay) {
+            const prevBottom = this.y + this.h - this.vy * dt;
+            if (prevBottom > tile.y + 1) continue;
+          }
+          this.y = tile.y - this.h; this.vy = 0;
+        } else if (this.vy < 0) {
+          if (isOneWay) continue;
+          this.y = tile.y + tile.h; this.vy = 0;
+        }
+      }
+    }
+  }
+  draw(ctx, cam) {
+    if (this.kind === 'energy') {
+      drawEnergyDrink(ctx, this.x - cam.x, this.y - cam.y, this.w);
+    } else {
+      drawHeadphonesItem(ctx, this.x - cam.x, this.y - cam.y, this.w);
+    }
+  }
+}
+
+// Proyectil "nota musical" — rebota en el suelo y puede destruir cactus.
+class MusicNote {
+  constructor(x, y, dir) {
+    this.x = x; this.y = y;
+    this.w = 20; this.h = 20;
+    this.vx = dir * 460;
+    this.vy = -80;
+    this.life = 2.5;
+    this.t = 0;
+    this.dead = false;
+  }
+  get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  update(dt, world) {
+    this.t += dt;
+    this.life -= dt;
+    if (this.life <= 0) { this.dead = true; return; }
+    this.vy += 1400 * dt;
+    if (this.vy > 600) this.vy = 600;
+    // X
+    this.x += this.vx * dt;
+    let l = Math.floor(this.x / TILE);
+    let r = Math.floor((this.x + this.w - 1) / TILE);
+    let tt = Math.floor(this.y / TILE);
+    let bb = Math.floor((this.y + this.h - 1) / TILE);
+    for (let row = tt; row <= bb; row++) {
+      for (let col = l; col <= r; col++) {
+        if (!world.isSolid(col, row) || world.isOneWay(col, row)) continue;
+        // contra muro: muere
+        this.dead = true;
+        return;
+      }
+    }
+    // Y
+    this.y += this.vy * dt;
+    l = Math.floor(this.x / TILE);
+    r = Math.floor((this.x + this.w - 1) / TILE);
+    tt = Math.floor(this.y / TILE);
+    bb = Math.floor((this.y + this.h - 1) / TILE);
+    for (let row = tt; row <= bb; row++) {
+      for (let col = l; col <= r; col++) {
+        if (!world.isSolid(col, row)) continue;
+        const tile = world.tileRect(col, row);
+        const isOneWay = world.isOneWay(col, row);
+        if (this.vy > 0) {
+          if (isOneWay) {
+            const prevBottom = this.y + this.h - this.vy * dt;
+            if (prevBottom > tile.y + 1) continue;
+          }
+          this.y = tile.y - this.h;
+          this.vy = -440; // rebote
+        } else if (this.vy < 0) {
+          if (isOneWay) continue;
+          this.y = tile.y + tile.h;
+          this.vy = 80;
+        }
+      }
+    }
+  }
+  draw(ctx, cam) {
+    drawMusicNote(ctx, this.x - cam.x, this.y - cam.y, this.w, this.t);
+  }
+}
+
+// Meta — estación de tren / parada de autobús.
+class Goal {
+  constructor(col, row) {
+    this.x = col * TILE - 16;
+    this.y = row * TILE - TILE * 2;
+    this.w = 64; this.h = 96;
+    this.touched = false;
+  }
+  get aabb() { return { x: this.x + 12, y: this.y, w: 32, h: this.h }; }
+  draw(ctx, cam) {
+    drawGoal(ctx, this.x - cam.x, this.y - cam.y, 64, 128);
+  }
+}
+
+// La mochila, recompensa final del jefe.
+class Backpack {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.w = 32; this.h = 32;
+    this.collected = false;
+    this.t = 0;
+  }
+  get aabb() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
+  update(dt) { this.t += dt; this.y += Math.sin(this.t * 3) * 0.3; }
+  draw(ctx, cam) {
+    drawBackpack(ctx, this.x - cam.x, this.y - cam.y, this.w);
+  }
+}
+
+/* =============================================================
+   hud.js
+   ============================================================= */
+// HUD, mensajes, pantallas de pausa/game-over/victoria.
+
+function drawHUD(ctx, viewW, state) {
+  // Aviso imponente de INVASIÓN ALIEN: prioridad máxima, ocupa toda la
+  // pantalla con strobe rojo, barras cinematográficas y texto pulsante.
+  if (state.alertActive) {
+    drawAlienAlert(ctx, viewW, ctx.canvas.height, state.t || 0,
+                   state.alertTimer || 0, state.alertTotal || 3.6);
+  }
+
+  // Indicador permanente de "peligro alien activo" mientras el ataque dura
+  if (state.alienAttackActive && !state.alertActive) {
+    drawAlienDangerBanner(ctx, viewW, state.t || 0);
+  }
+
+  // barra superior
+  ctx.fillStyle = 'rgba(8,5,22,0.55)';
+  ctx.fillRect(0, 0, viewW, 36);
+
+  ctx.fillStyle = '#f4eefb';
+  ctx.font = 'bold 14px "JetBrains Mono", monospace';
+  ctx.textBaseline = 'middle';
+
+  // Mía mini + vidas
+  drawMia(ctx, 8, 4, 20, 28, { facing: 1, hasHeadphones: state.hasHeadphones });
+  ctx.fillText(`× ${state.lives}`, 32, 18);
+
+  // Monedas
+  drawCoin(ctx, 88, 6, 24, 0.1);
+  ctx.fillText(`× ${String(state.coins).padStart(2, '0')}`, 116, 18);
+
+  // Score
+  ctx.fillText(`SCORE ${String(state.score).padStart(6, '0')}`, 180, 18);
+
+  // Nivel
+  ctx.fillText(`MUNDO ${state.world}`, 340, 18);
+
+  // Tiempo
+  const time = Math.max(0, Math.ceil(state.timeLeft));
+  ctx.fillStyle = time < 30 ? '#ff7676' : '#f4eefb';
+  ctx.fillText(`TIEMPO ${String(time).padStart(3, '0')}`, 460, 18);
+
+  // Mochila status (si la tiene tras vencer al jefe)
+  if (state.hasBackpack) {
+    drawBackpack(ctx, viewW - 36, 4, 28);
+  }
+
+  // Mensaje de centro (level start, level complete, etc.)
+  if (state.bigMessage) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, state.bigMessageY ?? 180, viewW, 100);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.bigMessage, viewW / 2, (state.bigMessageY ?? 180) + 40);
+    if (state.bigSubMessage) {
+      ctx.font = '14px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#cfc8e3';
+      ctx.fillText(state.bigSubMessage, viewW / 2, (state.bigMessageY ?? 180) + 70);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  // Toast (notificaciones cortas)
+  if (state.toast && state.toastTime > 0) {
+    ctx.fillStyle = 'rgba(8,5,22,0.7)';
+    const tw = ctx.measureText(state.toast).width + 24;
+    ctx.fillRect((viewW - tw) / 2, 50, tw, 26);
+    ctx.fillStyle = '#ffd14f';
+    ctx.font = 'bold 13px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.toast, viewW / 2, 67);
+    ctx.textAlign = 'left';
+  }
+
+  // Barra de vida del jefe
+  if (state.bossHpMax) {
+    const x = viewW / 2 - 120, y = 44;
+    ctx.fillStyle = 'rgba(8,5,22,0.7)';
+    ctx.fillRect(x - 4, y - 4, 248, 22);
+    ctx.fillStyle = '#3a2a55';
+    ctx.fillRect(x, y, 240, 14);
+    const ratio = Math.max(0, state.bossHp / state.bossHpMax);
+    const grad = ctx.createLinearGradient(x, y, x + 240, y);
+    grad.addColorStop(0, '#ff4fa3');
+    grad.addColorStop(1, '#6cf0ff');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, 240 * ratio, 14);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('MAPACHE GIGANTE MUTANTE', viewW / 2, y - 8);
+    ctx.textAlign = 'left';
+  }
+}
+
+// Pantalla de pausa
+function drawPause(ctx, viewW, viewH) {
+  ctx.fillStyle = 'rgba(8,5,22,0.65)';
+  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 32px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('PAUSA', viewW / 2, viewH / 2);
+  ctx.font = '14px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#cfc8e3';
+  ctx.fillText('Pulsa P para continuar', viewW / 2, viewH / 2 + 30);
+  ctx.textAlign = 'left';
+}
+
+function drawGameOver(ctx, viewW, viewH) {
+  ctx.fillStyle = 'rgba(8,5,22,0.85)';
+  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.fillStyle = '#ff4fa3';
+  ctx.font = 'bold 38px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAME OVER', viewW / 2, viewH / 2 - 10);
+  ctx.font = '14px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Pulsa Enter para reintentar', viewW / 2, viewH / 2 + 24);
+  ctx.textAlign = 'left';
+}
+
+function drawWin(ctx, viewW, viewH, state) {
+  ctx.fillStyle = 'rgba(8,5,22,0.85)';
+  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.fillStyle = '#6cf0ff';
+  ctx.font = 'bold 32px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('¡MOCHILA RECUPERADA!', viewW / 2, viewH / 2 - 30);
+  ctx.fillStyle = '#fff';
+  ctx.font = '15px "JetBrains Mono", monospace';
+  ctx.fillText(`Mía vence al Mapache Gigante Mutante.`, viewW / 2, viewH / 2);
+  ctx.fillStyle = '#ffd14f';
+  ctx.fillText(`Score final: ${state.score}   ·   Monedas: ${state.totalCoins}`, viewW / 2, viewH / 2 + 24);
+  ctx.fillStyle = '#cfc8e3';
+  ctx.font = '13px "JetBrains Mono", monospace';
+  ctx.fillText('Pulsa Enter para volver a empezar', viewW / 2, viewH / 2 + 56);
+  ctx.textAlign = 'left';
+}
+
+
+
+// =========================================================================
+// AVISO IMPONENTE DE INVASIÓN ALIEN (cada 3 niveles)
+// =========================================================================
+//
+// Diseño cinematográfico:
+//   - Strobe rojo de fondo (alpha pulsante)
+//   - Barras negras superior/inferior (estilo "letterbox")
+//   - Rayas diagonales animadas
+//   - Texto "⚠ ALERTA: INVASIÓN ALIEN ⚠" GIGANTE pulsando + glow
+//   - Subtexto explicativo
+//   - Cuenta regresiva visual (barra de progreso)
+//   - "Static" / scanlines parpadeantes
+//
+function drawAlienAlert(ctx, viewW, viewH, t, alertTimer, alertTotal) {
+  const k = 1 - Math.max(0, Math.min(1, alertTimer / alertTotal)); // 0..1 progresión
+  const fadeIn = Math.min(1, k * 4);          // entra rápido los primeros 0.25
+  const fadeOut = Math.min(1, alertTimer / 0.4); // sale en los últimos 0.4
+  const alpha = Math.min(fadeIn, fadeOut);
+
+  // 1) Strobe rojo (parpadeo)
+  const strobe = (Math.floor(t * 12) % 2 === 0) ? 0.6 : 0.25;
+  ctx.fillStyle = `rgba(180,20,30,${strobe * alpha})`;
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  // Capa oscura sobre el strobe
+  ctx.fillStyle = `rgba(20,5,10,${0.55 * alpha})`;
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  // 2) Rayas diagonales animadas (peligro)
+  const stripeOffset = (t * 200) % 60;
+  ctx.save();
+  ctx.globalAlpha = 0.18 * alpha;
+  ctx.fillStyle = '#ffd14f';
+  for (let x = -viewH; x < viewW + viewH; x += 60) {
+    ctx.beginPath();
+    ctx.moveTo(x + stripeOffset, 0);
+    ctx.lineTo(x + 30 + stripeOffset, 0);
+    ctx.lineTo(x + 30 + stripeOffset + viewH, viewH);
+    ctx.lineTo(x + stripeOffset + viewH, viewH);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 3) Barras letterbox (cinematográficas)
+  const barH = 60 * alpha;
+  ctx.fillStyle = `rgba(0,0,0,${0.95 * alpha})`;
+  ctx.fillRect(0, 0, viewW, barH);
+  ctx.fillRect(0, viewH - barH, viewW, barH);
+  // bordes brillantes
+  ctx.fillStyle = `rgba(255,79,79,${alpha})`;
+  ctx.fillRect(0, barH - 2, viewW, 2);
+  ctx.fillRect(0, viewH - barH, viewW, 2);
+
+  // 4) Iconos UFO en los laterales (entran desde fuera)
+  const ufoX = 40 + Math.sin(t * 4) * 8;
+  drawAlienShip(ctx, ufoX, 80 + Math.sin(t * 2) * 6, 60, 30, { t });
+  drawAlienShip(ctx, viewW - ufoX - 60, 80 + Math.cos(t * 2) * 6, 60, 30, { t: t + 0.7 });
+
+  // 5) Texto principal con glow y escala pulsante
+  ctx.save();
+  ctx.textAlign = 'center';
+  const cx = viewW / 2;
+  const cy = viewH / 2 - 10;
+
+  // Pulse de escala
+  const pulse = 1 + Math.sin(t * 8) * 0.06;
+
+  // Glow fuerte detrás del texto (varios layers)
+  for (let i = 5; i > 0; i--) {
+    ctx.fillStyle = `rgba(255,79,79,${(0.16 / i) * alpha})`;
+    ctx.font = `bold ${Math.round(56 * pulse + i * 6)}px "JetBrains Mono", monospace`;
+    ctx.fillText('⚠ ALERTA ⚠', cx, cy);
+  }
+
+  // Texto principal
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.font = `bold ${Math.round(56 * pulse)}px "JetBrains Mono", monospace`;
+  // Sombra dura
+  ctx.fillStyle = `rgba(80,0,0,${alpha})`;
+  ctx.fillText('⚠ ALERTA ⚠', cx + 4, cy + 4);
+  // Texto blanco
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.fillText('⚠ ALERTA ⚠', cx, cy);
+
+  // Subtexto: INVASIÓN ALIEN
+  ctx.font = `bold ${Math.round(38 * pulse)}px "JetBrains Mono", monospace`;
+  for (let i = 4; i > 0; i--) {
+    ctx.fillStyle = `rgba(108,240,255,${(0.18 / i) * alpha})`;
+    ctx.fillText('INVASIÓN ALIEN', cx, cy + 50);
+  }
+  ctx.fillStyle = `rgba(108,240,255,${alpha})`;
+  ctx.fillText('INVASIÓN ALIEN', cx, cy + 50);
+
+  // Línea pequeña de instrucciones (más suave)
+  ctx.font = `bold 16px "JetBrains Mono", monospace`;
+  ctx.fillStyle = `rgba(255,209,79,${alpha})`;
+  ctx.fillText('NAVES HOSTILES DETECTADAS · ESQUIVA LOS RAYOS LÁSER', cx, cy + 90);
+  ctx.fillStyle = `rgba(220,200,200,${alpha})`;
+  ctx.font = `13px "JetBrains Mono", monospace`;
+  ctx.fillText('un toque de láser o de nave = derrota instantánea', cx, cy + 112);
+
+  ctx.restore();
+
+  // 6) Barra de progreso del aviso (countdown)
+  const barY = viewH - barH - 20;
+  if (alpha > 0.3) {
+    const w = viewW * 0.35;
+    const x = (viewW - w) / 2;
+    ctx.fillStyle = `rgba(0,0,0,${0.6 * alpha})`;
+    ctx.fillRect(x - 2, barY - 2, w + 4, 8);
+    ctx.fillStyle = `rgba(255,79,79,${alpha})`;
+    ctx.fillRect(x, barY, w * (1 - k), 4);
+  }
+
+  // 7) "Static" / scanlines parpadeantes para look de transmisión rota
+  if (Math.random() < 0.18) {
+    ctx.fillStyle = `rgba(255,255,255,${0.04 * alpha})`;
+    const ny = Math.random() * viewH;
+    ctx.fillRect(0, ny, viewW, 2);
+  }
+  ctx.fillStyle = `rgba(0,0,0,${0.18 * alpha})`;
+  for (let y = 0; y < viewH; y += 4) ctx.fillRect(0, y, viewW, 1);
+
+  ctx.textAlign = 'left';
+}
+
+// Banner permanente mientras la invasión está activa (después del aviso).
+function drawAlienDangerBanner(ctx, viewW, t) {
+  const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+
+  // Borde rojo superior pulsante
+  ctx.fillStyle = `rgba(255,40,80,${0.45 + pulse * 0.35})`;
+  ctx.fillRect(0, 0, viewW, 4);
+
+  // Texto centrado de aviso pequeño
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 11px "JetBrains Mono", monospace';
+  const flash = Math.floor(t * 4) % 2 === 0;
+  ctx.fillStyle = flash ? '#ff4f4f' : '#ffd14f';
+  ctx.fillText('⚠  INVASIÓN ALIEN ACTIVA  ⚠', viewW / 2, 16);
+  ctx.restore();
+  ctx.textAlign = 'left';
+}
+
+/* =============================================================
+   input.js
+   ============================================================= */
+// Keyboard input. Mapea teclas crudas a "acciones" para que el resto del
+// juego no tenga que conocer combinaciones (A/← son la misma acción).
+
+const ACTION_BY_KEY = {
+  ArrowLeft: 'left', KeyA: 'left',
+  ArrowRight: 'right', KeyD: 'right',
+  ArrowUp: 'jump', Space: 'jump',
+  ShiftLeft: 'run', ShiftRight: 'run',
+  KeyJ: 'shoot',
+  KeyK: 'attack',
+  KeyZ: 'attack',     // alternativa
+  KeyP: 'pause',
+  KeyR: 'restart',
+  Enter: 'confirm',
+};
+
+class Input {
+  constructor() {
+    this.down = new Set();      // acciones presionadas
+    this.pressed = new Set();   // acciones que cambiaron a "presionadas" este frame
+    this.released = new Set();  // acciones soltadas este frame
+
+    window.addEventListener('keydown', (e) => {
+      const action = ACTION_BY_KEY[e.code];
+      if (!action) return;
+      e.preventDefault();
+      if (!this.down.has(action)) this.pressed.add(action);
+      this.down.add(action);
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const action = ACTION_BY_KEY[e.code];
+      if (!action) return;
+      e.preventDefault();
+      this.down.delete(action);
+      this.released.add(action);
+    });
+
+    // Si la pestaña pierde el foco, soltamos todo (evita "running ghost").
+    window.addEventListener('blur', () => {
+      this.down.clear();
+    });
+  }
+
+  isDown(action)    { return this.down.has(action); }
+  wasPressed(action){ return this.pressed.has(action); }
+  wasReleased(action){ return this.released.has(action); }
+
+  endFrame() {
+    this.pressed.clear();
+    this.released.clear();
+  }
+}
+
+/* =============================================================
+   main.js
+   ============================================================= */
+// Bucle principal del juego: estados, cámara, lógica de alto nivel.
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const VIEW_W = canvas.width;
+const VIEW_H = canvas.height;
+
+const STATE = {
+  MENU: 'menu',
+  PLAYING: 'playing',
+  PAUSED: 'paused',
+  LEVEL_INTRO: 'level_intro',
+  LEVEL_COMPLETE: 'level_complete',
+  GAME_OVER: 'game_over',
+  WIN: 'win',
+};
+
+// AABB overlap
+function overlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+class Game {
+  constructor() {
+    this.input = new Input();
+    this.state = STATE.MENU;
+    this.levelIndex = 0;
+    this.lives = 3;
+    this.totalCoins = 0;
+    this.score = 0;
+    this.t = 0;
+    this.cam = { x: 0, y: 0 };
+    this.player = null;
+    this.world = null;
+    this.enemies = [];
+    this.coins = [];
+    this.popCoins = [];
+    this.powerUps = [];
+    this.notes = [];
+    this.particles = [];
+    this.goal = null;
+    this.backpack = null;
+    this.timeLeft = 0;
+    this.boss = null;
+    this.bossDefeated = false;
+    this.toast = '';
+    this.toastTime = 0;
+    this.bigMessage = '';
+    this.bigSubMessage = '';
+    this.bigMessageTimer = 0;
+    this.completeTimer = 0;
+    this.hasBackpack = false;
+
+    // Screen shake (intensidad y tiempo restante)
+    this.shakeIntensity = 0;
+    this.shakeTime = 0;
+    this.shakeOffsetX = 0;
+    this.shakeOffsetY = 0;
+
+    // ----- Invasión Alien (cada 3 niveles) -----
+    this.alertActive = false;        // se muestra el aviso imponente
+    this.alertTimer = 0;
+    this.ALERT_TOTAL = 3.6;          // duración del aviso en pantalla
+    this.alienAttackActive = false;  // las naves ya están atacando
+    this.alienSpawnTimer = 0;
+    this.alienSpawnCount = 0;
+    this.alienAttackLevel = false;   // este nivel tiene invasión
+
+    // Polvo al correr / aterrizar (siempre activo en modo ULTRA)
+    this.dustParticles = [];
+    this._dustTimer = 0;
+
+    // Bind menu start button
+    const startBtn = document.getElementById('startBtn');
+    const overlay = document.getElementById('overlay');
+    startBtn.addEventListener('click', () => {
+      unlockAudio();
+      overlay.classList.add('hidden');
+      this.startNewGame();
+    });
+
+    requestAnimationFrame(this.loop.bind(this));
+    this.lastTime = performance.now();
+  }
+
+  startNewGame() {
+    this.lives = 3;
+    this.totalCoins = 0;
+    this.score = 0;
+    this.levelIndex = 0;
+    this.hasBackpack = false;
+    this.bossDefeated = false;
+    this.loadLevel(0);
+  }
+
+  loadLevel(index) {
+    const def = LEVELS[index];
+    this.levelIndex = index;
+    this.world = new World(def);
+    this.cam = { x: 0, y: 0 };
+    this.enemies = [];
+    this.coins = [];
+    this.popCoins = [];
+    this.powerUps = [];
+    this.notes = [];
+    this.particles = [];
+    this.goal = null;
+    this.backpack = null;
+    this.boss = null;
+    this.timeLeft = def.timeLimit;
+    this.completeTimer = 0;
+
+    // Spawn entities desde semillas del world
+    for (const seed of this.world.entitySeeds) {
+      const x = seed.col * TILE;
+      const y = seed.row * TILE;
+      switch (seed.kind) {
+        case 'coin': this.coins.push(new Coin(x + 4, y + 4)); break;
+        case 'slime': this.enemies.push(new Slime(x + 2, y + 4)); break;
+        case 'crow': this.enemies.push(new Crow(x + 2, y + 4, seed.flying)); break;
+        case 'cactus': this.enemies.push(new Cactus(x + 1, y + 2)); break;
+        case 'goal':
+          this.goal = new Goal(seed.col, seed.row);
+          break;
+      }
+    }
+
+    // Spawn de Mía
+    const sp = def.spawn;
+    const px = sp.col * TILE;
+    const py = sp.row * TILE - 28;
+    this.player = new Player(px, py);
+
+    // Si es boss level, crear jefe y mochila
+    if (def.isBoss) {
+      const bx = (def.cols - 14) * TILE;
+      const by = (def.rowsCount - 6) * TILE;
+      this.boss = new RaccoonBoss(bx, by);
+      this.enemies.push(this.boss);
+      // mochila escondida en una plataforma alta
+      this.backpack = new Backpack((def.cols - 18) * TILE + 8, 6 * TILE);
+    }
+
+    // Mensaje grande de inicio
+    this.bigMessage = `MUNDO ${index + 1}-1   ${def.name.toUpperCase()}`;
+    this.bigSubMessage = def.isBoss
+      ? '¡La guarida del Mapache Gigante Mutante!'
+      : 'Llega a la estación antes de que se agote el tiempo';
+    this.bigMessageTimer = 2.4;
+
+    // Reset estado alien
+    this.alertActive = false;
+    this.alertTimer = 0;
+    this.alienAttackActive = false;
+    this.alienSpawnTimer = 0;
+    this.alienSpawnCount = 0;
+    this.alienAttackLevel = !!def.alienAttack;
+    this.dustParticles = [];
+
+    // Si este nivel tiene invasión alien, programar el aviso para que
+    // aparezca justo después del intro normal (encadenado, dramático).
+    if (def.alienAttack) {
+      this._pendingAlertTimer = 2.4;     // dispara el aviso al fin del intro
+    } else {
+      this._pendingAlertTimer = 0;
+    }
+
+    this.state = STATE.PLAYING;
+  }
+
+  showToast(msg, duration = 1.4) {
+    this.toast = msg;
+    this.toastTime = duration;
+  }
+
+  shake(intensity, duration = 0.25) {
+    if (intensity > this.shakeIntensity) {
+      this.shakeIntensity = intensity;
+      this.shakeTime = duration;
+    }
+  }
+
+  updateShake(dt) {
+    if (this.shakeTime > 0) {
+      this.shakeTime -= dt;
+      const k = Math.max(0, this.shakeTime / 0.25);
+      const amount = this.shakeIntensity * k;
+      this.shakeOffsetX = (Math.random() - 0.5) * amount * 2;
+      this.shakeOffsetY = (Math.random() - 0.5) * amount * 2;
+      if (this.shakeTime <= 0) {
+        this.shakeIntensity = 0;
+        this.shakeOffsetX = 0;
+        this.shakeOffsetY = 0;
+      }
+    }
+  }
+
+  killPlayer() {
+    if (this.player.dead) return;
+    const wasDead = this.player.dead;
+    this.player.takeDamage();
+    // Screen shake fuerte si murió, suave si sólo perdió power
+    if (this.player.dead && !wasDead) {
+      this.shake(14, 0.4);
+    } else {
+      this.shake(6, 0.2);
+    }
+  }
+
+  spawnHitParticles(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 80,
+        life: 0.4 + Math.random() * 0.2,
+        color,
+      });
+    }
+  }
+
+  loop(now) {
+    const dt = Math.min(0.033, (now - this.lastTime) / 1000);
+    this.lastTime = now;
+    this.t += dt;
+
+    if (this.state === STATE.MENU) {
+      // pinta una "atracción" sencilla
+      ctx.fillStyle = '#0e0820';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      ctx.fillStyle = '#1f1240';
+      ctx.fillRect(0, VIEW_H - 80, VIEW_W, 80);
+      ctx.fillStyle = '#6cf0ff';
+      ctx.font = 'bold 28px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Mía: La Mochila Robada', VIEW_W / 2, VIEW_H / 2);
+      ctx.font = '14px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#cfc8e3';
+      ctx.fillText('Pulsa "Comenzar aventura"', VIEW_W / 2, VIEW_H / 2 + 28);
+      ctx.textAlign = 'left';
+      this.input.endFrame();
+      requestAnimationFrame(this.loop.bind(this));
+      return;
+    }
+
+    // Pause toggle (desde playing o paused)
+    if (this.input.wasPressed('pause') && (this.state === STATE.PLAYING || this.state === STATE.PAUSED)) {
+      this.state = this.state === STATE.PLAYING ? STATE.PAUSED : STATE.PLAYING;
+    }
+
+    if (this.state === STATE.GAME_OVER) {
+      this.render();
+      drawGameOver(ctx, VIEW_W, VIEW_H);
+      if (this.input.wasPressed('confirm')) {
+        this.startNewGame();
+      }
+    } else if (this.state === STATE.WIN) {
+      this.render();
+      drawWin(ctx, VIEW_W, VIEW_H, { score: this.score, totalCoins: this.totalCoins });
+      if (this.input.wasPressed('confirm')) {
+        this.startNewGame();
+      }
+    } else if (this.state === STATE.PAUSED) {
+      this.render();
+      drawPause(ctx, VIEW_W, VIEW_H);
+    } else {
+      // PLAYING / LEVEL_COMPLETE
+      this.update(dt);
+      this.render();
+    }
+
+    this.input.endFrame();
+    requestAnimationFrame(this.loop.bind(this));
+  }
+
+  update(dt) {
+    // Reiniciar nivel
+    if (this.input.wasPressed('restart')) {
+      this.loadLevel(this.levelIndex);
+      return;
+    }
+
+    // Mensaje de inicio
+    if (this.bigMessageTimer > 0) {
+      this.bigMessageTimer -= dt;
+      if (this.bigMessageTimer <= 0) {
+        this.bigMessage = '';
+        this.bigSubMessage = '';
+      }
+    }
+    if (this.toastTime > 0) this.toastTime -= dt;
+
+    // ---- Invasión alien: aviso imponente -> ataque ----
+    if (this._pendingAlertTimer > 0) {
+      this._pendingAlertTimer -= dt;
+      if (this._pendingAlertTimer <= 0) {
+        this.alertActive = true;
+        this.alertTimer = this.ALERT_TOTAL;
+        SFX.alarm();
+        this.shake(3, 0.5);
+      }
+    }
+    if (this.alertActive) {
+      this.alertTimer -= dt;
+      // Pequeñas sacudidas durante el aviso para imponencia
+      if (this.alertTimer % 1 < 0.05) this.shake(2, 0.15);
+      if (this.alertTimer <= 0) {
+        this.alertActive = false;
+        this.alienAttackActive = true;
+        this.alienSpawnTimer = 0.5; // primera nave casi inmediata
+        this.alienSpawnCount = 0;
+        this.showToast('¡Esquiva las naves alienígenas!', 2.4);
+      }
+    }
+    if (this.alienAttackActive) {
+      this.alienSpawnTimer -= dt;
+      if (this.alienSpawnTimer <= 0) {
+        // Spawn fuera de la cámara, volando hacia el jugador.
+        // Usar cam.y para que la altura sea siempre visible en pantalla.
+        const fromLeft = Math.random() < 0.5;
+        const x = fromLeft ? this.cam.x - 130 : this.cam.x + VIEW_W + 30;
+        const y = this.cam.y + 40 + Math.random() * 90;
+        const dir = fromLeft ? 1 : -1;
+        this.enemies.push(new AlienShip(x, y, dir));
+        this.alienSpawnCount++;
+        // El intervalo se acelera levemente con el tiempo
+        const base = Math.max(2.5, 5 - this.alienSpawnCount * 0.18);
+        this.alienSpawnTimer = base + Math.random() * 1.5;
+      }
+    }
+
+    if (this.state === STATE.LEVEL_COMPLETE) {
+      this.completeTimer -= dt;
+      // mover a Mía hacia la meta para "celebración"
+      this.player.x += 80 * dt;
+      this.player.update(dt, this.input, this.world);
+      if (this.completeTimer <= 0) {
+        // siguiente nivel o win
+        if (this.levelIndex >= LEVELS.length - 1) {
+          this.state = STATE.WIN;
+          SFX.win();
+        } else {
+          this.loadLevel(this.levelIndex + 1);
+        }
+      }
+      return;
+    }
+
+    // Tiempo
+    this.timeLeft -= dt;
+    if (this.timeLeft <= 0) {
+      this.timeLeft = 0;
+      if (!this.player.dead) {
+        this.player.dead = true;
+        SFX.death();
+      }
+    }
+
+    // Update player (a menos que esté muerto y haya pasado animación)
+    this.player.update(dt, this.input, this.world);
+
+    // Polvo (correr + aterrizar) - efecto ULTRA siempre activo
+    if (!this.player.dead) {
+      if (this.player.onGround && Math.abs(this.player.vx) > 200) {
+        this._dustTimer -= dt;
+        if (this._dustTimer <= 0) {
+          this._dustTimer = 0.06;
+          this.dustParticles.push({
+            x: this.player.x + this.player.width / 2 - this.player.facing * 6,
+            y: this.player.y + this.player.height - 4,
+            vx: -this.player.vx * 0.18 + (Math.random() - 0.5) * 30,
+            vy: -25 - Math.random() * 40,
+            life: 0.4, maxLife: 0.4,
+          });
+        }
+      }
+      // Detectar aterrizaje (landSquash recién activado)
+      if (this.player.landSquash > 0.10 && !this._lastFrameLanded) {
+        for (let i = 0; i < 6; i++) {
+          const sign = i < 3 ? 1 : -1;
+          this.dustParticles.push({
+            x: this.player.x + this.player.width / 2 + sign * 4,
+            y: this.player.y + this.player.height - 2,
+            vx: sign * (60 + Math.random() * 100),
+            vy: -30 - Math.random() * 60,
+            life: 0.45, maxLife: 0.45,
+          });
+        }
+        this._lastFrameLanded = true;
+      } else if (this.player.landSquash <= 0) {
+        this._lastFrameLanded = false;
+      }
+    }
+
+    // Update dust particles
+    for (const d of this.dustParticles) {
+      d.life -= dt;
+      d.vy += 200 * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+    }
+    this.dustParticles = this.dustParticles.filter(d => d.life > 0);
+
+    // Si el jugador golpeó un bloque por debajo
+    if (this.player.justBumped) {
+      const { col, row } = this.player.justBumped;
+      const result = this.world.bump(col, row, this.player);
+      if (result.kind === 'coin') {
+        this.popCoins.push(new PopCoin(result.x, result.y));
+        this.addCoin();
+      } else if (result.kind === 'powerup') {
+        this.powerUps.push(new PowerUp(result.x, result.y, result.item));
+      } else if (result.kind === 'brick-break') {
+        this.score += 50;
+        SFX.break();
+        // partículas
+        for (let i = 0; i < 6; i++) {
+          this.particles.push({
+            x: result.x, y: result.y,
+            vx: (Math.random() - 0.5) * 300,
+            vy: -200 - Math.random() * 200,
+            life: 0.6, color: '#a83b29',
+          });
+        }
+      } else if (result.kind === 'brick-bump') {
+        SFX.stomp();
+      }
+    }
+
+    // Disparo
+    if (this.player.hasHeadphones && this.input.wasPressed('shoot') && this.player.shootCooldown <= 0) {
+      const px = this.player.x + this.player.width / 2 - 10;
+      const py = this.player.y + 8;
+      this.notes.push(new MusicNote(px, py, this.player.facing));
+      this.player.shootCooldown = 0.4;
+      SFX.shoot();
+    }
+
+    // World tile animations
+    this.world.update(dt);
+
+    // Coins
+    for (const c of this.coins) {
+      if (c.collected) continue;
+      c.update(dt);
+      if (overlap(c.aabb, this.player.aabb)) {
+        c.collected = true;
+        this.addCoin();
+      }
+    }
+    this.coins = this.coins.filter(c => !c.collected);
+
+    // PopCoins
+    for (const pc of this.popCoins) pc.update(dt);
+    this.popCoins = this.popCoins.filter(pc => !pc.done);
+
+    // PowerUps
+    for (const pu of this.powerUps) {
+      if (pu.collected) continue;
+      pu.update(dt, this.world);
+      if (overlap(pu.aabb, this.player.aabb)) {
+        pu.collected = true;
+        if (pu.kind === 'energy') {
+          this.player.grow();
+          this.showToast('¡Bebida energética! +1 golpe', 1.2);
+        } else {
+          this.player.giveHeadphones();
+          this.showToast('¡Auriculares mágicos! Pulsa J para lanzar notas', 1.8);
+        }
+        this.score += 1000;
+      }
+    }
+    this.powerUps = this.powerUps.filter(p => !p.collected);
+
+    // Notes
+    for (const n of this.notes) n.update(dt, this.world);
+
+    // Enemies
+    for (const e of this.enemies) {
+      if (e.dead && e.deadTimer > 1.2) continue;
+      e.update(dt, this.world);
+    }
+
+    // Note <-> enemy
+    for (const n of this.notes) {
+      if (n.dead) continue;
+      for (const e of this.enemies) {
+        if (e.dead || !e.canBeProjectiled) continue;
+        if (overlap(n.aabb, e.aabb)) {
+          if (e.kind === 'boss') {
+            e.hit();
+          } else {
+            e.killByProjectile();
+            this.score += 100;
+          }
+          n.dead = true;
+          break;
+        }
+      }
+    }
+    this.notes = this.notes.filter(n => !n.dead);
+
+    // Sword <-> enemy
+    if (this.player.swordTimer > 0) {
+      const sb = this.player.swordHitbox;
+      if (sb) {
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          // Evitar pegar al mismo enemigo dos veces en el mismo swing
+          const key = e.__id || (e.__id = Math.random().toString(36).slice(2));
+          const hitKey = this.player.swordSwingId + ':' + key;
+          if (this.player.swordHits.has(hitKey)) continue;
+          if (!overlap(sb, e.aabb)) continue;
+
+          this.player.swordHits.add(hitKey);
+          const fromDir = this.player.facing;
+
+          if (e.kind === 'boss') {
+            e.killBySword(fromDir);
+            this.shake(8, 0.25);
+            this.spawnHitParticles(e.x + e.w / 2, e.y + e.h / 2, '#ffd14f');
+          } else if (e.kind === 'cactus') {
+            // Espada rebota en cactus (sólo SFX, sin daño)
+            SFX.hit();
+            this.shake(2, 0.1);
+          } else {
+            e.killBySword(fromDir);
+            this.score += 150;
+            this.shake(4, 0.18);
+            this.spawnHitParticles(e.x + e.w / 2, e.y + e.h / 2, '#fff');
+          }
+        }
+      }
+    }
+
+    // Player <-> enemies
+    if (!this.player.dead && this.player.invuln <= 0) {
+      for (const e of this.enemies) {
+        if (e.dead) continue;
+        if (!overlap(this.player.aabb, e.aabb)) continue;
+
+        // Concha en movimiento daña a Mía
+        if (e.kind === 'crow' && e.shellMode && e.shellMoving) {
+          this.killPlayer();
+          break;
+        }
+
+        // ¿Pisotón?
+        const playerBottom = this.player.y + this.player.height;
+        const enemyTop = e.y;
+        const fallingOnto = this.player.vy > 80 && playerBottom - this.player.vy * 0.016 <= enemyTop + 8;
+
+        if (fallingOnto && e.canBeStomped) {
+          // dirección de patada para conchas
+          if (e.kind === 'crow') {
+            e.kickDir = (this.player.x + this.player.width / 2) < (e.x + e.w / 2) ? 1 : -1;
+          }
+          e.killByStomp();
+          this.player.bounce(this.input.isDown('jump'));
+          if (e.kind !== 'boss') this.score += 100;
+          this.shake(3, 0.12);
+          this.spawnHitParticles(e.x + e.w / 2, e.y, '#fff');
+          break;
+        }
+
+        // Concha quieta: empujarla
+        if (e.kind === 'crow' && e.shellMode && !e.shellMoving) {
+          e.kickDir = (this.player.x + this.player.width / 2) < (e.x + e.w / 2) ? 1 : -1;
+          e.shellMoving = true;
+          e.vx = e.kickDir > 0 ? 360 : -360;
+          SFX.stomp();
+          break;
+        }
+
+        // Daño normal
+        this.killPlayer();
+        break;
+      }
+    }
+
+    // Player <-> alien laser beams (rayo activo mata instantáneamente)
+    if (!this.player.dead && this.player.invuln <= 0) {
+      for (const e of this.enemies) {
+        if (e.kind !== 'alien' || e.dead) continue;
+        const lh = e.laserHitbox;
+        if (lh && overlap(this.player.aabb, lh)) {
+          this.killPlayer();
+          this.shake(10, 0.35);
+          // partículas de impacto
+          for (let i = 0; i < 12; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 200 + Math.random() * 200;
+            this.particles.push({
+              x: this.player.x + this.player.width / 2,
+              y: this.player.y + this.player.height / 2,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed - 100,
+              life: 0.6,
+              color: i % 2 === 0 ? '#ff4fa3' : '#6cf0ff',
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    // Enemy <-> enemy: una concha en movimiento elimina otros enemigos
+    for (const e of this.enemies) {
+      if (e.kind !== 'crow' || !e.shellMode || !e.shellMoving || e.dead) continue;
+      for (const other of this.enemies) {
+        if (other === e || other.dead) continue;
+        if (other.kind === 'boss') continue;
+        if (overlap(e.aabb, other.aabb)) {
+          if (other.kind === 'cactus' || (other.kind === 'crow' && other !== e && !other.shellMode)) {
+            other.killByProjectile();
+            this.score += 200;
+          } else if (other.kind === 'slime') {
+            other.killByProjectile();
+            this.score += 200;
+          }
+        }
+      }
+    }
+
+    // Backpack pickup (boss level)
+    if (this.backpack && !this.backpack.collected) {
+      this.backpack.update(dt);
+      if (this.bossDefeated && overlap(this.backpack.aabb, this.player.aabb)) {
+        this.backpack.collected = true;
+        this.hasBackpack = true;
+        this.score += 5000;
+        this.showToast('¡Mochila de diseños recuperada!', 2);
+      }
+    }
+
+    // Boss defeat
+    if (this.boss && this.boss.dead && !this.bossDefeated) {
+      this.bossDefeated = true;
+      this.showToast('¡Derrotaste al Mapache Gigante Mutante!', 2.4);
+      this.score += 3000;
+      // Si la mochila ya está sobre el suelo, ahora se puede tomar.
+    }
+
+    // Goal touched
+    if (this.goal && !this.goal.touched && overlap(this.goal.aabb, this.player.aabb)) {
+      const def = LEVELS[this.levelIndex];
+      if (def.isBoss) {
+        // En el nivel del jefe sólo se completa si tomamos la mochila
+        if (this.hasBackpack) {
+          this.goal.touched = true;
+          this.startLevelComplete();
+        } else {
+          this.showToast('¡Necesitas la mochila primero!', 1.2);
+        }
+      } else {
+        this.goal.touched = true;
+        this.startLevelComplete();
+      }
+    }
+
+    // Particles
+    for (const p of this.particles) {
+      p.life -= dt;
+      p.vy += 1400 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+    this.particles = this.particles.filter(p => p.life > 0);
+
+    // Death sequence
+    if (this.player.dead && this.player.deathTimer > 1.5) {
+      this.lives -= 1;
+      if (this.lives < 0) {
+        this.state = STATE.GAME_OVER;
+      } else {
+        this.loadLevel(this.levelIndex);
+      }
+    }
+
+    // Camera follow
+    const targetX = this.player.x + this.player.width / 2 - VIEW_W / 2;
+    this.cam.x = Math.max(0, Math.min(this.world.widthPx - VIEW_W, targetX));
+    const targetY = this.player.y + this.player.height / 2 - VIEW_H / 2;
+    this.cam.y = Math.max(0, Math.min(Math.max(0, this.world.heightPx - VIEW_H), targetY));
+
+    // Shake update
+    this.updateShake(dt);
+  }
+
+  addCoin() {
+    this.totalCoins += 1;
+    this.score += 100;
+    SFX.coin();
+    if (this.totalCoins > 0 && this.totalCoins % 100 === 0) {
+      this.lives += 1;
+      this.showToast('¡Vida extra!', 1.4);
+      SFX.power();
+    }
+  }
+
+  startLevelComplete() {
+    this.state = STATE.LEVEL_COMPLETE;
+    this.completeTimer = 2.0;
+    this.bigMessage = '¡NIVEL COMPLETADO!';
+    this.bigSubMessage = `Tiempo restante: +${Math.ceil(this.timeLeft)}`;
+    this.bigMessageTimer = 2.0;
+    this.score += Math.ceil(this.timeLeft) * 10;
+    SFX.goal();
+  }
+
+  render() {
+    // Aplicar screen shake (transform global excepto HUD)
+    ctx.save();
+    if (this.shakeIntensity > 0) {
+      ctx.translate(this.shakeOffsetX, this.shakeOffsetY);
+    }
+
+    // fondo + parallax
+    this.world.drawBackground(ctx, this.cam, VIEW_W, VIEW_H, this.t);
+    // tiles
+    this.world.drawTiles(ctx, this.cam, VIEW_W, VIEW_H, this.t);
+
+    // entidades
+    if (this.goal) this.goal.draw(ctx, this.cam);
+    if (this.backpack && !this.backpack.collected) this.backpack.draw(ctx, this.cam);
+
+    for (const c of this.coins) c.draw(ctx, this.cam);
+    for (const pu of this.powerUps) pu.draw(ctx, this.cam);
+    for (const e of this.enemies) {
+      if (e.dead && e.deadTimer > 1.5) continue;
+      e.draw(ctx, this.cam, this.t);
+    }
+    for (const n of this.notes) n.draw(ctx, this.cam);
+    for (const pc of this.popCoins) pc.draw(ctx, this.cam);
+
+    // partículas
+    for (const p of this.particles) {
+      ctx.fillStyle = p.color;
+      const size = Math.max(2, 4 * (p.life / 0.6));
+      ctx.fillRect(p.x - this.cam.x, p.y - this.cam.y, size, size);
+    }
+
+    // Polvo (modo ULTRA)
+    for (const d of this.dustParticles) {
+      drawDust(ctx, d.x - this.cam.x, d.y - this.cam.y, d.life, d.maxLife);
+    }
+
+    // jugador
+    if (this.player) this.player.draw(ctx, this.cam, this.t);
+
+    // Foreground del mundo: vignette, lluvia, scanlines (post-fx ULTRA)
+    this.world.drawForeground(ctx, this.cam, VIEW_W, VIEW_H, this.t);
+
+    ctx.restore(); // fin de shake — el HUD va encima sin temblar
+
+    // HUD
+    drawHUD(ctx, VIEW_W, {
+      lives: this.lives,
+      coins: this.totalCoins % 100,
+      score: this.score,
+      world: `${this.levelIndex + 1}-1`,
+      timeLeft: this.timeLeft,
+      hasHeadphones: this.player ? this.player.hasHeadphones : false,
+      hasBackpack: this.hasBackpack,
+      bigMessage: this.bigMessage,
+      bigSubMessage: this.bigSubMessage,
+      bigMessageY: 160,
+      toast: this.toast,
+      toastTime: this.toastTime,
+      bossHp: this.boss ? this.boss.hp : 0,
+      bossHpMax: this.boss && !this.boss.dead ? 5 : 0,
+      // Aviso imponente de invasión alien
+      alertActive: this.alertActive,
+      alertTimer: this.alertTimer,
+      alertTotal: this.ALERT_TOTAL,
+      alienAttackActive: this.alienAttackActive,
+      t: this.t,
+    });
+  }
+}
+
+new Game();
+  </script>
+</body>
+</html>
