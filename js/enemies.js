@@ -371,3 +371,157 @@ class RaccoonBoss extends Enemy {
     });
   }
 }
+
+
+
+// ---------- Nave Alien (invasión cada 3 niveles) ----------
+//
+// Vuela horizontal sin colisionar con tiles. Cada cierto tiempo carga su
+// cañón y dispara un láser vertical hasta el suelo. Tocar la nave o el
+// láser mata al jugador instantáneamente. Se puede destruir con espada o
+// notas musicales (recompensa de 500 puntos).
+class AlienShip extends Enemy {
+  constructor(x, y, dir) {
+    super(x, y, 100, 50);
+    this.kind = 'alien';
+    this.vx = dir * 130;
+    this.facing = dir;
+    this.canBeStomped = false;        // pisarla mata al jugador
+    this.canBeProjectiled = true;     // las notas pueden derribarla
+    this.canBeDeflected = false;
+    this.lifetime = 14;               // safety despawn
+
+    // FSM del láser
+    this.laserState = 'idle';         // 'idle' | 'charging' | 'firing'
+    this.laserTimer = 1.4 + Math.random() * 1.4;
+    this.LASER_CHARGE = 0.65;
+    this.LASER_FIRE   = 0.55;
+    this.laserHeight = 0;
+
+    this.t = 0;
+    this.bobBase = y;
+  }
+
+  // Hitbox del rayo (sólo activo mientras dispara, no durante carga)
+  get laserHitbox() {
+    if (this.laserState !== 'firing') return null;
+    const cx = this.x + this.w / 2;
+    return {
+      x: cx - 8,
+      y: this.y + this.h - 4,
+      w: 16,
+      h: this.laserHeight,
+    };
+  }
+
+  // Cargando = peligro visual pero no daña aún
+  get isLaserActive() { return this.laserState === 'firing'; }
+
+  killByStomp()                  { /* invulnerable a pisotón */ }
+  killBySword(fromDir)           { this._destroy(fromDir || 1); }
+  killByProjectile()             { this._destroy(this.facing); }
+  _destroy(dir) {
+    if (this.dead) return;
+    this.dead = true;
+    this.deadTimer = 0;
+    this.vx = dir * 100;
+    this.vy = 100;
+    this.laserState = 'idle';
+    SFX.bossHit && SFX.bossHit();
+  }
+
+  update(dt, world) {
+    this.dt = dt;
+    this.t += dt;
+
+    if (this.dead) {
+      this.deadTimer += dt;
+      this.vy += 800 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      // rotar al caer (visual lo maneja draw)
+      return;
+    }
+
+    this.lifetime -= dt;
+
+    // Movimiento horizontal con bobbing vertical sutil
+    this.x += this.vx * dt;
+    this.y = this.bobBase + Math.sin(this.t * 2.2) * 6;
+
+    // FSM del láser
+    this.laserTimer -= dt;
+    if (this.laserState === 'idle') {
+      if (this.laserTimer <= 0) {
+        this.laserState = 'charging';
+        this.laserTimer = this.LASER_CHARGE;
+        // Distancia al suelo del nivel (la altura del rayo)
+        this.laserHeight = Math.max(60, world.heightPx - (this.y + this.h) - 40);
+        SFX.laserCharge && SFX.laserCharge();
+      }
+    } else if (this.laserState === 'charging') {
+      if (this.laserTimer <= 0) {
+        this.laserState = 'firing';
+        this.laserTimer = this.LASER_FIRE;
+        SFX.laserFire && SFX.laserFire();
+      }
+    } else if (this.laserState === 'firing') {
+      if (this.laserTimer <= 0) {
+        this.laserState = 'idle';
+        this.laserTimer = 2.2 + Math.random() * 1.6;
+      }
+    }
+
+    // Despawn si sale del mundo o vence su vida
+    if (this.lifetime <= 0 || this.x < -260 || this.x > world.widthPx + 260) {
+      this.dead = true;
+      this.deadTimer = 5; // se elimina del array rápidamente
+    }
+  }
+
+  draw(ctx, cam, t) {
+    if (this.dead) {
+      // Cae girando
+      ctx.save();
+      ctx.translate(this.x - cam.x + this.w / 2, this.y - cam.y + this.h / 2);
+      ctx.rotate(this.deadTimer * 4);
+      drawAlienShip(ctx, -this.w / 2, -this.h / 2, this.w, this.h, { t: this.t, damaged: true });
+      ctx.restore();
+      return;
+    }
+
+    drawAlienShip(ctx, this.x - cam.x, this.y - cam.y, this.w, this.h, { t: this.t });
+
+    // Indicador de carga (esfera roja pulsante bajo la nave)
+    if (this.laserState === 'charging') {
+      const k = 1 - (this.laserTimer / this.LASER_CHARGE);
+      drawLaserCharge(ctx, this.x - cam.x + this.w / 2, this.y - cam.y + this.h - 2, this.t, k);
+
+      // Línea de "mira" tenue hasta el suelo (aviso al jugador)
+      ctx.strokeStyle = `rgba(255,79,79,${0.25 + 0.4 * k})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(this.x - cam.x + this.w / 2, this.y - cam.y + this.h - 2);
+      ctx.lineTo(this.x - cam.x + this.w / 2, this.y - cam.y + this.h - 2 + this.laserHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+    }
+
+    // Rayo láser activo
+    if (this.laserState === 'firing') {
+      const elapsed = this.LASER_FIRE - this.laserTimer;
+      const fadeIn  = Math.min(1, elapsed / 0.06);
+      const fadeOut = Math.min(1, this.laserTimer / 0.12);
+      const charge = Math.min(fadeIn, fadeOut);
+      drawAlienLaser(
+        ctx,
+        this.x - cam.x + this.w / 2,
+        this.y - cam.y + this.h - 2,
+        this.laserHeight,
+        { t: this.t, charge, color: '#ff4fa3', outer: '#6cf0ff' }
+      );
+    }
+  }
+}

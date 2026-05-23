@@ -145,3 +145,17 @@ footer {
   color: var(--muted);
   font-size: 13px;
 }
+
+
+
+.panel .tip {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  background: rgba(255, 79, 79, 0.12);
+  border-left: 3px solid #ff4f4f;
+  border-radius: 4px;
+  color: #ffe7c8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.panel .tip strong { color: #ffd14f; }

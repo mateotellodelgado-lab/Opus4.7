@@ -343,6 +343,18 @@ class Player {
       }
     }
 
+    // Aura/glow siempre encendida (modo ULTRA). Más intensa con auriculares
+    // y al correr. Aporta el "look" mejorado que el jugador pidió.
+    const speed = Math.abs(this.vx);
+    const speedFrac = Math.min(1, speed / RUN_MAX);
+    const auraColor = this.hasHeadphones ? '#6cf0ff' : '#ff4fa3';
+    const auraIntensity = 0.18 + speedFrac * 0.18 + (this.hasHeadphones ? 0.12 : 0);
+    drawCharacterAura(ctx, drawX, drawY, w, h, {
+      color: auraColor,
+      intensity: auraIntensity,
+      scale: 0.95 + speedFrac * 0.15,
+    });
+
     const blink = (Math.floor(t * 2) % 8) === 0;
     drawMia(ctx, drawX, drawY, w, h, {
       facing: this.facing,

@@ -538,6 +538,29 @@ function drawGround(ctx, x, y, size, world = 'city') {
     u(0, 14, 16, 2, '#3a4156');
     u(0, 5, 16, 1, '#3a4156');
     u(0, 10, 16, 1, '#3a4156');
+  } else if (world === 'neon') {
+    // Suelo de avenida con neón rosa/cyan
+    u(0, 0, 16, 16, '#1a0a30');
+    u(0, 0, 16, 1, '#ff4fa3');     // borde superior brillante
+    u(0, 1, 16, 1, '#a8276c');
+    u(0, 14, 16, 2, '#0a0218');
+    // Líneas luminosas internas
+    u(0, 7, 16, 1, '#6cf0ff');
+    u(0, 8, 16, 1, '#3a8aa8');
+    // Ladrillos pequeños
+    u(3, 3, 1, 3, '#3a1a55');
+    u(11, 10, 1, 3, '#3a1a55');
+    u(7, 12, 1, 2, '#3a1a55');
+  } else if (world === 'storm') {
+    // Tejados mojados con reflejo
+    u(0, 0, 16, 16, '#2a2a44');
+    u(0, 0, 16, 2, '#4a4a72');     // borde superior
+    u(0, 14, 16, 2, '#0a0a1a');
+    u(0, 6, 16, 1, '#1a1a3a');
+    u(0, 11, 16, 1, '#1a1a3a');
+    // Reflejo brillante (charco)
+    u(2, 1, 4, 1, '#7a8aa8');
+    u(10, 2, 3, 1, '#7a8aa8');
   } else {
     // ciudad: asfalto
     u(0, 0, 16, 16, '#2a2a32');
@@ -567,6 +590,20 @@ function drawPlatform(ctx, x, y, size, world = 'city') {
     u(0, 0, 16, 5, '#a36ad8');
     u(0, 0, 16, 1, '#c98aff');
     u(0, 4, 16, 1, '#5e3990');
+  } else if (world === 'neon') {
+    u(0, 0, 16, 5, '#ff4fa3');
+    u(0, 0, 16, 1, '#ffb1d8');
+    u(0, 1, 16, 1, '#ff85c5');
+    u(0, 4, 16, 1, '#a8276c');
+    // Detalles cyan
+    u(0, 2, 1, 1, '#6cf0ff');
+    u(7, 2, 1, 1, '#6cf0ff');
+    u(14, 2, 1, 1, '#6cf0ff');
+  } else if (world === 'storm') {
+    u(0, 0, 16, 5, '#3a4566');
+    u(0, 0, 16, 1, '#6a78a0');
+    u(0, 1, 16, 1, '#5a6890');
+    u(0, 4, 16, 1, '#1a2240');
   } else {
     u(0, 0, 16, 5, '#3a4a8a');
     u(0, 0, 16, 1, '#5a72b5');
@@ -574,21 +611,42 @@ function drawPlatform(ctx, x, y, size, world = 'city') {
   }
 }
 
-// ---------- Moneda de plata ----------
+// ---------- Moneda de plata (con halo y sparkle) ----------
 function drawCoin(ctx, x, y, size, t = 0) {
   const s = size / 16;
   const u = (cx, cy, cw, ch, color) =>
     px(ctx, x + cx * s, y + cy * s, cw * s, ch * s, color);
-  // animación de spin: anchura horizontal cambia con seno
+
+  // Halo radial
+  const cxC = x + size / 2;
+  const cyC = y + size / 2;
+  const haloR = size * 0.95;
+  const halo = ctx.createRadialGradient(cxC, cyC, 0, cxC, cyC, haloR);
+  const pulse = 0.5 + 0.5 * Math.sin(t * 6);
+  halo.addColorStop(0, `rgba(255,247,200,${0.35 + pulse * 0.25})`);
+  halo.addColorStop(0.5, `rgba(255,209,79,${0.18 + pulse * 0.12})`);
+  halo.addColorStop(1, 'rgba(255,209,79,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(cxC - haloR, cyC - haloR, haloR * 2, haloR * 2);
+
+  // Animación de spin: anchura horizontal cambia con seno
   const spin = Math.abs(Math.sin(t * 6));
   const w = 2 + spin * 6;
   const cx = 8 - w / 2;
-  u(cx, 4, w, 8, '#dfe5f2');
+  u(cx, 4, w, 8, '#fff5d0');
   u(cx + 1, 5, w - 2, 1, '#ffffff');
-  u(cx + 1, 10, w - 2, 1, '#9aa3b8');
+  u(cx + 1, 10, w - 2, 1, '#d2a51d');
   if (w > 4) {
-    u(cx + 2, 6, 1, 4, '#9aa3b8');
-    u(cx + w - 3, 6, 1, 4, '#9aa3b8');
+    u(cx + 2, 6, 1, 4, '#ffd14f');
+    u(cx + w - 3, 6, 1, 4, '#a8801a');
+  }
+
+  // Sparkle pequeño que aparece y desaparece
+  const sparkle = Math.sin(t * 3.5) > 0.7;
+  if (sparkle) {
+    u(13, 2, 1, 1, '#ffffff');
+    u(12, 3, 3, 1, '#ffffff');
+    u(13, 4, 1, 1, '#ffffff');
   }
 }
 
@@ -737,4 +795,215 @@ function drawRaccoonBoss(ctx, x, y, w, h, opts = {}) {
   v(8, 28, 5, 4, '#3a3548');
   v(19, 28, 5, 4, '#3a3548');
   ctx.restore();
+}
+
+
+
+// ---------- Aura/Glow para personajes (siempre activa en modo ULTRA) ----------
+function drawCharacterAura(ctx, x, y, w, h, opts = {}) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const radius = Math.max(w, h) * (opts.scale || 0.85);
+  const color = opts.color || '#ff4fa3';
+  const intensity = opts.intensity ?? 0.35;
+
+  const grad = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
+  grad.addColorStop(0, hexToRgba(color, intensity * 0.6));
+  grad.addColorStop(0.5, hexToRgba(color, intensity * 0.25));
+  grad.addColorStop(1, hexToRgba(color, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+}
+
+function hexToRgba(hex, a) {
+  // soporta #rgb, #rrggbb
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ---------- Nube de polvo (al correr/saltar/aterrizar) ----------
+function drawDust(ctx, x, y, life, maxLife) {
+  const k = Math.max(0, life / maxLife);
+  const r = (1 - k) * 12 + 4;
+  ctx.fillStyle = `rgba(220,210,230,${0.45 * k})`;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.25 * k})`;
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 2, r * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------- Nave Alien (UFO) ----------
+//
+// Sprite imponente: cúpula con piloto verde, casco metálico con luces
+// circulares, halo bajo el platillo, antena con bola pulsante arriba.
+function drawAlienShip(ctx, x, y, w, h, opts = {}) {
+  const sx = w / 32, sy = h / 16;
+  const t = opts.t || 0;
+  const damaged = !!opts.damaged;
+
+  // Halo bajo el platillo (verde/cyan brillante)
+  const haloC = damaged ? '#ff4fa3' : '#6cf0ff';
+  const haloX = x + w / 2;
+  const haloY = y + h * 0.85;
+  const haloR = w * 0.7;
+  const grad = ctx.createRadialGradient(haloX, haloY, 0, haloX, haloY, haloR);
+  grad.addColorStop(0, hexToRgba(haloC, 0.55 + 0.2 * Math.sin(t * 8)));
+  grad.addColorStop(0.5, hexToRgba(haloC, 0.2));
+  grad.addColorStop(1, hexToRgba(haloC, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(haloX - haloR, haloY - haloR, haloR * 2, haloR * 2);
+
+  const u = (cx, cy, cw, ch, color) =>
+    px(ctx, x + cx * sx, y + cy * sy, cw * sx, ch * sy, color);
+
+  // Cuerpo del platillo (elipse pixelada)
+  // fila por fila simulando una elipse
+  // y rows: 5..11 con anchos crecientes/decrecientes
+  const bodyDark  = damaged ? '#5a3038' : '#2a2a3a';
+  const bodyMid   = damaged ? '#a04a55' : '#5a5a72';
+  const bodyLight = damaged ? '#ff85a8' : '#a8b0c8';
+
+  // Sombra inferior
+  u(4, 11, 24, 1, bodyDark);
+  u(2, 10, 28, 1, bodyDark);
+  u(1, 9,  30, 1, bodyMid);
+  u(0, 8,  32, 1, bodyMid);
+  u(1, 7,  30, 1, bodyLight);
+  u(3, 6,  26, 1, bodyLight);
+  u(6, 5,  20, 1, bodyMid);
+
+  // Cúpula transparente con piloto
+  u(11, 1, 10, 4, '#0a1a30');         // cúpula (cristal oscuro)
+  u(11, 1, 10, 1, '#6cf0ff');         // borde superior cyan
+  u(11, 4, 10, 1, '#3a8aa8');         // borde inferior
+  // Reflejo en cristal
+  u(13, 2, 2, 1, '#a8e0ff');
+  u(13, 3, 1, 1, '#a8e0ff');
+
+  // Piloto alien (cabezota verde con un solo ojo)
+  u(14, 2, 4, 2, '#5fd84a');          // cabeza
+  u(15, 1, 2, 1, '#5fd84a');          // tope
+  u(16, 2, 1, 1, '#1a1a1a');          // ojo (cíclope)
+  u(15, 3, 3, 1, '#3a8a30');          // sombra
+  // Antenas
+  u(14, 0, 1, 1, '#ffd14f');
+  u(17, 0, 1, 1, '#ffd14f');
+
+  // Luces circulares en la base del platillo (parpadean)
+  const blinkPhase = Math.floor(t * 8) % 4;
+  const lights = [3, 8, 14, 19, 24];
+  for (let i = 0; i < lights.length; i++) {
+    const lit = (i + blinkPhase) % 2 === 0;
+    const cx = lights[i];
+    u(cx, 8, 2, 1, lit ? '#ff4fa3' : '#5a3060');
+    if (lit) {
+      // pequeño halo
+      ctx.fillStyle = 'rgba(255,79,163,0.35)';
+      ctx.fillRect(x + (cx - 1) * sx, y + 7 * sy, 4 * sx, 3 * sy);
+    }
+  }
+
+  // Antena superior con esfera roja pulsante
+  u(15, 0, 2, 1, '#3a3a55');
+  // Bolita
+  const pulseSize = 1 + Math.sin(t * 10) * 0.3;
+  ctx.fillStyle = '#ff4f4f';
+  ctx.beginPath();
+  ctx.arc(x + 16 * sx, y - 1 * sy, 2.5 * sx * pulseSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,79,79,0.5)';
+  ctx.beginPath();
+  ctx.arc(x + 16 * sx, y - 1 * sy, 5 * sx * pulseSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cañón inferior (donde sale el láser)
+  u(15, 11, 2, 2, '#1a1a2a');
+  u(14, 12, 4, 1, '#3a3a55');
+}
+
+// ---------- Láser vertical (rayo de la nave alien) ----------
+//
+// Dibuja un rayo vertical que va desde (x,y) hacia abajo con altura h.
+// Tiene núcleo blanco intenso, corona verde/rosa, halo amplio y partículas.
+function drawAlienLaser(ctx, x, y, h, opts = {}) {
+  const t = opts.t || 0;
+  const charge = opts.charge ?? 1;       // 0..1 para fade-in al aparecer
+  const colorCore = '#ffffff';
+  const colorMid = opts.color || '#ff4fa3';
+  const colorOuter = opts.outer || '#6cf0ff';
+
+  // Halo lateral muy ancho
+  const haloW = 36 * charge;
+  const grad = ctx.createLinearGradient(x - haloW / 2, 0, x + haloW / 2, 0);
+  grad.addColorStop(0, hexToRgba(colorOuter, 0));
+  grad.addColorStop(0.4, hexToRgba(colorMid, 0.25 * charge));
+  grad.addColorStop(0.5, hexToRgba(colorCore, 0.6 * charge));
+  grad.addColorStop(0.6, hexToRgba(colorMid, 0.25 * charge));
+  grad.addColorStop(1, hexToRgba(colorOuter, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(x - haloW / 2, y, haloW, h);
+
+  // Capas: outer, mid, core
+  ctx.fillStyle = hexToRgba(colorOuter, 0.5 * charge);
+  ctx.fillRect(x - 8 * charge, y, 16 * charge, h);
+
+  ctx.fillStyle = hexToRgba(colorMid, 0.85 * charge);
+  ctx.fillRect(x - 4 * charge, y, 8 * charge, h);
+
+  ctx.fillStyle = colorCore;
+  ctx.fillRect(x - 2 * charge, y, 4 * charge, h);
+
+  // "Pulsos" que viajan por el rayo
+  for (let i = 0; i < 4; i++) {
+    const py = y + ((t * 600 + i * 60) % h);
+    ctx.fillStyle = hexToRgba(colorCore, 0.9 * charge);
+    ctx.fillRect(x - 4 * charge, py, 8 * charge, 4);
+  }
+
+  // Punto de impacto al final (chispa)
+  ctx.fillStyle = colorCore;
+  ctx.beginPath();
+  ctx.arc(x, y + h - 2, 6 * charge, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = hexToRgba(colorMid, 0.5 * charge);
+  ctx.beginPath();
+  ctx.arc(x, y + h - 2, 14 * charge, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------- Carga del láser (antes de disparar) ----------
+function drawLaserCharge(ctx, x, y, t, charge) {
+  const k = Math.min(1, charge);
+  ctx.fillStyle = `rgba(255,79,163,${0.5 * k})`;
+  ctx.beginPath();
+  ctx.arc(x, y, 8 * k + 2 * Math.sin(t * 30), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.9 * k})`;
+  ctx.beginPath();
+  ctx.arc(x, y, 3 * k + 1.5 * Math.sin(t * 40), 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ---------- Explosión alien ----------
+function drawAlienExplosion(ctx, x, y, life, maxLife) {
+  const k = life / maxLife;
+  const r = (1 - k) * 30 + 8;
+  // núcleo
+  ctx.fillStyle = `rgba(255,255,255,${k * 0.9})`;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2); ctx.fill();
+  // anillo verde
+  ctx.fillStyle = `rgba(95,216,74,${k * 0.6})`;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  // anillo exterior cyan
+  ctx.strokeStyle = `rgba(108,240,255,${k * 0.5})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1;
 }
