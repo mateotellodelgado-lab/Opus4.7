@@ -49,6 +49,7 @@
   .line.show{opacity:1}
   .line.up{transform:translate(-50%,-90%)}
   .line.down{transform:translate(-50%,-10%)}
+  .line.pos-top{top:26%}
   .line.in{filter:blur(0)}
   .line.out{filter:blur(8px);opacity:0}
 
@@ -547,32 +548,222 @@ const sparkles = new SparklePool(CFG.SPARKLES_MAX);
 const shooting = new ShootingStars();
 
 /* ============================================================
+   CAJA-CORAZÓN — el "regalo" que guarda el gran amor.
+   Aparece cuando se menciona, late suavemente, y al abrirse
+   estalla en luz justo antes del "Te amo, Rossy".
+============================================================ */
+const box = {
+  alpha: 0,           // opacidad actual (0..1)
+  alphaTarget: 0,     // opacidad deseada
+  scale: 0.4,         // escala actual (entra desde pequeño)
+  scaleTarget: 0,     // 0 = no visible, 1 = tamaño normal, 2.6 = explotando
+  opening: false,     // true mientras se abre
+  openProgress: 0,    // 0..1 durante la apertura
+  bobPhase: 0,        // fase del flotar
+};
+
+function drawHeartShape(ctx){
+  // Curva de corazón en coords -10..10 / -2..22 (igual que drawHeart)
+  ctx.beginPath();
+  ctx.moveTo(0, 6);
+  ctx.bezierCurveTo(0, -2, -10, -2, -10, 6);
+  ctx.bezierCurveTo(-10, 12, 0, 16, 0, 22);
+  ctx.bezierCurveTo(0, 16, 10, 12, 10, 6);
+  ctx.bezierCurveTo(10, -2, 0, -2, 0, 6);
+}
+
+function drawBox(t){
+  if (box.alpha <= 0.01 && !box.opening) return;
+
+  const cx = W / 2;
+  const cy = H * 0.5;
+  const baseSize = Math.min(W, H) * 0.13;
+  const bob = Math.sin(t * 1.6) * 6;
+  const size = baseSize * box.scale;
+  const x = cx;
+  const y = cy + bob;
+
+  // ----- Aura exterior pulsante -----
+  if (box.alpha > 0){
+    const pulse = 0.85 + 0.15 * Math.sin(t * 2.2);
+    const auraR = size * 2.4 * pulse;
+    const aura = ctx.createRadialGradient(x, y - size*0.05, 0, x, y - size*0.05, auraR);
+    aura.addColorStop(0,    `rgba(255,200,140,${0.55 * box.alpha})`);
+    aura.addColorStop(0.35, `rgba(255,140,180,${0.32 * box.alpha})`);
+    aura.addColorStop(1,    'rgba(255,120,180,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(x, y - size*0.05, auraR, 0, TAU);
+    ctx.fill();
+  }
+
+  // ----- Corazón-caja -----
+  ctx.save();
+  ctx.translate(x, y - size * 0.55);
+  const s = size / 11;
+  ctx.scale(s, s);
+
+  // Cuerpo con gradiente dorado-rosado
+  const heartGrad = ctx.createLinearGradient(-12, -4, 12, 22);
+  heartGrad.addColorStop(0,    `rgba(255,225,150,${box.alpha})`);
+  heartGrad.addColorStop(0.45, `rgba(255,140,185,${box.alpha})`);
+  heartGrad.addColorStop(1,    `rgba(210,70,150,${box.alpha})`);
+  ctx.fillStyle = heartGrad;
+  drawHeartShape(ctx);
+  ctx.fill();
+
+  // Borde dorado fino
+  ctx.strokeStyle = `rgba(255,235,170,${0.9 * box.alpha})`;
+  ctx.lineWidth = 0.5;
+  drawHeartShape(ctx);
+  ctx.stroke();
+
+  // Reflejo brillante
+  ctx.fillStyle = `rgba(255,255,255,${0.55 * box.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(-4.5, 4, 3.0, 1.7, -0.45, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.35 * box.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(-2, 8, 1.4, 0.6, -0.4, 0, TAU);
+  ctx.fill();
+
+  // Cinta horizontal (la "tapa" de la caja)
+  ctx.fillStyle = `rgba(255,210,120,${0.85 * box.alpha})`;
+  ctx.fillRect(-10.2, 9, 20.4, 1.6);
+  ctx.fillStyle = `rgba(220,160,80,${0.5 * box.alpha})`;
+  ctx.fillRect(-10.2, 10.4, 20.4, 0.4);
+
+  // Lazo arriba
+  ctx.fillStyle = `rgba(255,225,140,${box.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(-3, -2.2, 2.6, 1.8, -0.35, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(3, -2.2, 2.6, 1.8, 0.35, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,200,90,${box.alpha})`;
+  ctx.beginPath();
+  ctx.arc(0, -2, 1.1, 0, TAU);
+  ctx.fill();
+
+  ctx.restore();
+
+  // ----- Chispitas orbitando alrededor (mientras está cerrada) -----
+  if (box.alpha > 0.5 && !box.opening){
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++){
+      const ang = t * 0.9 + (TAU/6) * i;
+      const r = size * 1.6;
+      const px = x + Math.cos(ang) * r;
+      const py = y - size*0.05 + Math.sin(ang) * r * 0.65;
+      const sa = 0.5 + 0.5 * Math.sin(t * 3 + i);
+      ctx.fillStyle = `rgba(255,235,255,${sa * box.alpha * 0.9})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 2.2, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ----- Apertura: rayos de luz + flash central -----
+  if (box.opening){
+    const k = Math.min(box.openProgress, 1);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Rayos
+    const rays = 14;
+    for (let i = 0; i < rays; i++){
+      const ang = (TAU/rays) * i + t * 0.3;
+      const len = size * 8 * k;
+      const ex = x + Math.cos(ang) * len;
+      const ey = y + Math.sin(ang) * len;
+      const grad = ctx.createLinearGradient(x, y, ex, ey);
+      grad.addColorStop(0, `rgba(255,245,210,${0.85 * (1 - k*0.7)})`);
+      grad.addColorStop(1, 'rgba(255,200,255,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 3 + 7 * (1 - k);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+
+    // Flash central
+    const flashR = size * 5 * k;
+    const flash = ctx.createRadialGradient(x, y, 0, x, y, flashR);
+    flash.addColorStop(0,   `rgba(255,255,255,${0.95 * (1 - k*0.6)})`);
+    flash.addColorStop(0.4, `rgba(255,220,240,${0.55 * (1 - k*0.6)})`);
+    flash.addColorStop(1,   'rgba(255,200,240,0)');
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(x, y, flashR, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function updateBox(dt){
+  // alpha tween
+  const aSpeed = 0.85;
+  if (box.alpha < box.alphaTarget) box.alpha = Math.min(box.alphaTarget, box.alpha + aSpeed*dt);
+  else if (box.alpha > box.alphaTarget) box.alpha = Math.max(box.alphaTarget, box.alpha - aSpeed*dt);
+
+  // scale tween
+  const sSpeed = box.opening ? 4.5 : 2.2;
+  if (box.scale < box.scaleTarget) box.scale = Math.min(box.scaleTarget, box.scale + sSpeed*dt);
+  else if (box.scale > box.scaleTarget) box.scale = Math.max(box.scaleTarget, box.scale - sSpeed*dt);
+
+  // proceso de apertura
+  if (box.opening){
+    box.openProgress += dt * 1.4;
+    if (box.openProgress >= 1){
+      box.opening = false;
+      box.alphaTarget = 0;     // se desvanece tras la explosión
+      box.scaleTarget = 3.5;   // y sigue creciendo mientras se va
+    }
+  }
+}
+
+/* ============================================================
    GUION (escenas con tiempos en segundos)
 ============================================================ */
 const SCRIPT = [
-  // Presentación / sinopsis
-  { t: 0.4,  type:'line', size:'small', text:'En un rincón silencioso del universo...' },
-  { t: 4.8,  type:'hide-last' },
-  { t: 5.4,  type:'line', size:'small', text:'Existe una historia que mi corazón nunca dejó de escribir.' },
-  { t:10.2,  type:'hide-last' },
+  // ---- Sinopsis: las 4 frases del mensaje ----
+  { t: 0.6,  type:'line', size:'med',
+    text:'<em>En lo más profundo de mis pensamientos...</em>' },
+  { t: 5.6,  type:'hide-last' },
 
-  // Cosita linda antes del te amo
-  { t:11.2,  type:'line', size:'med',
-    text:'<em>Cuando la noche se queda sin estrellas,<br>cierro los ojos y dibujo tu nombre en el cielo.<br>Y, de pronto, vuelve a brillar.</em>' },
-  { t:18.0,  type:'hide-last' },
+  { t: 6.4,  type:'line', size:'med',
+    text:'<em>...en lo más profundo de mi corazón...</em>' },
+  { t:11.4,  type:'hide-last' },
 
-  { t:19.0,  type:'line', size:'small', text:'Hay algo que necesito decirte, mi amor...' },
-  { t:23.0,  type:'hide-last' },
+  { t:12.2,  type:'line', size:'med',
+    text:'<em>...está todavía ese gran amor que siento por ti...</em>' },
+  { t:17.6,  type:'hide-last' },
 
-  // El reveal
-  { t:24.2,  type:'reveal' },
-  { t:24.4,  type:'line', size:'big',
+  // ---- Aparece la caja ----
+  { t:18.2,  type:'box-on' },
+  { t:18.6,  type:'line', size:'med', pos:'top',
+    text:'<em>...ese gran amor guardado en una pequeña caja...</em>' },
+  { t:23.8,  type:'hide-last' },
+
+  { t:24.4,  type:'line', size:'med', pos:'top',
+    text:'<em>...esperando a ser abierta por ti :D</em>' },
+  { t:30.0,  type:'hide-last' },
+
+  // ---- Se abre la caja: estallido + reveal ----
+  { t:30.8,  type:'box-open' },
+  { t:31.4,  type:'line', size:'big',
     text:'Te amo, Rossy <span class="heart">♥</span>' },
-  { t:30.8,  type:'hide-last' },
+  { t:38.0,  type:'hide-last' },
 
-  // Galaxia + halagos
-  { t:31.4,  type:'galaxy-on' },
-  { t:32.6,  type:'compliments-on' },
+  // ---- Galaxia + halagos ----
+  { t:38.6,  type:'galaxy-on' },
+  { t:39.8,  type:'compliments-on' },
 ];
 
 const COMPLIMENTS = [
@@ -599,9 +790,10 @@ const COMPLIMENTS = [
 const ui = document.getElementById('ui');
 let activeLines = [];
 
-function showLine(html, sizeClass){
+function showLine(html, sizeClass, position){
   const el = document.createElement('div');
   el.className = 'line';
+  if (position === 'top') el.classList.add('pos-top');
   el.innerHTML = `<span class="${sizeClass}">${html}</span>`;
   ui.appendChild(el);
   // forzar reflow para que la transición se aplique
@@ -706,6 +898,7 @@ function update(dt){
   hearts.update(dt);
   sparkles.update(dt);
   shooting.update(dt);
+  updateBox(dt);
 
   // Fade galaxia
   const speed = 0.55;
@@ -726,36 +919,56 @@ function update(dt){
 }
 
 function currentPhase(){
-  if (state.t < 11)   return 'intro';
-  if (state.t < 24.2) return 'cute';
-  if (state.t < 31)   return 'reveal';
+  if (state.t < 18)   return 'intro';   // 3 frases iniciales
+  if (state.t < 31)   return 'cute';    // caja visible
+  if (state.t < 38)   return 'reveal';  // "Te amo, Rossy"
   return 'galaxy';
 }
 
 function handleEvent(evt){
   switch (evt.type){
     case 'line':
-      showLine(evt.text, evt.size === 'big' ? 'big' : evt.size === 'med' ? 'med' : 'small');
+      showLine(evt.text,
+        evt.size === 'big' ? 'big' : evt.size === 'med' ? 'med' : 'small',
+        evt.pos);
       break;
     case 'hide-last':
       hideLastLine();
       break;
-    case 'reveal':
-      // Estallido de chispas en el centro
-      sparkles.burst(W/2, H/2, 90);
-      // ráfaga de corazones
-      for (let i = 0; i < 24; i++){
-        hearts.spawn(W/2 + rand(-60, 60), H/2 + rand(-30, 30));
+    case 'box-on':
+      // La caja entra desde pequeño, se hace visible
+      box.alpha = 0;
+      box.alphaTarget = 1;
+      box.scale = 0.4;
+      box.scaleTarget = 1;
+      box.opening = false;
+      box.openProgress = 0;
+      // chispitas suaves al aparecer
+      sparkles.burst(W/2, H/2, 18);
+      break;
+    case 'box-open':
+      // La caja "se abre": estallido de luz, partículas, y se va
+      box.opening = true;
+      box.openProgress = 0;
+      box.scaleTarget = 2.6;
+      sparkles.burst(W/2, H/2, 110);
+      for (let i = 0; i < 28; i++){
+        hearts.spawn(W/2 + rand(-50, 50), H/2 + rand(-30, 30));
       }
+      // pequeñas ráfagas adicionales para extender el destello
+      let n = 0;
+      const sparkInt = setInterval(() => {
+        sparkles.burst(W/2, H/2, 18);
+        if (++n > 6) clearInterval(sparkInt);
+      }, 180);
       break;
     case 'galaxy-on':
       state.galaxyTarget = 1;
-      // chispitas continuas durante 2s para la transición
-      let n = 0;
-      const sparkInt = setInterval(() => {
-        sparkles.burst(W/2, H/2, 14);
-        if (++n > 8) clearInterval(sparkInt);
-      }, 220);
+      let m = 0;
+      const sparkInt2 = setInterval(() => {
+        sparkles.burst(W/2, H/2, 12);
+        if (++m > 6) clearInterval(sparkInt2);
+      }, 240);
       break;
     case 'compliments-on':
       state.showCompliments = true;
@@ -773,6 +986,9 @@ function render(){
 
   // Estrellas fugaces (más visibles cuando hay galaxia)
   shooting.draw(ctx, 0.3 + state.galaxyAlpha * 0.7);
+
+  // Caja-corazón (encima de la galaxia y debajo de las partículas)
+  drawBox(state.t);
 
   // Partículas
   hearts.draw(ctx);
