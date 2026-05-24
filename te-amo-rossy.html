@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0a0014">
+<title>Para ti, Rossy ♥</title>
+<style>
+  /* ---------------- RESET ---------------- */
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    width:100%;height:100%;overflow:hidden;
+    background:#000;color:#fff;
+    font-family:'Georgia','Times New Roman',serif;
+    user-select:none;-webkit-user-select:none;
+    cursor:default;
+  }
+
+  /* ---------------- CANVAS ---------------- */
+  #stage{
+    position:fixed;inset:0;
+    width:100%;height:100%;
+    display:block;
+    background:radial-gradient(ellipse at center,#1a0033 0%,#0a0014 50%,#000 100%);
+  }
+
+  /* ---------------- TEXT LAYER (GPU accel) ---------------- */
+  #ui{
+    position:fixed;inset:0;
+    pointer-events:none;
+    overflow:hidden;
+    z-index:10;
+  }
+
+  .line{
+    position:absolute;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    text-align:center;
+    width:90%;max-width:900px;
+    opacity:0;
+    will-change:opacity,transform,filter;
+    transition:opacity 1.4s ease, transform 1.6s ease, filter 1.4s ease;
+    text-shadow:
+      0 0 12px rgba(255,180,220,0.8),
+      0 0 24px rgba(255,120,180,0.5),
+      0 0 48px rgba(200,80,160,0.3);
+  }
+  .line.show{opacity:1}
+  .line.up{transform:translate(-50%,-90%)}
+  .line.down{transform:translate(-50%,-10%)}
+  .line.pos-top{top:26%}
+  .line.in{filter:blur(0)}
+  .line.out{filter:blur(8px);opacity:0}
+
+  .line .small{
+    font-size:clamp(14px,2.2vw,22px);
+    font-style:italic;
+    color:#ffd6ec;
+    letter-spacing:.08em;
+    line-height:1.6;
+  }
+  .line .med{
+    font-size:clamp(20px,3.4vw,38px);
+    font-style:italic;
+    color:#ffe4f1;
+    line-height:1.5;
+  }
+  .line .big{
+    font-size:clamp(40px,8vw,110px);
+    font-weight:bold;
+    font-family:'Brush Script MT','Lucida Handwriting',cursive;
+    background:linear-gradient(45deg,#ff9ec7 0%,#ffc8e8 25%,#fff5fa 50%,#ffc8e8 75%,#ff9ec7 100%);
+    background-size:200% 200%;
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    color:transparent;
+    animation:shine 4s ease-in-out infinite;
+    filter:drop-shadow(0 0 30px rgba(255,150,200,0.9))
+           drop-shadow(0 0 60px rgba(255,100,180,0.6));
+  }
+  @keyframes shine{
+    0%,100%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+  }
+
+  /* Pulsing heart for the reveal */
+  .heart{
+    display:inline-block;
+    color:#ff5599;
+    animation:beat 1.1s ease-in-out infinite;
+    text-shadow:0 0 20px #ff77aa,0 0 40px #ff5599;
+  }
+  @keyframes beat{
+    0%,100%{transform:scale(1)}
+    20%{transform:scale(1.18)}
+    40%{transform:scale(1)}
+    60%{transform:scale(1.12)}
+    80%{transform:scale(1)}
+  }
+
+  /* Compliments orbiting the galaxy */
+  .compliment{
+    position:absolute;
+    left:50%;top:50%;
+    font-size:clamp(13px,1.8vw,20px);
+    font-style:italic;
+    color:#fff;
+    white-space:nowrap;
+    opacity:0;
+    transform:translate(-50%,-50%);
+    will-change:opacity,transform;
+    transition:opacity 1.6s ease;
+    text-shadow:
+      0 0 8px rgba(255,200,230,0.9),
+      0 0 18px rgba(255,120,200,0.6),
+      0 0 36px rgba(180,80,200,0.4);
+    letter-spacing:.04em;
+  }
+  .compliment.show{opacity:.95}
+
+  /* Subtle prompt to start (bypass autoplay restrictions for music if added later) */
+  #starter{
+    position:fixed;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,#1a0033 0%,#000 80%);
+    z-index:100;
+    cursor:pointer;
+    transition:opacity 1s ease;
+  }
+  #starter.gone{opacity:0;pointer-events:none}
+  #starter .pulse{
+    text-align:center;
+    animation:breathe 2.4s ease-in-out infinite;
+  }
+  #starter h1{
+    font-family:'Brush Script MT','Lucida Handwriting',cursive;
+    font-size:clamp(36px,7vw,80px);
+    background:linear-gradient(45deg,#ff9ec7,#ffc8e8,#ff9ec7);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+    margin-bottom:20px;
+    filter:drop-shadow(0 0 20px rgba(255,150,200,0.7));
+  }
+  #starter p{
+    font-size:clamp(14px,2vw,20px);
+    color:#ffc8e8;
+    font-style:italic;
+    letter-spacing:.1em;
+  }
+  @keyframes breathe{
+    0%,100%{transform:scale(1);opacity:.85}
+    50%{transform:scale(1.05);opacity:1}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+<div id="ui"></div>
+
+<div id="starter">
+  <div class="pulse">
+    <h1>Para ti, Rossy</h1>
+    <p>— toca o haz clic para comenzar —</p>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   PARA ROSSY — Animación romántica fluida
+   ------------------------------------------------------------
+   Una sola página. Sin librerías. Canvas + DOM (texto en CSS
+   para GPU). Optimizada con: dpr clamp, particle pooling, culling
+   por opacidad, pre-cómputo de la galaxia (3500+ estrellas).
+============================================================ */
+
+/* ----------- CONFIG ----------- */
+const CFG = {
+  DPR_MAX: 2,                 // limita devicePixelRatio para no matar móviles
+  STARS_BG: 220,              // estrellas de fondo del cielo
+  GALAXY_STARS: 3500,         // estrellas de la galaxia
+  GALAXY_ARMS: 4,             // brazos espirales
+  GALAXY_TWIST: 0.42,         // qué tan apretada es la espiral
+  HEARTS_MAX: 60,             // corazones flotantes máximos
+  SPARKLES_MAX: 140,          // chispas en la revelación
+  SHOOTING_RATE: 0.9,         // estrellas fugaces / segundo
+};
+
+/* ----------- CANVAS / DPR ----------- */
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d', { alpha: true });
+let W = 0, H = 0, DPR = 1;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, CFG.DPR_MAX);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  cv.width  = Math.floor(W * DPR);
+  cv.height = Math.floor(H * DPR);
+  cv.style.width  = W + 'px';
+  cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', () => { resize(); regenStaticLayers(); });
+
+/* ----------- HELPERS ----------- */
+const rand = (a, b) => a + Math.random() * (b - a);
+const choice = arr => arr[Math.floor(Math.random() * arr.length)];
+const TAU = Math.PI * 2;
+
+/* ============================================================
+   FONDO ESTELAR (estático, pre-renderizado a otro canvas)
+   ------------------------------------------------------------
+   Las estrellas de fondo no cambian de posición; las dibujamos
+   una vez en un canvas fuera de pantalla y lo pegamos cada frame.
+   Esto ahorra cientos de drawCalls por fotograma.
+============================================================ */
+let bgCanvas = document.createElement('canvas');
+let bgCtx = bgCanvas.getContext('2d');
+
+function makeBackgroundStars(){
+  bgCanvas.width = Math.floor(W * DPR);
+  bgCanvas.height = Math.floor(H * DPR);
+  bgCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  bgCtx.clearRect(0, 0, W, H);
+
+  // Nebulosa de fondo (gradientes radiales sutiles)
+  const nebulae = [
+    { x: W*.18, y: H*.22, r: Math.max(W,H)*.45, c1:'rgba(140,40,160,0.18)', c2:'rgba(0,0,0,0)' },
+    { x: W*.82, y: H*.78, r: Math.max(W,H)*.50, c1:'rgba(60,30,140,0.16)',  c2:'rgba(0,0,0,0)' },
+    { x: W*.50, y: H*.50, r: Math.max(W,H)*.55, c1:'rgba(200,80,140,0.10)', c2:'rgba(0,0,0,0)' },
+  ];
+  for (const n of nebulae){
+    const g = bgCtx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+    g.addColorStop(0, n.c1);
+    g.addColorStop(1, n.c2);
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, W, H);
+  }
+
+  // Estrellas dispersas
+  for (let i = 0; i < CFG.STARS_BG; i++){
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = Math.random() < 0.92 ? rand(0.3, 1.2) : rand(1.4, 2.4);
+    const a = rand(0.3, 1);
+    bgCtx.fillStyle = `rgba(255,255,255,${a})`;
+    bgCtx.beginPath();
+    bgCtx.arc(x, y, r, 0, TAU);
+    bgCtx.fill();
+    // halo en las grandes
+    if (r > 1.3){
+      const g = bgCtx.createRadialGradient(x, y, 0, x, y, r * 4);
+      g.addColorStop(0, `rgba(255,220,255,${a*0.5})`);
+      g.addColorStop(1, 'rgba(255,220,255,0)');
+      bgCtx.fillStyle = g;
+      bgCtx.beginPath();
+      bgCtx.arc(x, y, r * 4, 0, TAU);
+      bgCtx.fill();
+    }
+  }
+}
+
+/* ============================================================
+   GALAXIA — pre-cómputo de 3500 estrellas en espiral logarítmica
+   ------------------------------------------------------------
+   Las posiciones se calculan UNA vez. En cada frame solo se
+   rotan y dibujan. Pintar 3500 píxeles individuales con fillRect
+   es ~10x más rápido que con arc()+fill().
+============================================================ */
+let galaxyStars = [];
+
+function makeGalaxy(){
+  galaxyStars = [];
+  const arms = CFG.GALAXY_ARMS;
+  const twist = CFG.GALAXY_TWIST;
+  for (let i = 0; i < CFG.GALAXY_STARS; i++){
+    // distribución por brazos: distancia con sesgo hacia el centro
+    const t = Math.pow(Math.random(), 0.55);  // 0..1 con más densidad en el centro
+    const dist = t * 1.0;                     // radio normalizado
+    const armIndex = i % arms;
+    const baseAngle = (TAU / arms) * armIndex;
+    const spiralAngle = baseAngle + dist * twist * TAU;
+    // dispersión: más cerca del centro = menor dispersión
+    const spread = (1 - t) * 0.18 + 0.04;
+    const a = spiralAngle + rand(-spread, spread);
+    const rJitter = dist + rand(-0.04, 0.04);
+
+    // color por temperatura: centro cálido (amarillo/naranja),
+    // medio rosado, exterior azul/violeta — paleta romántica.
+    let r, g, b;
+    if (t < 0.18){            // núcleo
+      r = 255; g = rand(220, 245); b = rand(170, 210);
+    } else if (t < 0.45){     // anillo cálido rosado
+      r = 255; g = rand(180, 220); b = rand(210, 240);
+    } else if (t < 0.75){     // medio: lila/rosa
+      r = rand(220, 255); g = rand(160, 210); b = rand(230, 255);
+    } else {                  // bordes: azul violeta
+      r = rand(160, 220); g = rand(180, 220); b = 255;
+    }
+
+    const size = (1 - t) * 1.6 + rand(0.3, 1.0);
+    const bright = (1 - t) * 0.5 + rand(0.4, 0.95);
+
+    galaxyStars.push({
+      a,                       // ángulo inicial
+      r: rJitter,              // radio normalizado
+      size,
+      r8: r|0, g8: g|0, b8: b|0,
+      bright,
+      twinkleSpeed: rand(1, 3),
+      twinklePhase: Math.random() * TAU,
+    });
+  }
+}
+
+/* ----------- DIBUJO GALAXIA ----------- */
+function drawGalaxy(t, alpha){
+  if (alpha <= 0) return;
+  const cx = W / 2, cy = H / 2;
+  const radius = Math.min(W, H) * 0.42;
+  const rot = t * 0.06; // rotación lenta (rad/seg)
+
+  // Núcleo brillante (radial gradient)
+  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.55);
+  core.addColorStop(0,    `rgba(255,240,210,${0.55 * alpha})`);
+  core.addColorStop(0.15, `rgba(255,200,180,${0.45 * alpha})`);
+  core.addColorStop(0.40, `rgba(220,140,200,${0.18 * alpha})`);
+  core.addColorStop(1,    'rgba(40,0,60,0)');
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 1.1, 0, TAU);
+  ctx.fill();
+
+  // Brazos de polvo cósmico (overlay sutil)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot * 0.7);
+  for (let arm = 0; arm < CFG.GALAXY_ARMS; arm++){
+    ctx.save();
+    ctx.rotate((TAU / CFG.GALAXY_ARMS) * arm);
+    const g = ctx.createLinearGradient(0, 0, radius, 0);
+    g.addColorStop(0, `rgba(255,160,210,${0.10 * alpha})`);
+    g.addColorStop(.5,`rgba(180,120,220,${0.06 * alpha})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(radius*0.55, 0, radius*0.55, radius*0.13, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Estrellas (loop apretado, una sola asignación por estrella)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  const stars = galaxyStars;
+  const len = stars.length;
+  for (let i = 0; i < len; i++){
+    const s = stars[i];
+    const r = s.r * radius;
+    const x = Math.cos(s.a) * r;
+    const y = Math.sin(s.a) * r * 0.95; // achatamos un poco para vista 3/4
+    const tw = 0.7 + 0.3 * Math.sin(t * s.twinkleSpeed + s.twinklePhase);
+    const al = s.bright * tw * alpha;
+    ctx.fillStyle = `rgba(${s.r8},${s.g8},${s.b8},${al})`;
+    ctx.fillRect(x, y, s.size, s.size);
+  }
+  ctx.restore();
+
+  // Halo central palpitante
+  const pulse = 0.85 + 0.15 * Math.sin(t * 1.6);
+  const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.18 * pulse);
+  halo.addColorStop(0, `rgba(255,255,240,${0.55 * alpha})`);
+  halo.addColorStop(1, 'rgba(255,255,240,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.18 * pulse, 0, TAU);
+  ctx.fill();
+}
+
+/* ============================================================
+   PARTÍCULAS — corazones, chispas, estrellas fugaces
+   Object pooling: arrays pre-asignados, reutilización.
+============================================================ */
+class HeartPool {
+  constructor(max){
+    this.max = max;
+    this.list = [];
+  }
+  spawn(x, y){
+    if (this.list.length >= this.max) this.list.shift();
+    this.list.push({
+      x, y,
+      vx: rand(-12, 12),
+      vy: rand(-30, -55),
+      life: 0,
+      ttl: rand(4, 7),
+      size: rand(10, 22),
+      sway: rand(0.5, 1.4),
+      phase: Math.random() * TAU,
+      hue: rand(330, 360),
+    });
+  }
+  update(dt){
+    for (let i = this.list.length - 1; i >= 0; i--){
+      const h = this.list[i];
+      h.life += dt;
+      h.x += h.vx * dt + Math.sin(h.life * h.sway + h.phase) * 8 * dt;
+      h.y += h.vy * dt;
+      h.vy += 4 * dt; // muy ligera "anti-gravedad" suavizándose
+      if (h.life > h.ttl) this.list.splice(i, 1);
+    }
+  }
+  draw(ctx){
+    for (const h of this.list){
+      const k = h.life / h.ttl;
+      const a = k < 0.15 ? k/0.15 : (1 - (k - 0.15)/0.85);
+      drawHeart(ctx, h.x, h.y, h.size, `hsla(${h.hue},85%,70%,${a})`);
+    }
+  }
+}
+
+function drawHeart(ctx, x, y, s, color){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s/20, s/20);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  // Curva clásica de corazón (bezier)
+  ctx.moveTo(0, 6);
+  ctx.bezierCurveTo(0, -2, -10, -2, -10, 6);
+  ctx.bezierCurveTo(-10, 12, 0, 16, 0, 22);
+  ctx.bezierCurveTo(0, 16, 10, 12, 10, 6);
+  ctx.bezierCurveTo(10, -2, 0, -2, 0, 6);
+  ctx.fill();
+  // brillo
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(-4, 4, 2.5, 1.6, -0.4, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
+class SparklePool {
+  constructor(max){ this.max = max; this.list = []; }
+  burst(x, y, n){
+    for (let i = 0; i < n; i++){
+      if (this.list.length >= this.max) break;
+      const ang = Math.random() * TAU;
+      const sp = rand(80, 380);
+      this.list.push({
+        x, y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp,
+        life: 0,
+        ttl: rand(0.7, 1.6),
+        size: rand(1.4, 3.2),
+        hue: rand(300, 360),
+      });
+    }
+  }
+  update(dt){
+    for (let i = this.list.length - 1; i >= 0; i--){
+      const p = this.list[i];
+      p.life += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.94; p.vy *= 0.94;
+      p.vy += 60 * dt;
+      if (p.life > p.ttl) this.list.splice(i, 1);
+    }
+  }
+  draw(ctx){
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of this.list){
+      const k = 1 - p.life / p.ttl;
+      ctx.fillStyle = `hsla(${p.hue},90%,75%,${k})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * k, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+class ShootingStars {
+  constructor(){ this.list = []; this.timer = 0; }
+  update(dt){
+    this.timer += dt;
+    if (this.timer > 1 / CFG.SHOOTING_RATE && this.list.length < 4){
+      this.timer = 0;
+      const fromTop = Math.random() < 0.5;
+      this.list.push({
+        x: rand(W * 0.1, W * 0.9),
+        y: fromTop ? -20 : rand(0, H * 0.3),
+        vx: rand(280, 520) * (Math.random() < 0.5 ? 1 : -1),
+        vy: rand(280, 520),
+        life: 0, ttl: rand(0.8, 1.4),
+        len: rand(80, 180),
+      });
+    }
+    for (let i = this.list.length - 1; i >= 0; i--){
+      const s = this.list[i];
+      s.life += dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      if (s.life > s.ttl || s.y > H + 50 || s.x < -200 || s.x > W + 200)
+        this.list.splice(i, 1);
+    }
+  }
+  draw(ctx, alpha){
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const s of this.list){
+      const k = 1 - s.life / s.ttl;
+      const angle = Math.atan2(s.vy, s.vx);
+      const tx = s.x - Math.cos(angle) * s.len;
+      const ty = s.y - Math.sin(angle) * s.len;
+      const grad = ctx.createLinearGradient(s.x, s.y, tx, ty);
+      grad.addColorStop(0, `rgba(255,240,255,${k * alpha})`);
+      grad.addColorStop(1, 'rgba(255,200,230,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      // cabeza
+      ctx.fillStyle = `rgba(255,255,255,${k * alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 2.2, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+const hearts = new HeartPool(CFG.HEARTS_MAX);
+const sparkles = new SparklePool(CFG.SPARKLES_MAX);
+const shooting = new ShootingStars();
+
+/* ============================================================
+   CAJA-CORAZÓN — el "regalo" que guarda el gran amor.
+   Aparece cuando se menciona, late suavemente, y al abrirse
+   estalla en luz justo antes del "Te amo, Rossy".
+============================================================ */
+const box = {
+  alpha: 0,           // opacidad actual (0..1)
+  alphaTarget: 0,     // opacidad deseada
+  scale: 0.4,         // escala actual (entra desde pequeño)
+  scaleTarget: 0,     // 0 = no visible, 1 = tamaño normal, 2.6 = explotando
+  opening: false,     // true mientras se abre
+  openProgress: 0,    // 0..1 durante la apertura
+  bobPhase: 0,        // fase del flotar
+};
+
+function drawHeartShape(ctx){
+  // Curva de corazón en coords -10..10 / -2..22 (igual que drawHeart)
+  ctx.beginPath();
+  ctx.moveTo(0, 6);
+  ctx.bezierCurveTo(0, -2, -10, -2, -10, 6);
+  ctx.bezierCurveTo(-10, 12, 0, 16, 0, 22);
+  ctx.bezierCurveTo(0, 16, 10, 12, 10, 6);
+  ctx.bezierCurveTo(10, -2, 0, -2, 0, 6);
+}
+
+function drawBox(t){
+  if (box.alpha <= 0.01 && !box.opening) return;
+
+  const cx = W / 2;
+  const cy = H * 0.5;
+  const baseSize = Math.min(W, H) * 0.13;
+  const bob = Math.sin(t * 1.6) * 6;
+  const size = baseSize * box.scale;
+  const x = cx;
+  const y = cy + bob;
+
+  // ----- Aura exterior pulsante -----
+  if (box.alpha > 0){
+    const pulse = 0.85 + 0.15 * Math.sin(t * 2.2);
+    const auraR = size * 2.4 * pulse;
+    const aura = ctx.createRadialGradient(x, y - size*0.05, 0, x, y - size*0.05, auraR);
+    aura.addColorStop(0,    `rgba(255,200,140,${0.55 * box.alpha})`);
+    aura.addColorStop(0.35, `rgba(255,140,180,${0.32 * box.alpha})`);
+    aura.addColorStop(1,    'rgba(255,120,180,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(x, y - size*0.05, auraR, 0, TAU);
+    ctx.fill();
+  }
+
+  // ----- Corazón-caja -----
+  ctx.save();
+  ctx.translate(x, y - size * 0.55);
+  const s = size / 11;
+  ctx.scale(s, s);
+
+  // Cuerpo con gradiente dorado-rosado
+  const heartGrad = ctx.createLinearGradient(-12, -4, 12, 22);
+  heartGrad.addColorStop(0,    `rgba(255,225,150,${box.alpha})`);
+  heartGrad.addColorStop(0.45, `rgba(255,140,185,${box.alpha})`);
+  heartGrad.addColorStop(1,    `rgba(210,70,150,${box.alpha})`);
+  ctx.fillStyle = heartGrad;
+  drawHeartShape(ctx);
+  ctx.fill();
+
+  // Borde dorado fino
+  ctx.strokeStyle = `rgba(255,235,170,${0.9 * box.alpha})`;
+  ctx.lineWidth = 0.5;
+  drawHeartShape(ctx);
+  ctx.stroke();
+
+  // Reflejo brillante
+  ctx.fillStyle = `rgba(255,255,255,${0.55 * box.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(-4.5, 4, 3.0, 1.7, -0.45, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.35 * box.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(-2, 8, 1.4, 0.6, -0.4, 0, TAU);
+  ctx.fill();
+
+  // Cinta horizontal (la "tapa" de la caja)
+  ctx.fillStyle = `rgba(255,210,120,${0.85 * box.alpha})`;
+  ctx.fillRect(-10.2, 9, 20.4, 1.6);
+  ctx.fillStyle = `rgba(220,160,80,${0.5 * box.alpha})`;
+  ctx.fillRect(-10.2, 10.4, 20.4, 0.4);
+
+  // Lazo arriba
+  ctx.fillStyle = `rgba(255,225,140,${box.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(-3, -2.2, 2.6, 1.8, -0.35, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(3, -2.2, 2.6, 1.8, 0.35, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,200,90,${box.alpha})`;
+  ctx.beginPath();
+  ctx.arc(0, -2, 1.1, 0, TAU);
+  ctx.fill();
+
+  ctx.restore();
+
+  // ----- Chispitas orbitando alrededor (mientras está cerrada) -----
+  if (box.alpha > 0.5 && !box.opening){
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++){
+      const ang = t * 0.9 + (TAU/6) * i;
+      const r = size * 1.6;
+      const px = x + Math.cos(ang) * r;
+      const py = y - size*0.05 + Math.sin(ang) * r * 0.65;
+      const sa = 0.5 + 0.5 * Math.sin(t * 3 + i);
+      ctx.fillStyle = `rgba(255,235,255,${sa * box.alpha * 0.9})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 2.2, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ----- Apertura: rayos de luz + flash central -----
+  if (box.opening){
+    const k = Math.min(box.openProgress, 1);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Rayos
+    const rays = 14;
+    for (let i = 0; i < rays; i++){
+      const ang = (TAU/rays) * i + t * 0.3;
+      const len = size * 8 * k;
+      const ex = x + Math.cos(ang) * len;
+      const ey = y + Math.sin(ang) * len;
+      const grad = ctx.createLinearGradient(x, y, ex, ey);
+      grad.addColorStop(0, `rgba(255,245,210,${0.85 * (1 - k*0.7)})`);
+      grad.addColorStop(1, 'rgba(255,200,255,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 3 + 7 * (1 - k);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+
+    // Flash central
+    const flashR = size * 5 * k;
+    const flash = ctx.createRadialGradient(x, y, 0, x, y, flashR);
+    flash.addColorStop(0,   `rgba(255,255,255,${0.95 * (1 - k*0.6)})`);
+    flash.addColorStop(0.4, `rgba(255,220,240,${0.55 * (1 - k*0.6)})`);
+    flash.addColorStop(1,   'rgba(255,200,240,0)');
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(x, y, flashR, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function updateBox(dt){
+  // alpha tween
+  const aSpeed = 0.85;
+  if (box.alpha < box.alphaTarget) box.alpha = Math.min(box.alphaTarget, box.alpha + aSpeed*dt);
+  else if (box.alpha > box.alphaTarget) box.alpha = Math.max(box.alphaTarget, box.alpha - aSpeed*dt);
+
+  // scale tween
+  const sSpeed = box.opening ? 4.5 : 2.2;
+  if (box.scale < box.scaleTarget) box.scale = Math.min(box.scaleTarget, box.scale + sSpeed*dt);
+  else if (box.scale > box.scaleTarget) box.scale = Math.max(box.scaleTarget, box.scale - sSpeed*dt);
+
+  // proceso de apertura
+  if (box.opening){
+    box.openProgress += dt * 1.4;
+    if (box.openProgress >= 1){
+      box.opening = false;
+      box.alphaTarget = 0;     // se desvanece tras la explosión
+      box.scaleTarget = 3.5;   // y sigue creciendo mientras se va
+    }
+  }
+}
+
+/* ============================================================
+   GUION (escenas con tiempos en segundos)
+============================================================ */
+const SCRIPT = [
+  // ---- Sinopsis: las 4 frases del mensaje ----
+  { t: 0.6,  type:'line', size:'med',
+    text:'<em>En lo más profundo de mis pensamientos...</em>' },
+  { t: 5.6,  type:'hide-last' },
+
+  { t: 6.4,  type:'line', size:'med',
+    text:'<em>...en lo más profundo de mi corazón...</em>' },
+  { t:11.4,  type:'hide-last' },
+
+  { t:12.2,  type:'line', size:'med',
+    text:'<em>...está todavía ese gran amor que siento por ti...</em>' },
+  { t:17.6,  type:'hide-last' },
+
+  // ---- Aparece la caja ----
+  { t:18.2,  type:'box-on' },
+  { t:18.6,  type:'line', size:'med', pos:'top',
+    text:'<em>...ese gran amor guardado en una pequeña caja...</em>' },
+  { t:23.8,  type:'hide-last' },
+
+  { t:24.4,  type:'line', size:'med', pos:'top',
+    text:'<em>...esperando a ser abierta por ti :D</em>' },
+  { t:30.0,  type:'hide-last' },
+
+  // ---- Se abre la caja: estallido + reveal ----
+  { t:30.8,  type:'box-open' },
+  { t:31.4,  type:'line', size:'big',
+    text:'Te amo, Rossy <span class="heart">♥</span>' },
+  { t:38.0,  type:'hide-last' },
+
+  // ---- Galaxia + halagos ----
+  { t:38.6,  type:'galaxy-on' },
+  { t:39.8,  type:'compliments-on' },
+];
+
+const COMPLIMENTS = [
+  'Eres mi universo entero, Rossy ♥',
+  'Tu sonrisa enciende mis galaxias',
+  'Más hermosa que mil supernovas',
+  'Mi corazón orbita alrededor del tuyo',
+  'Cada estrella conoce tu nombre',
+  'Eres la melodía que mis días esperaban',
+  'Contigo, hasta el silencio suena bonito',
+  'Tu mirada es mi constelación favorita',
+  'Eres mi razón, mi calma, mi todo',
+  'Te amaré más allá del último horizonte',
+  'Eres pura magia, mi Rossy',
+  'En cada amanecer pienso en ti',
+  'Eres el milagro de mi cielo',
+  'Tu risa cura todo lo que duele',
+  'Mi alma encontró su hogar en la tuya',
+];
+
+/* ============================================================
+   GESTOR DE TEXTOS DOM (CSS GPU-accelerated)
+============================================================ */
+const ui = document.getElementById('ui');
+let activeLines = [];
+
+function showLine(html, sizeClass, position){
+  const el = document.createElement('div');
+  el.className = 'line';
+  if (position === 'top') el.classList.add('pos-top');
+  el.innerHTML = `<span class="${sizeClass}">${html}</span>`;
+  ui.appendChild(el);
+  // forzar reflow para que la transición se aplique
+  el.offsetWidth;
+  requestAnimationFrame(() => {
+    el.classList.add('show', 'in');
+  });
+  activeLines.push(el);
+  return el;
+}
+
+function hideLine(el){
+  if (!el) return;
+  el.classList.remove('show', 'in');
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 1800);
+}
+
+function hideLastLine(){
+  const el = activeLines.pop();
+  hideLine(el);
+}
+
+/* ----------- Halagos orbitando la galaxia ----------- */
+let complimentEls = [];
+let complimentTimer = 0;
+let complimentIndex = 0;
+
+function spawnCompliment(){
+  const text = COMPLIMENTS[complimentIndex % COMPLIMENTS.length];
+  complimentIndex++;
+
+  const el = document.createElement('div');
+  el.className = 'compliment';
+  el.textContent = text;
+  ui.appendChild(el);
+
+  // Posición orbital: ángulo + radio entre el borde de la galaxia y el borde de la pantalla
+  const ang = Math.random() * TAU;
+  const minR = Math.min(W, H) * 0.30;
+  const maxR = Math.min(W, H) * 0.46;
+  const r = rand(minR, maxR);
+  const x = Math.cos(ang) * r;
+  const y = Math.sin(ang) * r * 0.85;
+
+  // Movimiento sutil: deriva tangencial mientras se ve
+  const driftAng = ang + Math.PI/2; // perpendicular al radio
+  const drift = rand(20, 50);
+  const dx = Math.cos(driftAng) * drift;
+  const dy = Math.sin(driftAng) * drift;
+
+  el.style.transition = 'opacity 1.6s ease, transform 7s linear';
+  el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+
+  requestAnimationFrame(() => {
+    el.classList.add('show');
+    el.style.transform = `translate(calc(-50% + ${x+dx}px), calc(-50% + ${y+dy}px))`;
+  });
+
+  // Desaparecer
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 1700);
+  }, 5200);
+
+  complimentEls.push(el);
+  if (complimentEls.length > 6) complimentEls.shift();
+}
+
+/* ============================================================
+   ESTADO DE ESCENA + LOOP
+============================================================ */
+const state = {
+  started: false,
+  t: 0,                     // segundos desde el start
+  scriptIdx: 0,
+  galaxyAlpha: 0,           // fade-in de la galaxia
+  galaxyTarget: 0,
+  showCompliments: false,
+  heartTimer: 0,
+};
+
+function update(dt){
+  if (!state.started) return;
+  state.t += dt;
+
+  // Avanzar guion
+  while (state.scriptIdx < SCRIPT.length && SCRIPT[state.scriptIdx].t <= state.t){
+    const evt = SCRIPT[state.scriptIdx++];
+    handleEvent(evt);
+  }
+
+  // Corazones flotantes (en las dos primeras fases y en la final, suavemente)
+  const phase = currentPhase();
+  if (phase === 'intro' || phase === 'cute' || phase === 'galaxy'){
+    state.heartTimer -= dt;
+    if (state.heartTimer <= 0){
+      state.heartTimer = phase === 'galaxy' ? 0.9 : 0.45;
+      hearts.spawn(rand(0, W), H + 20);
+    }
+  }
+  hearts.update(dt);
+  sparkles.update(dt);
+  shooting.update(dt);
+  updateBox(dt);
+
+  // Fade galaxia
+  const speed = 0.55;
+  if (state.galaxyAlpha < state.galaxyTarget){
+    state.galaxyAlpha = Math.min(state.galaxyTarget, state.galaxyAlpha + speed * dt);
+  } else if (state.galaxyAlpha > state.galaxyTarget){
+    state.galaxyAlpha = Math.max(state.galaxyTarget, state.galaxyAlpha - speed * dt);
+  }
+
+  // Halagos
+  if (state.showCompliments){
+    complimentTimer -= dt;
+    if (complimentTimer <= 0){
+      complimentTimer = rand(1.4, 2.2);
+      spawnCompliment();
+    }
+  }
+}
+
+function currentPhase(){
+  if (state.t < 18)   return 'intro';   // 3 frases iniciales
+  if (state.t < 31)   return 'cute';    // caja visible
+  if (state.t < 38)   return 'reveal';  // "Te amo, Rossy"
+  return 'galaxy';
+}
+
+function handleEvent(evt){
+  switch (evt.type){
+    case 'line':
+      showLine(evt.text,
+        evt.size === 'big' ? 'big' : evt.size === 'med' ? 'med' : 'small',
+        evt.pos);
+      break;
+    case 'hide-last':
+      hideLastLine();
+      break;
+    case 'box-on':
+      // La caja entra desde pequeño, se hace visible
+      box.alpha = 0;
+      box.alphaTarget = 1;
+      box.scale = 0.4;
+      box.scaleTarget = 1;
+      box.opening = false;
+      box.openProgress = 0;
+      // chispitas suaves al aparecer
+      sparkles.burst(W/2, H/2, 18);
+      break;
+    case 'box-open':
+      // La caja "se abre": estallido de luz, partículas, y se va
+      box.opening = true;
+      box.openProgress = 0;
+      box.scaleTarget = 2.6;
+      sparkles.burst(W/2, H/2, 110);
+      for (let i = 0; i < 28; i++){
+        hearts.spawn(W/2 + rand(-50, 50), H/2 + rand(-30, 30));
+      }
+      // pequeñas ráfagas adicionales para extender el destello
+      let n = 0;
+      const sparkInt = setInterval(() => {
+        sparkles.burst(W/2, H/2, 18);
+        if (++n > 6) clearInterval(sparkInt);
+      }, 180);
+      break;
+    case 'galaxy-on':
+      state.galaxyTarget = 1;
+      let m = 0;
+      const sparkInt2 = setInterval(() => {
+        sparkles.burst(W/2, H/2, 12);
+        if (++m > 6) clearInterval(sparkInt2);
+      }, 240);
+      break;
+    case 'compliments-on':
+      state.showCompliments = true;
+      break;
+  }
+}
+
+function render(){
+  // Fondo: copia del bg pre-renderizado
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+
+  // Galaxia (con fade)
+  drawGalaxy(state.t, state.galaxyAlpha);
+
+  // Estrellas fugaces (más visibles cuando hay galaxia)
+  shooting.draw(ctx, 0.3 + state.galaxyAlpha * 0.7);
+
+  // Caja-corazón (encima de la galaxia y debajo de las partículas)
+  drawBox(state.t);
+
+  // Partículas
+  hearts.draw(ctx);
+  sparkles.draw(ctx);
+}
+
+/* ----------- LOOP ----------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min((now - last) / 1000, 1/30);
+  last = now;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ----------- INIT ----------- */
+function regenStaticLayers(){
+  makeBackgroundStars();
+  // las estrellas de la galaxia son normalizadas (radio 0..1),
+  // así que NO hace falta regenerarlas en resize.
+}
+
+function start(){
+  if (state.started) return;
+  state.started = true;
+  document.getElementById('starter').classList.add('gone');
+  last = performance.now();
+}
+
+resize();
+makeGalaxy();
+regenStaticLayers();
+requestAnimationFrame(frame);
+
+document.getElementById('starter').addEventListener('click', start);
+document.getElementById('starter').addEventListener('touchstart', e => { e.preventDefault(); start(); }, { passive:false });
+
+// Fail-safe: si pasan 3s y nadie clicó, arrancamos solos
+setTimeout(() => start(), 3000);
+
+</script>
+</body>
+</html>
