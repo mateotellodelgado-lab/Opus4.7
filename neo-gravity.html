@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>Neo-Gravity: Elastic Escape</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;font-family:'Segoe UI',sans-serif;color:#eee}
+canvas{display:block;position:absolute;top:0;left:0}
+.panel{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,10,18,0.92);backdrop-filter:blur(8px);z-index:100;transition:opacity 0.3s}
+.panel.hidden{display:none;opacity:0;pointer-events:none}
+.panel h1{font-size:2rem;letter-spacing:4px;text-transform:uppercase;margin-bottom:1rem;text-shadow:0 0 12px #7df9ff}
+.panel h2{font-size:1.4rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:0.8rem;color:#9b59ff;text-shadow:0 0 8px #9b59ff}
+.btn{display:inline-block;padding:12px 32px;margin:8px;border:1px solid #7df9ff;background:transparent;color:#7df9ff;font-size:0.9rem;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;border-radius:4px}
+.btn:hover{background:#7df9ff22;box-shadow:0 0 16px #7df9ff44}
+.btn.pink{border-color:#ff39b8;color:#ff39b8}
+.btn.pink:hover{background:#ff39b822;box-shadow:0 0 16px #ff39b844}
+.btn.gold{border-color:#ffd84d;color:#ffd84d}
+.btn.gold:hover{background:#ffd84d22;box-shadow:0 0 16px #ffd84d44}
+.btn.green{border-color:#39ff88;color:#39ff88}
+.btn.green:hover{background:#39ff8822;box-shadow:0 0 16px #39ff8844}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+#panel-shop .shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;max-width:600px;width:90%;margin:1rem auto}
+.skin-card{border:1px solid #333;border-radius:8px;padding:16px;text-align:center;background:#12121f;transition:border-color 0.2s}
+.skin-card.equipped{border-color:#7df9ff;box-shadow:0 0 12px #7df9ff44}
+.skin-card .preview{width:48px;height:48px;border-radius:50%;margin:0 auto 8px;box-shadow:0 0 12px currentColor}
+.skin-card .sname{font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.skin-card .sprice{font-size:0.75rem;color:#aaa;margin-bottom:8px}
+.balance-display{font-size:1rem;color:#ffd84d;margin-bottom:1rem;letter-spacing:2px}
+#hud{position:fixed;top:12px;left:12px;z-index:50;pointer-events:none;font-size:0.8rem;letter-spacing:1px}
+#hud span{display:block;margin-bottom:4px;text-shadow:0 0 6px #7df9ff}
+.level-btn{display:inline-block;width:56px;height:56px;line-height:56px;text-align:center;margin:6px;border:1px solid #7df9ff;border-radius:8px;color:#7df9ff;font-size:1.1rem;cursor:pointer;letter-spacing:1px}
+.level-btn.locked{opacity:0.3;cursor:not-allowed;border-color:#555;color:#555}
+.level-btn:hover:not(.locked){background:#7df9ff22;box-shadow:0 0 12px #7df9ff44}
+</style>
+</head>
+<body>
+
+<canvas id="gc"></canvas>
+<div id="hud" class="hidden">
+<span id="hud-shots">Shots: 0</span>
+<span id="hud-stars">Stars: 0/0</span>
+<span id="hud-dust">Stardust: 0</span>
+</div>
+
+<div class="panel" id="panel-menu">
+<h1>Neo-Gravity</h1>
+<p style="color:#aaa;letter-spacing:2px;margin-bottom:1.5rem">ELASTIC ESCAPE</p>
+<button class="btn" onclick="UI.showLevelSelect()">PLAY</button>
+<button class="btn pink" onclick="UI.showShop()">COSMETIC VAULT</button>
+</div>
+
+<div class="panel hidden" id="panel-levels">
+<h2>Select Level</h2>
+<div id="level-grid"></div>
+<button class="btn" onclick="UI.showMenu()" style="margin-top:1rem">BACK</button>
+</div>
+
+<div class="panel hidden" id="panel-shop">
+<h2>COSMETIC VAULT</h2>
+<div class="balance-display" id="shop-balance">Stardust: 0</div>
+<div class="shop-grid" id="shop-grid"></div>
+<button class="btn" onclick="UI.showMenu()" style="margin-top:1rem">BACK</button>
+</div>
+
+<div class="panel hidden" id="panel-paused">
+<h2>Paused</h2>
+<button class="btn" onclick="Game.resume()">RESUME</button>
+<button class="btn pink" onclick="Game.quitToMenu()">QUIT</button>
+</div>
+
+<div class="panel hidden" id="panel-victory">
+<h2>Level Complete</h2>
+<p id="victory-msg" style="color:#39ff88;margin-bottom:1rem;letter-spacing:1px"></p>
+<button class="btn green" onclick="Game.nextLevel()">NEXT LEVEL</button>
+<button class="btn" onclick="Game.quitToMenu()">MENU</button>
+</div>
+
+<div class="panel hidden" id="panel-gameover">
+<h2>Failed</h2>
+<p style="color:#ff39b8;margin-bottom:1rem;letter-spacing:1px">The orb was destroyed</p>
+<button class="btn pink" onclick="Game.retryLevel()">RETRY</button>
+<button class="btn" onclick="Game.quitToMenu()">MENU</button>
+</div>
+
+<script>
+
+// ============================================================
+// SECTION 1: CONFIG + SKINS DEFINITION
+// ============================================================
+'use strict';
+const CFG = {
+  VW: 1080,
+  VH: 1920,
+  BG: '#0a0a12',
+  FPS: 60,
+  DT: 1/60,
+  MAX_PARTICLES: 300,
+  GRAVITY: 980,
+  ORB_RADIUS: 22,
+  STAR_RADIUS: 18,
+  SLING_MAX: 220,
+  LAUNCH_MULT: 5.5,
+  DAMPING: 0.998,
+  BOUNCE_DAMP: 0.75,
+  BUMPER_FORCE: 1200,
+  BLACKHOLE_STRENGTH: 420000,
+  VORTEX_RADIUS: 40,
+  SKINS: {
+    'default': { id:'default', name:'Standard', price:0, colorCore:'#7df9ff', colorTrail:'#7df9ff', glowColor:'#7df9ff' },
+    'hyper-drive': { id:'hyper-drive', name:'Hyper-Drive', price:50, colorCore:'#00ff88', colorTrail:'#00ffcc', glowColor:'#00ff88' },
+    'vortex-edge': { id:'vortex-edge', name:'Vortex-Edge', price:150, colorCore:'#ff39b8', colorTrail:'#ff6fd8', glowColor:'#ff39b8' },
+    'singularity-core': { id:'singularity-core', name:'Singularity-Core', price:300, colorCore:'#9b59ff', colorTrail:'#c39bff', glowColor:'#9b59ff' },
+    'solar-flare': { id:'solar-flare', name:'Solar-Flare', price:500, colorCore:'#ffd84d', colorTrail:'#ffe88a', glowColor:'#ffd84d' }
+  }
+};
+
+// ============================================================
+// SECTION 2: MATH UTILITIES + VECTOR POOL
+// ============================================================
+const VMath = {
+  _pool: [],
+  _idx: 0,
+  init() {
+    for (let i = 0; i < 200; i++) this._pool.push({x:0, y:0});
+  },
+  get(x, y) {
+    const v = this._pool[this._idx];
+    this._idx = (this._idx + 1) % this._pool.length;
+    v.x = x; v.y = y;
+    return v;
+  },
+  len(x, y) { return Math.sqrt(x*x + y*y); },
+  dist(ax, ay, bx, by) { return Math.sqrt((bx-ax)*(bx-ax)+(by-ay)*(by-ay)); },
+  dot(ax, ay, bx, by) { return ax*bx + ay*by; },
+  normalize(x, y) {
+    const l = Math.sqrt(x*x+y*y);
+    if (l < 0.0001) return VMath.get(0,0);
+    return VMath.get(x/l, y/l);
+  },
+  clamp(v, mn, mx) { return v < mn ? mn : v > mx ? mx : v; },
+  lerp(a, b, t) { return a + (b - a) * t; },
+  pointToSegment(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx*dx + dy*dy;
+    if (lenSq < 0.001) return { dist: VMath.dist(px,py,ax,ay), nx: px-ax, ny: py-ay };
+    let t = ((px-ax)*dx + (py-ay)*dy) / lenSq;
+    t = VMath.clamp(t, 0, 1);
+    const cx = ax + t*dx, cy = ay + t*dy;
+    const nx = px - cx, ny = py - cy;
+    const d = Math.sqrt(nx*nx + ny*ny);
+    return { dist: d, nx: d > 0 ? nx/d : 0, ny: d > 0 ? ny/d : 0, cx: cx, cy: cy };
+  }
+};
+VMath.init();
+
+
+// ============================================================
+// SECTION 3: OBJECT POOL
+// ============================================================
+class Pool {
+  constructor(factory, max) {
+    this.items = [];
+    this.active = 0;
+    this.max = max;
+    for (let i = 0; i < max; i++) this.items.push(factory(i));
+  }
+  spawn() {
+    if (this.active >= this.max) return null;
+    return this.items[this.active++];
+  }
+  kill(idx) {
+    if (idx >= this.active) return;
+    const temp = this.items[idx];
+    this.items[idx] = this.items[this.active - 1];
+    this.items[this.active - 1] = temp;
+    this.active--;
+  }
+  clear() { this.active = 0; }
+  forEach(fn) { for (let i = 0; i < this.active; i++) fn(this.items[i], i); }
+}
+
+// ============================================================
+// SECTION 4: PARTICLE SYSTEM
+// ============================================================
+const Particles = {
+  pool: null,
+  init() {
+    this.pool = new Pool(() => ({
+      x:0, y:0, vx:0, vy:0, life:0, maxLife:1, r:3, color:'#7df9ff', alpha:1
+    }), CFG.MAX_PARTICLES);
+  },
+  emit(x, y, count, color, speed, life, radius) {
+    for (let i = 0; i < count; i++) {
+      const p = this.pool.spawn();
+      if (!p) return;
+      const a = Math.random() * Math.PI * 2;
+      const s = speed * (0.4 + Math.random() * 0.6);
+      p.x = x; p.y = y;
+      p.vx = Math.cos(a) * s;
+      p.vy = Math.sin(a) * s;
+      p.life = life * (0.5 + Math.random() * 0.5);
+      p.maxLife = p.life;
+      p.r = radius * (0.5 + Math.random() * 0.5);
+      p.color = color;
+      p.alpha = 1;
+    }
+  },
+  trail(x, y, color) {
+    const p = this.pool.spawn();
+    if (!p) return;
+    p.x = x + (Math.random()-0.5)*6;
+    p.y = y + (Math.random()-0.5)*6;
+    p.vx = (Math.random()-0.5)*30;
+    p.vy = (Math.random()-0.5)*30;
+    p.life = 0.4 + Math.random()*0.3;
+    p.maxLife = p.life;
+    p.r = 3 + Math.random()*3;
+    p.color = color;
+    p.alpha = 1;
+  },
+  update(dt) {
+    for (let i = 0; i < this.pool.active; i++) {
+      const p = this.pool.items[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      p.alpha = Math.max(0, p.life / p.maxLife);
+      if (p.life <= 0) {
+        this.pool.kill(i);
+        i--;
+      }
+    }
+  }
+};
+Particles.init();
+
+
+// ============================================================
+// SECTION 5: PHYSICS (integration, collision resolution)
+// ============================================================
+const Physics = {
+  integrateOrb(orb, dt, level) {
+    // Apply black hole gravity
+    if (level.blackholes) {
+      for (let i = 0; i < level.blackholes.length; i++) {
+        const bh = level.blackholes[i];
+        const dx = bh.x - orb.x;
+        const dy = bh.y - orb.y;
+        const distSq = dx*dx + dy*dy;
+        const dist = Math.sqrt(distSq);
+        if (dist < 10) continue;
+        const force = CFG.BLACKHOLE_STRENGTH / distSq;
+        orb.vx += (dx / dist) * force * dt;
+        orb.vy += (dy / dist) * force * dt;
+      }
+    }
+    // Velocity integration
+    orb.vx *= CFG.DAMPING;
+    orb.vy *= CFG.DAMPING;
+    orb.x += orb.vx * dt;
+    orb.y += orb.vy * dt;
+  },
+  collideWalls(orb, walls) {
+    const r = CFG.ORB_RADIUS;
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      // AABB collision
+      const cx = VMath.clamp(orb.x, w.x, w.x + w.w);
+      const cy = VMath.clamp(orb.y, w.y, w.y + w.h);
+      const dx = orb.x - cx;
+      const dy = orb.y - cy;
+      const distSq = dx*dx + dy*dy;
+      if (distSq < r*r && distSq > 0) {
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const pen = r - dist;
+        orb.x += nx * pen;
+        orb.y += ny * pen;
+        const vDotN = orb.vx*nx + orb.vy*ny;
+        if (vDotN < 0) {
+          orb.vx -= 2 * vDotN * nx * CFG.BOUNCE_DAMP;
+          orb.vy -= 2 * vDotN * ny * CFG.BOUNCE_DAMP;
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+  collideBumpers(orb, bumpers) {
+    const r = CFG.ORB_RADIUS;
+    for (let i = 0; i < bumpers.length; i++) {
+      const b = bumpers[i];
+      const res = VMath.pointToSegment(orb.x, orb.y, b.x1, b.y1, b.x2, b.y2);
+      if (res.dist < r + (b.thickness || 6)) {
+        const pen = (r + (b.thickness || 6)) - res.dist;
+        orb.x += res.nx * pen;
+        orb.y += res.ny * pen;
+        const speed = VMath.len(orb.vx, orb.vy);
+        const boost = Math.max(speed, CFG.BUMPER_FORCE * 0.5);
+        orb.vx = res.nx * boost;
+        orb.vy = res.ny * boost;
+        return true;
+      }
+    }
+    return false;
+  },
+  collideKillZones(orb, kills) {
+    const r = CFG.ORB_RADIUS;
+    for (let i = 0; i < kills.length; i++) {
+      const k = kills[i];
+      if (k.type === 'rect') {
+        if (orb.x + r > k.x && orb.x - r < k.x + k.w &&
+            orb.y + r > k.y && orb.y - r < k.y + k.h) return true;
+      } else if (k.type === 'circle') {
+        const d = VMath.dist(orb.x, orb.y, k.x, k.y);
+        if (d < r + k.r) return true;
+      }
+    }
+    return false;
+  },
+  collideVortex(orb, vortex) {
+    const d = VMath.dist(orb.x, orb.y, vortex.x, vortex.y);
+    return d < CFG.ORB_RADIUS + CFG.VORTEX_RADIUS;
+  },
+  collideStars(orb, stars) {
+    const r = CFG.ORB_RADIUS;
+    let collected = 0;
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      if (s.collected) continue;
+      const d = VMath.dist(orb.x, orb.y, s.x, s.y);
+      if (d < r + CFG.STAR_RADIUS) {
+        s.collected = true;
+        collected++;
+        Particles.emit(s.x, s.y, 20, '#ffd84d', 300, 0.8, 5);
+        Audio.starCollect();
+      }
+    }
+    return collected;
+  },
+  outOfBounds(orb) {
+    return orb.x < -100 || orb.x > CFG.VW + 100 || orb.y < -100 || orb.y > CFG.VH + 100;
+  }
+};
+
+
+// ============================================================
+// SECTION 6: ENTITY FACTORIES
+// ============================================================
+function makeOrb(x, y) {
+  return { x: x, y: y, vx: 0, vy: 0, launched: false, alive: true };
+}
+function makeWall(x, y, w, h, color) {
+  return { x:x, y:y, w:w, h:h, color: color || '#334' };
+}
+function makeKillRect(x, y, w, h) {
+  return { type:'rect', x:x, y:y, w:w, h:h };
+}
+function makeKillCircle(x, y, r) {
+  return { type:'circle', x:x, y:y, r:r };
+}
+function makeBumper(x1, y1, x2, y2, color, thickness) {
+  return { x1:x1, y1:y1, x2:x2, y2:y2, color: color || '#ff39b8', thickness: thickness || 6 };
+}
+function makeBlackHole(x, y, r) {
+  return { x:x, y:y, r: r || 30 };
+}
+function makeVortex(x, y) {
+  return { x:x, y:y, r: CFG.VORTEX_RADIUS, angle: 0 };
+}
+function makeStar(x, y) {
+  return { x:x, y:y, collected: false, pulse: 0 };
+}
+
+// ============================================================
+// SECTION 7: LEVEL DEFINITIONS (5 levels)
+// ============================================================
+const LEVELS = [
+  {
+    name: 'First Light',
+    par: 2,
+    spawn: { x: 540, y: 1600 },
+    vortex: { x: 540, y: 300 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(200, 900, 680, 25, '#445'),
+      makeWall(400, 600, 25, 300, '#445')
+    ],
+    bumpers: [
+      makeBumper(300, 1200, 780, 1200, '#ff39b8', 8)
+    ],
+    blackholes: [],
+    kills: [
+      makeKillRect(0, 1890, 1080, 30)
+    ],
+    stars: [
+      makeStar(540, 1100),
+      makeStar(300, 700)
+    ]
+  },
+  {
+    name: 'Pinball Corridor',
+    par: 3,
+    spawn: { x: 200, y: 1700 },
+    vortex: { x: 880, y: 200 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(300, 1400, 25, 400, '#445'),
+      makeWall(600, 1000, 25, 500, '#445'),
+      makeWall(300, 600, 500, 25, '#445'),
+      makeWall(150, 300, 25, 400, '#445')
+    ],
+    bumpers: [
+      makeBumper(100, 1300, 300, 1100, '#39ff88', 8),
+      makeBumper(700, 900, 900, 700, '#ff39b8', 8),
+      makeBumper(400, 400, 200, 250, '#9b59ff', 8)
+    ],
+    blackholes: [],
+    kills: [
+      makeKillRect(800, 1400, 250, 200)
+    ],
+    stars: [
+      makeStar(450, 1250),
+      makeStar(750, 800),
+      makeStar(300, 350)
+    ]
+  },
+  {
+    name: 'Gravity Well',
+    par: 3,
+    spawn: { x: 540, y: 1700 },
+    vortex: { x: 540, y: 200 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(200, 1200, 300, 25, '#445'),
+      makeWall(580, 1200, 300, 25, '#445'),
+      makeWall(400, 700, 280, 25, '#445')
+    ],
+    bumpers: [
+      makeBumper(100, 1500, 400, 1400, '#39ff88', 8),
+      makeBumper(680, 1500, 980, 1400, '#39ff88', 8)
+    ],
+    blackholes: [
+      makeBlackHole(540, 1000, 35),
+      makeBlackHole(300, 500, 25)
+    ],
+    kills: [
+      makeKillCircle(540, 1000, 40),
+      makeKillRect(430, 850, 220, 20)
+    ],
+    stars: [
+      makeStar(250, 1100),
+      makeStar(830, 1100),
+      makeStar(540, 500)
+    ]
+  },
+  {
+    name: 'Neon Maze',
+    par: 4,
+    spawn: { x: 150, y: 1750 },
+    vortex: { x: 930, y: 150 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(250, 1500, 25, 400, '#445'),
+      makeWall(250, 1500, 400, 25, '#445'),
+      makeWall(500, 1200, 25, 325, '#445'),
+      makeWall(500, 1200, 300, 25, '#445'),
+      makeWall(750, 900, 25, 325, '#445'),
+      makeWall(300, 900, 475, 25, '#445'),
+      makeWall(300, 600, 25, 325, '#445'),
+      makeWall(300, 600, 500, 25, '#445'),
+      makeWall(750, 300, 25, 325, '#445'),
+      makeWall(400, 300, 375, 25, '#445')
+    ],
+    bumpers: [
+      makeBumper(100, 1400, 250, 1300, '#ff39b8', 6),
+      makeBumper(600, 1100, 750, 1000, '#9b59ff', 6),
+      makeBumper(350, 800, 500, 700, '#39ff88', 6)
+    ],
+    blackholes: [
+      makeBlackHole(900, 600, 28)
+    ],
+    kills: [
+      makeKillRect(600, 1600, 200, 200),
+      makeKillCircle(900, 600, 35)
+    ],
+    stars: [
+      makeStar(400, 1350),
+      makeStar(650, 1050),
+      makeStar(500, 450)
+    ]
+  },
+  {
+    name: 'Singularity',
+    par: 4,
+    spawn: { x: 540, y: 1750 },
+    vortex: { x: 540, y: 150 },
+    walls: [
+      makeWall(0, 0, 1080, 30, '#223'),
+      makeWall(0, 0, 30, 1920, '#223'),
+      makeWall(1050, 0, 30, 1920, '#223'),
+      makeWall(0, 1890, 1080, 30, '#223'),
+      makeWall(200, 1500, 680, 25, '#445'),
+      makeWall(100, 1100, 400, 25, '#445'),
+      makeWall(580, 1100, 400, 25, '#445'),
+      makeWall(350, 750, 380, 25, '#445'),
+      makeWall(200, 400, 300, 25, '#445'),
+      makeWall(580, 400, 300, 25, '#445')
+    ],
+    bumpers: [
+      makeBumper(150, 1400, 350, 1300, '#ff39b8', 8),
+      makeBumper(730, 1400, 930, 1300, '#ff39b8', 8),
+      makeBumper(200, 900, 400, 850, '#39ff88', 8),
+      makeBumper(680, 900, 880, 850, '#39ff88', 8),
+      makeBumper(400, 550, 680, 550, '#9b59ff', 8)
+    ],
+    blackholes: [
+      makeBlackHole(540, 950, 35),
+      makeBlackHole(300, 600, 25),
+      makeBlackHole(780, 600, 25)
+    ],
+    kills: [
+      makeKillCircle(540, 950, 42),
+      makeKillCircle(300, 600, 30),
+      makeKillCircle(780, 600, 30),
+      makeKillRect(450, 1300, 180, 200)
+    ],
+    stars: [
+      makeStar(540, 1400),
+      makeStar(250, 950),
+      makeStar(830, 950)
+    ]
+  }
+];
+
+
+// ============================================================
+// SECTION 8: AUDIO SYSTEM (WebAudio procedural synthesis)
+// ============================================================
+const Audio = {
+  ctx: null,
+  _gain: null,
+  init() {
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this._gain = this.ctx.createGain();
+      this._gain.gain.value = 0.3;
+      this._gain.connect(this.ctx.destination);
+    } catch(e) { this.ctx = null; }
+  },
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  _tone(freq, dur, type, vol) {
+    if (!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    g.gain.value = vol || 0.2;
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+    o.connect(g);
+    g.connect(this._gain);
+    o.start(this.ctx.currentTime);
+    o.stop(this.ctx.currentTime + dur);
+  },
+  launch() { this._tone(220, 0.2, 'sawtooth', 0.15); this._tone(330, 0.15, 'sine', 0.1); },
+  bounce() { this._tone(440, 0.1, 'square', 0.08); },
+  bumperHit() { this._tone(660, 0.15, 'sawtooth', 0.12); this._tone(880, 0.1, 'sine', 0.1); },
+  kill() { this._tone(110, 0.4, 'sawtooth', 0.2); this._tone(80, 0.5, 'square', 0.15); },
+  victory() {
+    this._tone(523, 0.15, 'sine', 0.15);
+    setTimeout(() => this._tone(659, 0.15, 'sine', 0.15), 100);
+    setTimeout(() => this._tone(784, 0.2, 'sine', 0.15), 200);
+    setTimeout(() => this._tone(1047, 0.3, 'sine', 0.2), 300);
+  },
+  starCollect() {
+    this._tone(880, 0.08, 'sine', 0.12);
+    setTimeout(() => this._tone(1100, 0.08, 'sine', 0.12), 50);
+    setTimeout(() => this._tone(1320, 0.12, 'sine', 0.15), 100);
+  },
+  click() { this._tone(600, 0.05, 'sine', 0.08); }
+};
+
+// ============================================================
+// SECTION 9: INPUT SYSTEM
+// ============================================================
+const Input = {
+  isDown: false,
+  startX: 0, startY: 0,
+  currX: 0, currY: 0,
+  _canvas: null,
+  _toWorld: null,
+  init(canvas, toWorldFn) {
+    this._canvas = canvas;
+    this._toWorld = toWorldFn;
+    const opts = { passive: false };
+    canvas.addEventListener('mousedown', (e) => this._down(e.clientX, e.clientY), opts);
+    canvas.addEventListener('mousemove', (e) => this._move(e.clientX, e.clientY), opts);
+    canvas.addEventListener('mouseup', () => this._up(), opts);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.touches[0]; this._down(t.clientX, t.clientY); }, opts);
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches[0]; this._move(t.clientX, t.clientY); }, opts);
+    canvas.addEventListener('touchend', (e) => { e.preventDefault(); this._up(); }, opts);
+  },
+  _down(cx, cy) {
+    const p = this._toWorld(cx, cy);
+    this.startX = p.x; this.startY = p.y;
+    this.currX = p.x; this.currY = p.y;
+    this.isDown = true;
+    Audio.resume();
+  },
+  _move(cx, cy) {
+    if (!this.isDown) return;
+    const p = this._toWorld(cx, cy);
+    this.currX = p.x; this.currY = p.y;
+  },
+  _up() {
+    this.isDown = false;
+  },
+  getDrag() {
+    const dx = this.startX - this.currX;
+    const dy = this.startY - this.currY;
+    const dist = Math.min(VMath.len(dx, dy), CFG.SLING_MAX);
+    if (dist < 10) return null;
+    const n = VMath.normalize(dx, dy);
+    return { dx: n.x * dist, dy: n.y * dist, dist: dist };
+  }
+};
+
+
+// ============================================================
+// SECTION 10: VIEWPORT (DPR + letterbox + shake)
+// ============================================================
+const Viewport = {
+  canvas: null,
+  ctx: null,
+  dpr: 1,
+  offsetX: 0, offsetY: 0,
+  scale: 1,
+  shakeX: 0, shakeY: 0,
+  shakeDur: 0,
+  shakeIntensity: 0,
+  init() {
+    this.canvas = document.getElementById('gc');
+    this.ctx = this.canvas.getContext('2d');
+    this.dpr = window.devicePixelRatio || 1;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+  },
+  resize() {
+    const ww = window.innerWidth;
+    const wh = window.innerHeight;
+    const aspect = CFG.VW / CFG.VH;
+    const winAspect = ww / wh;
+    let cw, ch;
+    if (winAspect < aspect) {
+      cw = ww;
+      ch = ww / aspect;
+    } else {
+      ch = wh;
+      cw = wh * aspect;
+    }
+    this.canvas.style.width = cw + 'px';
+    this.canvas.style.height = ch + 'px';
+    this.canvas.style.left = ((ww - cw) / 2) + 'px';
+    this.canvas.style.top = ((wh - ch) / 2) + 'px';
+    this.canvas.width = Math.round(cw * this.dpr);
+    this.canvas.height = Math.round(ch * this.dpr);
+    this.scale = cw / CFG.VW;
+    this.offsetX = (ww - cw) / 2;
+    this.offsetY = (wh - ch) / 2;
+  },
+  screenToWorld(cx, cy) {
+    return {
+      x: (cx - this.offsetX) / this.scale,
+      y: (cy - this.offsetY) / this.scale
+    };
+  },
+  shake(intensity, dur) {
+    this.shakeIntensity = intensity;
+    this.shakeDur = dur;
+  },
+  updateShake(dt) {
+    if (this.shakeDur > 0) {
+      this.shakeDur -= dt;
+      this.shakeX = (Math.random() - 0.5) * this.shakeIntensity * 2;
+      this.shakeY = (Math.random() - 0.5) * this.shakeIntensity * 2;
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+    }
+  },
+  begin() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.scale(this.dpr * this.scale, this.dpr * this.scale);
+    ctx.translate(this.shakeX, this.shakeY);
+  },
+  end() {
+    this.ctx.restore();
+  }
+};
+
+// ============================================================
+// SECTION 11: STARFIELD CACHE (pre-rendered background)
+// ============================================================
+const Starfield = {
+  _canvas: null,
+  init() {
+    this._canvas = document.createElement('canvas');
+    this._canvas.width = CFG.VW;
+    this._canvas.height = CFG.VH;
+    const ctx = this._canvas.getContext('2d');
+    ctx.fillStyle = CFG.BG;
+    ctx.fillRect(0, 0, CFG.VW, CFG.VH);
+    // Stars
+    for (let i = 0; i < 200; i++) {
+      const x = Math.random() * CFG.VW;
+      const y = Math.random() * CFG.VH;
+      const r = Math.random() * 1.5 + 0.3;
+      const alpha = Math.random() * 0.6 + 0.2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,220,255,${alpha})`;
+      ctx.fill();
+    }
+    // Subtle nebula
+    const grad = ctx.createRadialGradient(300, 600, 50, 300, 600, 400);
+    grad.addColorStop(0, 'rgba(155,89,255,0.04)');
+    grad.addColorStop(1, 'rgba(155,89,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CFG.VW, CFG.VH);
+    const grad2 = ctx.createRadialGradient(800, 1400, 50, 800, 1400, 350);
+    grad2.addColorStop(0, 'rgba(125,249,255,0.03)');
+    grad2.addColorStop(1, 'rgba(125,249,255,0)');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(0, 0, CFG.VW, CFG.VH);
+  },
+  draw(ctx) {
+    ctx.drawImage(this._canvas, 0, 0);
+  }
+};
+
+
+// ============================================================
+// SECTION 12: RENDERER (uses equipped skin colors)
+// ============================================================
+const Renderer = {
+  _glowCache: {},
+  _createGlow(color, radius) {
+    const key = color + '_' + radius;
+    if (this._glowCache[key]) return this._glowCache[key];
+    const size = radius * 4;
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0, color + 'cc');
+    grad.addColorStop(0.3, color + '66');
+    grad.addColorStop(0.7, color + '22');
+    grad.addColorStop(1, color + '00');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    this._glowCache[key] = c;
+    return c;
+  },
+  drawOrb(ctx, orb) {
+    const skin = CFG.SKINS[Save.data.equippedSkin] || CFG.SKINS['default'];
+    const glow = this._createGlow(skin.glowColor, CFG.ORB_RADIUS);
+    const gs = CFG.ORB_RADIUS * 4;
+    ctx.drawImage(glow, orb.x - gs/2, orb.y - gs/2, gs, gs);
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, CFG.ORB_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = skin.colorCore;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(orb.x - 5, orb.y - 5, CFG.ORB_RADIUS * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fill();
+  },
+  drawVortex(ctx, vortex, time) {
+    const pulseR = CFG.VORTEX_RADIUS + Math.sin(time * 4) * 5;
+    const glow = this._createGlow('#39ff88', pulseR);
+    const gs = pulseR * 4;
+    ctx.drawImage(glow, vortex.x - gs/2, vortex.y - gs/2, gs, gs);
+    ctx.beginPath();
+    ctx.arc(vortex.x, vortex.y, pulseR * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#39ff88';
+    ctx.fill();
+    // Spinning arms
+    ctx.save();
+    ctx.translate(vortex.x, vortex.y);
+    ctx.rotate(time * 3);
+    for (let i = 0; i < 4; i++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(pulseR * 0.8, pulseR * 0.3);
+      ctx.strokeStyle = 'rgba(57,255,136,0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  drawWalls(ctx, walls) {
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      ctx.fillStyle = w.color || '#334';
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      ctx.strokeStyle = '#556';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(w.x, w.y, w.w, w.h);
+    }
+  },
+  drawBumpers(ctx, bumpers) {
+    for (let i = 0; i < bumpers.length; i++) {
+      const b = bumpers[i];
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(b.x2, b.y2);
+      ctx.strokeStyle = b.color || '#ff39b8';
+      ctx.lineWidth = b.thickness || 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      // Glow line overlay
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(b.x2, b.y2);
+      ctx.strokeStyle = (b.color || '#ff39b8') + '44';
+      ctx.lineWidth = (b.thickness || 6) + 8;
+      ctx.stroke();
+    }
+  },
+  drawBlackHoles(ctx, blackholes, time) {
+    for (let i = 0; i < blackholes.length; i++) {
+      const bh = blackholes[i];
+      const glow = this._createGlow('#9b59ff', bh.r);
+      const gs = bh.r * 4;
+      ctx.drawImage(glow, bh.x - gs/2, bh.y - gs/2, gs, gs);
+      ctx.beginPath();
+      ctx.arc(bh.x, bh.y, bh.r * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a0a12';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bh.x, bh.y, bh.r * 0.7 + Math.sin(time*5)*2, 0, Math.PI * 2);
+      ctx.strokeStyle = '#9b59ff88';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  },
+  drawKillZones(ctx, kills) {
+    for (let i = 0; i < kills.length; i++) {
+      const k = kills[i];
+      ctx.fillStyle = 'rgba(255,57,57,0.15)';
+      ctx.strokeStyle = '#ff3939';
+      ctx.lineWidth = 2;
+      if (k.type === 'rect') {
+        ctx.fillRect(k.x, k.y, k.w, k.h);
+        ctx.strokeRect(k.x, k.y, k.w, k.h);
+      } else {
+        ctx.beginPath();
+        ctx.arc(k.x, k.y, k.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+  },
+  drawStars(ctx, stars, time) {
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      if (s.collected) continue;
+      const pulse = 1 + Math.sin(time * 5 + i) * 0.15;
+      const r = CFG.STAR_RADIUS * pulse;
+      const glow = this._createGlow('#ffd84d', r);
+      const gs = r * 4;
+      ctx.drawImage(glow, s.x - gs/2, s.y - gs/2, gs, gs);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r * 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd84d';
+      ctx.fill();
+      // Star cross
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(time * 2 + i);
+      ctx.beginPath();
+      ctx.moveTo(0, -r*0.8); ctx.lineTo(0, r*0.8);
+      ctx.moveTo(-r*0.8, 0); ctx.lineTo(r*0.8, 0);
+      ctx.strokeStyle = '#ffd84daa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  },
+  drawParticles(ctx) {
+    Particles.pool.forEach((p) => {
+      ctx.globalAlpha = p.alpha;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  },
+  drawSlingshot(ctx, orb, drag) {
+    if (!drag) return;
+    const skin = CFG.SKINS[Save.data.equippedSkin] || CFG.SKINS['default'];
+    // Draw line from orb to projected direction
+    const endX = orb.x + drag.dx * 0.5;
+    const endY = orb.y + drag.dy * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(orb.x, orb.y);
+    ctx.lineTo(endX, endY);
+    ctx.strokeStyle = skin.colorCore + '88';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Arrow head
+    const aLen = 12;
+    const angle = Math.atan2(drag.dy, drag.dx);
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - aLen * Math.cos(angle - 0.4), endY - aLen * Math.sin(angle - 0.4));
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - aLen * Math.cos(angle + 0.4), endY - aLen * Math.sin(angle + 0.4));
+    ctx.strokeStyle = skin.colorCore;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Power indicator
+    const pct = drag.dist / CFG.SLING_MAX;
+    ctx.fillStyle = `rgba(255,${Math.round(255*(1-pct))},${Math.round(100*(1-pct))},0.8)`;
+    ctx.fillRect(orb.x - 25, orb.y + CFG.ORB_RADIUS + 10, 50 * pct, 4);
+    ctx.strokeStyle = '#fff3';
+    ctx.strokeRect(orb.x - 25, orb.y + CFG.ORB_RADIUS + 10, 50, 4);
+  },
+  drawSpawn(ctx, spawn) {
+    ctx.beginPath();
+    ctx.arc(spawn.x, spawn.y, 30, 0, Math.PI * 2);
+    ctx.strokeStyle = '#7df9ff33';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+};
+
+
+// ============================================================
+// SECTION 13: UI/HUD + SHOP LOGIC
+// ============================================================
+const UI = {
+  panels: {},
+  init() {
+    this.panels.menu = document.getElementById('panel-menu');
+    this.panels.levels = document.getElementById('panel-levels');
+    this.panels.shop = document.getElementById('panel-shop');
+    this.panels.paused = document.getElementById('panel-paused');
+    this.panels.victory = document.getElementById('panel-victory');
+    this.panels.gameover = document.getElementById('panel-gameover');
+    this.hud = document.getElementById('hud');
+    this._buildLevelGrid();
+  },
+  _hideAll() {
+    Object.values(this.panels).forEach(p => p.classList.add('hidden'));
+    this.hud.classList.add('hidden');
+  },
+  showMenu() {
+    this._hideAll();
+    this.panels.menu.classList.remove('hidden');
+    Game.state = 'MENU';
+    Audio.click();
+  },
+  showLevelSelect() {
+    this._hideAll();
+    this._buildLevelGrid();
+    this.panels.levels.classList.remove('hidden');
+    Game.state = 'LEVEL_SELECT';
+    Audio.click();
+  },
+  showShop() {
+    this._hideAll();
+    this._buildShopGrid();
+    this.panels.shop.classList.remove('hidden');
+    Game.state = 'SHOP';
+    Audio.click();
+  },
+  showHUD() {
+    this._hideAll();
+    this.hud.classList.remove('hidden');
+  },
+  showPaused() {
+    this.panels.paused.classList.remove('hidden');
+  },
+  hidePaused() {
+    this.panels.paused.classList.add('hidden');
+  },
+  showVictory(msg) {
+    document.getElementById('victory-msg').textContent = msg;
+    this.panels.victory.classList.remove('hidden');
+  },
+  showGameOver() {
+    this.panels.gameover.classList.remove('hidden');
+  },
+  updateHUD(shots, starsCollected, totalStars, stardust) {
+    document.getElementById('hud-shots').textContent = 'Shots: ' + shots;
+    document.getElementById('hud-stars').textContent = 'Stars: ' + starsCollected + '/' + totalStars;
+    document.getElementById('hud-dust').textContent = 'Stardust: ' + stardust;
+  },
+  _buildLevelGrid() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    for (let i = 0; i < LEVELS.length; i++) {
+      const el = document.createElement('div');
+      el.className = 'level-btn' + (i > Save.data.unlocked ? ' locked' : '');
+      el.textContent = (i + 1);
+      if (i <= Save.data.unlocked) {
+        el.onclick = () => { Game.startLevel(i); Audio.click(); };
+      }
+      grid.appendChild(el);
+    }
+  },
+  _buildShopGrid() {
+    const grid = document.getElementById('shop-grid');
+    grid.innerHTML = '';
+    document.getElementById('shop-balance').textContent = 'Stardust: ' + Save.data.stardust;
+    const skinKeys = Object.keys(CFG.SKINS);
+    for (let i = 0; i < skinKeys.length; i++) {
+      const skin = CFG.SKINS[skinKeys[i]];
+      const owned = Save.data.unlockedSkins.indexOf(skin.id) !== -1;
+      const equipped = Save.data.equippedSkin === skin.id;
+      const canBuy = !owned && Save.data.stardust >= skin.price;
+      const card = document.createElement('div');
+      card.className = 'skin-card' + (equipped ? ' equipped' : '');
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.style.backgroundColor = skin.colorCore;
+      preview.style.color = skin.colorCore;
+      preview.style.boxShadow = '0 0 16px ' + skin.glowColor;
+      const nameEl = document.createElement('div');
+      nameEl.className = 'sname';
+      nameEl.textContent = skin.name;
+      const priceEl = document.createElement('div');
+      priceEl.className = 'sprice';
+      priceEl.textContent = owned ? (equipped ? 'EQUIPPED' : 'OWNED') : (skin.price + ' Stardust');
+      const btn = document.createElement('button');
+      btn.className = 'btn' + (equipped ? ' green' : canBuy ? ' gold' : owned ? '' : '');
+      if (equipped) {
+        btn.textContent = 'ACTIVE';
+        btn.disabled = true;
+      } else if (owned) {
+        btn.textContent = 'EQUIP';
+        btn.onclick = () => { Save.data.equippedSkin = skin.id; Save.persist(); this._buildShopGrid(); Audio.click(); };
+      } else if (canBuy) {
+        btn.textContent = 'BUY';
+        btn.onclick = () => { Save.data.stardust -= skin.price; Save.data.unlockedSkins.push(skin.id); Save.data.equippedSkin = skin.id; Save.persist(); this._buildShopGrid(); Audio.click(); };
+      } else {
+        btn.textContent = 'LOCKED';
+        btn.disabled = true;
+      }
+      btn.style.padding = '6px 16px';
+      btn.style.fontSize = '0.7rem';
+      card.appendChild(preview);
+      card.appendChild(nameEl);
+      card.appendChild(priceEl);
+      card.appendChild(btn);
+      grid.appendChild(card);
+    }
+  }
+};
+
+
+// ============================================================
+// SECTION 14: CRAZYGAMES SDK SKELETON
+// ============================================================
+const CrazySDK = {
+  initialized: false,
+  init() {
+    // CrazyGames SDK integration placeholder
+    // In production, load the SDK and call:
+    // window.CrazyGames.SDK.init()
+    this.initialized = true;
+  },
+  gameplayStart() {
+    // CrazyGames.SDK.game.gameplayStart()
+  },
+  gameplayStop() {
+    // CrazyGames.SDK.game.gameplayStop()
+  },
+  happyTime() {
+    // CrazyGames.SDK.game.happytime()
+  },
+  showAd(type, cb) {
+    // CrazyGames.SDK.ad.requestAd(type, { adFinished: cb, adError: cb, adStarted: ()=>{} })
+    if (cb) cb();
+  }
+};
+
+// ============================================================
+// SECTION 15: SAVE / PERSISTENCE
+// ============================================================
+const Save = {
+  STORAGE_KEY: 'neogravity_save_v1',
+  data: {
+    unlocked: 0,
+    best: {},
+    stardust: 0,
+    unlockedSkins: ['default'],
+    equippedSkin: 'default'
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Merge with defaults
+        this.data.unlocked = parsed.unlocked || 0;
+        this.data.best = parsed.best || {};
+        this.data.stardust = parsed.stardust || 0;
+        this.data.unlockedSkins = parsed.unlockedSkins || ['default'];
+        this.data.equippedSkin = parsed.equippedSkin || 'default';
+        // Validate equipped skin exists
+        if (!CFG.SKINS[this.data.equippedSkin]) {
+          this.data.equippedSkin = 'default';
+        }
+      }
+    } catch(e) {
+      console.warn('Save load failed, using defaults');
+    }
+  },
+  persist() {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+    } catch(e) {
+      console.warn('Save persist failed');
+    }
+  },
+  recordLevel(idx, shots) {
+    if (!this.data.best[idx] || shots < this.data.best[idx]) {
+      this.data.best[idx] = shots;
+    }
+    if (idx >= this.data.unlocked && idx < LEVELS.length - 1) {
+      this.data.unlocked = idx + 1;
+    }
+    this.persist();
+  }
+};
+
+
+// ============================================================
+// SECTION 16: GAME CORE (state machine, level lifecycle)
+// ============================================================
+const Game = {
+  state: 'MENU',
+  levelIdx: 0,
+  level: null,
+  orb: null,
+  vortex: null,
+  shots: 0,
+  starsCollected: 0,
+  totalStars: 0,
+  time: 0,
+  accumulator: 0,
+  lastTime: 0,
+  trailTimer: 0,
+  _pauseBtn: null,
+
+  startLevel(idx) {
+    this.levelIdx = idx;
+    this.level = LEVELS[idx];
+    this.orb = makeOrb(this.level.spawn.x, this.level.spawn.y);
+    this.vortex = makeVortex(this.level.vortex.x, this.level.vortex.y);
+    this.shots = 0;
+    this.starsCollected = 0;
+    // Reset stars
+    for (let i = 0; i < this.level.stars.length; i++) {
+      this.level.stars[i].collected = false;
+    }
+    this.totalStars = this.level.stars.length;
+    this.time = 0;
+    this.accumulator = 0;
+    Particles.pool.clear();
+    UI.showHUD();
+    UI.updateHUD(this.shots, this.starsCollected, this.totalStars, Save.data.stardust);
+    this.state = 'PLAYING';
+    CrazySDK.gameplayStart();
+  },
+
+  retryLevel() {
+    Audio.click();
+    this.startLevel(this.levelIdx);
+  },
+
+  nextLevel() {
+    Audio.click();
+    if (this.levelIdx < LEVELS.length - 1) {
+      this.startLevel(this.levelIdx + 1);
+    } else {
+      UI.showMenu();
+    }
+  },
+
+  quitToMenu() {
+    Audio.click();
+    CrazySDK.gameplayStop();
+    UI.showMenu();
+  },
+
+  pause() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'PAUSED';
+    UI.showPaused();
+  },
+
+  resume() {
+    if (this.state !== 'PAUSED') return;
+    this.state = 'PLAYING';
+    UI.hidePaused();
+    Audio.click();
+  },
+
+  victory() {
+    this.state = 'VICTORY';
+    CrazySDK.gameplayStop();
+    CrazySDK.happyTime();
+    Audio.victory();
+    Particles.emit(this.vortex.x, this.vortex.y, 50, '#39ff88', 400, 1.2, 6);
+    Viewport.shake(8, 0.3);
+    // Calculate reward
+    const starReward = this.starsCollected * 10;
+    const perfectBonus = (this.shots <= this.level.par) ? 25 : 0;
+    const totalReward = starReward + perfectBonus;
+    Save.data.stardust += totalReward;
+    Save.recordLevel(this.levelIdx, this.shots);
+    // Build message
+    let msg = 'Stars: ' + this.starsCollected + '/' + this.totalStars + ' (+' + starReward + ')';
+    if (perfectBonus > 0) msg += ' | Perfect! (+25)';
+    msg += ' | Total: +' + totalReward + ' Stardust';
+    UI.showVictory(msg);
+  },
+
+  gameOver() {
+    this.state = 'GAME_OVER';
+    CrazySDK.gameplayStop();
+    Audio.kill();
+    Particles.emit(this.orb.x, this.orb.y, 40, '#ff3939', 350, 0.8, 5);
+    Viewport.shake(12, 0.4);
+    UI.showGameOver();
+  },
+
+  launchOrb(drag) {
+    if (this.orb.launched) {
+      // Reset orb for next shot
+      this.orb.x = this.level.spawn.x;
+      this.orb.y = this.level.spawn.y;
+      this.orb.vx = 0;
+      this.orb.vy = 0;
+      this.orb.launched = false;
+      this.orb.alive = true;
+    }
+    this.orb.vx = drag.dx * CFG.LAUNCH_MULT;
+    this.orb.vy = drag.dy * CFG.LAUNCH_MULT;
+    this.orb.launched = true;
+    this.shots++;
+    Audio.launch();
+    Particles.emit(this.orb.x, this.orb.y, 15,
+      CFG.SKINS[Save.data.equippedSkin].colorTrail, 200, 0.5, 4);
+    UI.updateHUD(this.shots, this.starsCollected, this.totalStars, Save.data.stardust);
+  },
+
+  fixedStep(dt) {
+    if (!this.orb.launched || !this.orb.alive) return;
+
+    // Physics integration
+    Physics.integrateOrb(this.orb, dt, this.level);
+
+    // Wall collision
+    if (Physics.collideWalls(this.orb, this.level.walls)) {
+      Audio.bounce();
+      Particles.emit(this.orb.x, this.orb.y, 5, '#aaa', 150, 0.3, 3);
+    }
+
+    // Bumper collision
+    if (Physics.collideBumpers(this.orb, this.level.bumpers)) {
+      Audio.bumperHit();
+      Particles.emit(this.orb.x, this.orb.y, 12, '#ff39b8', 250, 0.5, 4);
+      Viewport.shake(4, 0.15);
+    }
+
+    // Star collision
+    const newStars = Physics.collideStars(this.orb, this.level.stars);
+    if (newStars > 0) {
+      this.starsCollected += newStars;
+      UI.updateHUD(this.shots, this.starsCollected, this.totalStars, Save.data.stardust);
+    }
+
+    // Kill zone collision
+    if (Physics.collideKillZones(this.orb, this.level.kills)) {
+      this.orb.alive = false;
+      this.gameOver();
+      return;
+    }
+
+    // Vortex collision (goal)
+    if (Physics.collideVortex(this.orb, this.vortex)) {
+      this.victory();
+      return;
+    }
+
+    // Out of bounds
+    if (Physics.outOfBounds(this.orb)) {
+      this.orb.alive = false;
+      this.gameOver();
+      return;
+    }
+  },
+
+  update(timestamp) {
+    if (this.lastTime === 0) this.lastTime = timestamp;
+    const frameTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+    this.lastTime = timestamp;
+
+    if (this.state !== 'PLAYING') {
+      requestAnimationFrame((t) => this.update(t));
+      return;
+    }
+
+    this.time += frameTime;
+    Viewport.updateShake(frameTime);
+
+    // Fixed timestep physics
+    this.accumulator += frameTime;
+    while (this.accumulator >= CFG.DT) {
+      this.fixedStep(CFG.DT);
+      this.accumulator -= CFG.DT;
+    }
+
+    // Trail particles
+    if (this.orb.launched && this.orb.alive) {
+      this.trailTimer += frameTime;
+      if (this.trailTimer > 0.03) {
+        this.trailTimer = 0;
+        const skin = CFG.SKINS[Save.data.equippedSkin] || CFG.SKINS['default'];
+        Particles.trail(this.orb.x, this.orb.y, skin.colorTrail);
+      }
+    }
+
+    // Update particles
+    Particles.update(frameTime);
+
+    // Handle input for slingshot
+    if (!this.orb.launched && Input.isDown) {
+      // Player is aiming
+    }
+    if (!this.orb.launched && !Input.isDown) {
+      const drag = Input.getDrag();
+      if (drag && drag.dist > 15) {
+        this.launchOrb(drag);
+        Input.startX = 0; Input.startY = 0;
+        Input.currX = 0; Input.currY = 0;
+      }
+    }
+
+    // Render
+    this.render();
+
+    requestAnimationFrame((t) => this.update(t));
+  },
+
+  render() {
+    const ctx = Viewport.ctx;
+    // Clear
+    ctx.clearRect(0, 0, Viewport.canvas.width, Viewport.canvas.height);
+
+    Viewport.begin();
+
+    // Background
+    Starfield.draw(ctx);
+
+    // Level entities
+    Renderer.drawKillZones(ctx, this.level.kills);
+    Renderer.drawWalls(ctx, this.level.walls);
+    Renderer.drawBumpers(ctx, this.level.bumpers);
+    if (this.level.blackholes.length > 0) {
+      Renderer.drawBlackHoles(ctx, this.level.blackholes, this.time);
+    }
+    Renderer.drawStars(ctx, this.level.stars, this.time);
+    Renderer.drawVortex(ctx, this.vortex, this.time);
+
+    // Spawn indicator
+    if (!this.orb.launched) {
+      Renderer.drawSpawn(ctx, this.level.spawn);
+    }
+
+    // Particles behind orb
+    Renderer.drawParticles(ctx);
+
+    // Orb
+    if (this.orb.alive) {
+      Renderer.drawOrb(ctx, this.orb);
+    }
+
+    // Slingshot UI
+    if (!this.orb.launched && Input.isDown) {
+      const drag = Input.getDrag();
+      Renderer.drawSlingshot(ctx, this.orb, drag);
+    }
+
+    Viewport.end();
+  },
+
+  // Initial kick to keep RAF running during menus
+  _idleLoop(timestamp) {
+    if (this.state === 'PLAYING') return;
+    this.lastTime = timestamp;
+    requestAnimationFrame((t) => {
+      if (this.state === 'PLAYING') {
+        this.update(t);
+      } else {
+        this._idleLoop(t);
+      }
+    });
+  }
+};
+
+
+// ============================================================
+// SECTION 17: BOOTSTRAP
+// ============================================================
+(function bootstrap() {
+  // Initialize systems
+  Save.load();
+  Viewport.init();
+  Starfield.init();
+  Audio.init();
+  Input.init(Viewport.canvas, (cx, cy) => Viewport.screenToWorld(cx, cy));
+  UI.init();
+  CrazySDK.init();
+
+  // Show menu
+  UI.showMenu();
+
+  // Start idle loop
+  Game._idleLoop(performance.now());
+
+  // Pause button via keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+      if (Game.state === 'PLAYING') Game.pause();
+      else if (Game.state === 'PAUSED') Game.resume();
+    }
+  });
+
+  // Tap to pause on HUD area
+  document.getElementById('hud').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    if (Game.state === 'PLAYING') Game.pause();
+  });
+  document.getElementById('hud').style.pointerEvents = 'auto';
+
+  console.log('Neo-Gravity: Elastic Escape initialized');
+})();
+
+// ============================================================
+// ADDITIONAL UTILITIES: Level helper functions
+// ============================================================
+// Utility to validate all levels have proper structure
+function validateLevels() {
+  for (let i = 0; i < LEVELS.length; i++) {
+    const lvl = LEVELS[i];
+    if (!lvl.name) console.warn('Level ' + i + ' missing name');
+    if (!lvl.spawn) console.warn('Level ' + i + ' missing spawn');
+    if (!lvl.vortex) console.warn('Level ' + i + ' missing vortex');
+    if (!lvl.walls) console.warn('Level ' + i + ' missing walls');
+    if (!lvl.bumpers) lvl.bumpers = [];
+    if (!lvl.blackholes) lvl.blackholes = [];
+    if (!lvl.kills) lvl.kills = [];
+    if (!lvl.stars) lvl.stars = [];
+    if (typeof lvl.par !== 'number') lvl.par = 3;
+  }
+  return true;
+}
+validateLevels();
+
+// Debug info helper (accessible via console)
+window.NEO_DEBUG = {
+  getSaveData: function() { return JSON.parse(JSON.stringify(Save.data)); },
+  resetSave: function() {
+    Save.data = { unlocked: 0, best: {}, stardust: 0, unlockedSkins: ['default'], equippedSkin: 'default' };
+    Save.persist();
+    console.log('Save data reset');
+  },
+  addStardust: function(amount) {
+    Save.data.stardust += (amount || 100);
+    Save.persist();
+    console.log('Added ' + (amount || 100) + ' stardust. Total: ' + Save.data.stardust);
+  },
+  unlockAll: function() {
+    Save.data.unlocked = LEVELS.length - 1;
+    Save.persist();
+    console.log('All levels unlocked');
+  },
+  getState: function() { return Game.state; },
+  getLevelInfo: function() {
+    if (!Game.level) return 'No level loaded';
+    return {
+      name: Game.level.name,
+      par: Game.level.par,
+      walls: Game.level.walls.length,
+      bumpers: Game.level.bumpers.length,
+      blackholes: Game.level.blackholes.length,
+      kills: Game.level.kills.length,
+      stars: Game.level.stars.length
+    };
+  }
+};
+
+// Performance monitor (development aid)
+const PerfMonitor = {
+  _frames: 0,
+  _lastCheck: 0,
+  _fps: 60,
+  update(timestamp) {
+    this._frames++;
+    if (timestamp - this._lastCheck >= 1000) {
+      this._fps = this._frames;
+      this._frames = 0;
+      this._lastCheck = timestamp;
+    }
+  },
+  getFPS() { return this._fps; }
+};
+</script>
+</body>
+</html>
